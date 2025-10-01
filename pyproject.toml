@@ -1,17 +1,16 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
-[project]
+[tool.poetry]
 name = "sigmaeval"
 version = "0.1.0"
 description = "A Python library for evaluating Generative AI agents and apps."
 readme = "README.md"
-requires-python = ">=3.10"
-license = {text = "Apache-2.0"}
-authors = [
-    {name = "Itura AI"}
-]
+authors = ["Itura AI"]
+license = "Apache-2.0"
+homepage = "https://github.com/Itura-AI/sigmaeval"
+repository = "https://github.com/Itura-AI/sigmaeval"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -21,24 +20,21 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = []
+packages = [{include = "sigmaeval"}]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-    "black>=23.0",
-    "ruff>=0.1.0",
-]
+[tool.poetry.dependencies]
+python = "^3.10"
 
-[project.urls]
-Homepage = "https://github.com/Itura-AI/sigmaeval"
-Repository = "https://github.com/Itura-AI/sigmaeval"
-Issues = "https://github.com/Itura-AI/sigmaeval/issues"
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0"
+pytest-cov = "^4.0"
+black = "^23.0"
+ruff = "^0.1.0"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["sigmaeval*"]
+[tool.poetry.urls]
+"Homepage" = "https://github.com/Itura-AI/sigmaeval"
+"Repository" = "https://github.com/Itura-AI/sigmaeval"
+"Issues" = "https://github.com/Itura-AI/sigmaeval/issues"
 
 [tool.black]
 line-length = 100
@@ -53,4 +49,3 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-
