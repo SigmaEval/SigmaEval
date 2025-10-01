@@ -6,7 +6,7 @@ from typing import Callable, Awaitable, Any
 from pydantic import BaseModel, Field
 
 
-class Then(BaseModel):
+class Expectation(BaseModel):
     """
     Defines the expected outcome and evaluation method for a behavioral test case.
     
@@ -31,7 +31,7 @@ class BehavioralTestCase(BaseModel):
     title: str = Field(..., description="Test case title")
     given: str = Field(..., description="Context and prerequisites")
     when: str = Field(..., description="User goal or action")
-    then: Then = Field(..., description="Expected outcome and evaluator")
+    then: Expectation = Field(..., description="Expected outcome and evaluator")
 
 
 class SigmaEval:

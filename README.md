@@ -74,12 +74,12 @@ Each scenario is defined using a `BehavioralTestCase` object with three main par
 
 *   **`Given`**: This section establishes the prerequisite state and context for the **User Simulator LLM**. This can include the persona of the user (e.g., a new user, an expert user), the context of the conversation (e.g., a customer's order number), or any other background information.
 *   **`When`**: This describes the specific goal or action the **User Simulator LLM** will try to achieve. SigmaEval uses this to guide the simulation.
-*   **`Then`**: This section specifies the expected outcome. It is a `Then` object containing an `outcome` description (which is passed to the **Judge LLM**) and an `evaluator` to perform the statistical analysis.
+*   **`Then`**: This section specifies the expected outcome. It is an `Expectation` object containing an `outcome` description (which is passed to the **Judge LLM**) and an `evaluator` to perform the statistical analysis.
 
 This approach allows for a robust, automated evaluation of the AI's behavior against clear, human-readable standards.
 
 ```python
-from sigmaeval import SigmaEval, BehavioralTestCase, Then, BinaryEvaluator
+from sigmaeval import SigmaEval, BehavioralTestCase, Expectation, BinaryEvaluator
 import asyncio
 
 # --- Define the BehavioralTestCase ---
@@ -87,7 +87,7 @@ scenario = BehavioralTestCase(
     title="Bot explains its capabilities",
     given="A new user who has not interacted with the bot before",
     when="The user asks a general question about the bot's capabilities",
-    then=Then(
+    then=Expectation(
         outcome="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         evaluator=BinaryEvaluator(
             significance_level=0.05,
@@ -152,7 +152,7 @@ This evaluator is particularly useful for subjective qualities like helpfulness 
 ```python
 from sigmaeval import RatingMeanEvaluator
 
-# This would be used inside a `Then` object
+# This would be used inside an `Expectation` object
 mean_rating_evaluator = RatingMeanEvaluator(
     significance_level=0.05,
     min_mean_rating=7.0, # The minimum mean rating to test against
@@ -166,7 +166,7 @@ For subjective qualities like helpfulness or tone, this evaluator tests if the t
 ```python
 from sigmaeval import RatingProportionEvaluator
 
-# This would be used inside a `Then` object, just like BinaryEvaluator
+# This would be used inside an `Expectation` object, just like BinaryEvaluator
 rating_evaluator = RatingProportionEvaluator(
     significance_level=0.05,
     min_rating=8, # The minimum acceptable rating on a 1-10 scale
@@ -201,7 +201,7 @@ scenario = BehavioralTestCase(
     title="Bot explains its capabilities",
     given="A new user who has not interacted with the bot before",
     when="The user asks a general question about the bot's capabilities",
-    then=Then(
+    then=Expectation(
         outcome="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         # ... evaluator details
     )
