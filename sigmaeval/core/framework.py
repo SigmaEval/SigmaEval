@@ -5,6 +5,7 @@ Framework orchestration logic for SigmaEval.
 from typing import Callable, Awaitable, Any, Dict
 
 from .models import AppResponse, BehavioralTest
+from .rubric_generator import _parse_behavioral_test, _generate_rubric
 
 
 class SigmaEval:
@@ -49,19 +50,23 @@ class SigmaEval:
         Returns:
             Dictionary containing evaluation results
         """
-        # TODO: Implement evaluation logic
         # Phase 1: Test Setup
-        #   1. Parse BehavioralTest
-        #   2. Generate rubric from expected_behavior
+        # 1. Parse BehavioralTest
+        parsed_test = _parse_behavioral_test(scenario)
         
-        # Phase 2: Data Collection (repeated sample_size times)
+        # 2. Generate rubric from expected_behavior
+        rubric = await _generate_rubric(scenario, self.model)
+        
+        # TODO: Phase 2: Data Collection (repeated sample_size times)
         #   3. Simulate user with User Simulator LLM
         #   4. Record interaction via app_callback
         #   5. Judge expected behavior with Judge LLM using rubric
         
-        # Phase 3: Statistical Analysis
+        # TODO: Phase 3: Statistical Analysis
         #   6. Pass scores to evaluator for statistical testing
         
-        return {}
-
-
+        return {
+            "model": self.model,
+            "test_config": parsed_test,
+            "rubric": rubric,
+        }
