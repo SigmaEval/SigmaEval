@@ -79,8 +79,15 @@ Each scenario is defined using a `BehavioralTestCase` object with three main par
 This approach allows for a robust, automated evaluation of the AI's behavior against clear, human-readable standards.
 
 ```python
-from sigmaeval import SigmaEval, BehavioralTestCase, Expectation, BinaryEvaluator
+from sigmaeval import (
+    SigmaEval, 
+    BehavioralTestCase, 
+    Expectation, 
+    BinaryEvaluator, 
+    AppResponse,
+)
 import asyncio
+from typing import Dict, Any
 
 # --- Define the BehavioralTestCase ---
 scenario = BehavioralTestCase(
@@ -98,27 +105,33 @@ scenario = BehavioralTestCase(
 )
 
 # Define the callback to connect SigmaEval to your app
-async def app_callback(message: str) -> str:
+async def app_callback(message: str, state: Dict[str, Any]) -> AppResponse:
     """
     This function acts as a bridge between SigmaEval and your application.
-    SigmaEval sends a message, and this function should return the app's
-    response as a string.
+    It takes a message and a state dictionary, and returns an AppResponse.
+    The 'message' is the message from SigmaEval's User Simulator LLM.
+    The 'state' dictionary is empty on the first turn of a conversation.
+    The 'AppResponse' is the response from your application, containing the response string and the updated state of the conversation.
     """
     print(f"  [App] Received message: '{message}'")
 
-    # In a real test, you would call your actual application logic here
-    # For example: response_message = await my_llm_app.get_response(message)
+    # In a real test, you would call your actual application logic here.
+    # For this example, we'll manage a simple history in the state.
+    history = state.get("history", [])
+    history.append({"role": "user", "content": message})
+    
     await asyncio.sleep(0.1)  # Simulate async work
-    response_message = f"Hello! You said: '{message}'. Here is the information you requested."
+    response_message = f"Hello! This is turn #{len(history)}. You said: '{message}'."
+    history.append({"role": "assistant", "content": response_message})
     
     print(f"  [App] Sending response: '{response_message}'")
     
-    return response_message
+    # Return the response and the updated state
+    return AppResponse(response=response_message, state={"history": history})
 
 # Initialize SigmaEval and run the evaluation
 async def main():
     sigma_eval = SigmaEval()
-    # The `run` method is async to support the async callback
     results = await sigma_eval.run(scenario, app_callback)
 
     # Print the results

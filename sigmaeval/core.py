@@ -2,8 +2,20 @@
 Core classes for SigmaEval framework.
 """
 
-from typing import Callable, Awaitable, Any
+from typing import Callable, Awaitable, Any, Dict
 from pydantic import BaseModel, Field
+
+
+class AppResponse(BaseModel):
+    """
+    The response from the application under test for a single turn.
+
+    Attributes:
+        response: The string response from the app.
+        state: An updated state object to be passed to the next turn.
+    """
+    response: str
+    state: Dict[str, Any]
 
 
 class Expectation(BaseModel):
@@ -49,14 +61,14 @@ class SigmaEval:
     async def run(
         self, 
         scenario: BehavioralTestCase, 
-        app_callback: Callable[[str], Awaitable[str]]
+        app_callback: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]]
     ) -> dict[str, Any]:
         """
         Run evaluation for a behavioral test case.
         
         Args:
             scenario: The behavioral test case to evaluate
-            app_callback: Async callback function that takes a message and returns app's response
+            app_callback: Async callback that takes a message and state dict, and returns an AppResponse
             
         Returns:
             Dictionary containing evaluation results
