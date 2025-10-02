@@ -2191,6 +2191,22 @@ files = [
 ]
 
 [[package]]
+name = "tenacity"
+version = "9.1.2"
+description = "Retry code until it succeeds"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "tenacity-9.1.2-py3-none-any.whl", hash = "sha256:f77bf36710d8b73a50b2dd155c97b870017ad21afe6ab300326b0371b3b05138"},
+    {file = "tenacity-9.1.2.tar.gz", hash = "sha256:1169d376c297e7de388d18b4481760d478b0e99a777cad3a9c86e556f4b697cb"},
+]
+
+[package.extras]
+doc = ["reno", "sphinx"]
+test = ["pytest", "tornado (>=4.5)", "typeguard"]
+
+[[package]]
 name = "tiktoken"
 version = "0.11.0"
 description = "tiktoken is a fast BPE tokeniser for use with OpenAI's models"
@@ -2524,4 +2540,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "a9b843b56d2b9c8f49a261427789b4689149753baeac1e18697bf0398f425869"
+content-hash = "fb85c7dcf27ebfecbf1fb31dbcc2bc423f945831edd6a27019f288eec041428e"
