@@ -61,14 +61,14 @@ class SigmaEval:
     async def run(
         self, 
         scenario: BehavioralTestCase, 
-        app_callback: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]]
+        app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]]
     ) -> dict[str, Any]:
         """
         Run evaluation for a behavioral test case.
         
         Args:
             scenario: The behavioral test case to evaluate
-            app_callback: Async callback that takes a message and state dict, and returns an AppResponse
+            app_handler: Async callback that takes a message and state dict, and returns an AppResponse
             
         Returns:
             Dictionary containing evaluation results

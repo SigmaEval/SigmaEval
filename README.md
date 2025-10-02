@@ -105,7 +105,7 @@ scenario = BehavioralTestCase(
 )
 
 # Define the callback to connect SigmaEval to your app
-async def app_callback(message: str, state: Dict[str, Any]) -> AppResponse:
+async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
     """
     This function acts as a bridge between SigmaEval and your application.
     It takes a message and a state dictionary, and returns an AppResponse.
@@ -132,7 +132,7 @@ async def app_callback(message: str, state: Dict[str, Any]) -> AppResponse:
 # Initialize SigmaEval and run the evaluation
 async def main():
     sigma_eval = SigmaEval()
-    results = await sigma_eval.run(scenario, app_callback)
+    results = await sigma_eval.run(scenario, app_handler)
 
     # Print the results
     print(f"--- Results for BehavioralTestCase: {scenario.title} ---")
