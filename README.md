@@ -68,7 +68,7 @@ To gather a statistically meaningful sample, the following steps are repeated mu
 
 **Phase 3: Statistical Analysis**
 
-6.  **Drawing a Conclusion:** After all repetitions are complete, the collection of scores (the sample) is passed to the statistical evaluator you defined (`BinaryEvaluator`, `RatingMeanEvaluator`, etc.). This evaluator performs the appropriate statistical tests to determine if the application's performance meets your quality bar, providing a final pass/fail result with statistical confidence.
+6.  **Drawing a Conclusion:** After all repetitions are complete, the collection of scores (the sample) is passed to the statistical evaluator you defined (`SuccessRateEvaluator`, `RatingMeanEvaluator`, etc.). This evaluator performs the appropriate statistical tests to determine if the application's performance meets your quality bar, providing a final pass/fail result with statistical confidence.
 
 Each scenario is defined using a `BehavioralTest` object with three main parts:
 
@@ -83,7 +83,7 @@ from sigmaeval import (
     SigmaEval, 
     BehavioralTest, 
     Expectation, 
-    BinaryEvaluator, 
+    SuccessRateEvaluator, 
     AppResponse,
 )
 import asyncio
@@ -96,7 +96,7 @@ scenario = BehavioralTest(
     when="The user asks a general question about the bot's capabilities",
     then=Expectation(
         expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
-        evaluator=BinaryEvaluator(
+        evaluator=SuccessRateEvaluator(
             significance_level=0.05,
             min_proportion=0.90,
             num_of_samples=30
@@ -146,13 +146,13 @@ if __name__ == "__main__":
 
 SigmaEval provides different methods to evaluate your AI's performance. You can choose the one that best fits your scenario.
 
-#### BinaryEvaluator
+#### SuccessRateEvaluator
 This evaluator performs a one-sided hypothesis test to determine if the true proportion of successful outcomes for the entire user population is greater than a specified minimum. For each run, the Judge LLM provides a rating on a 1-10 scale based on the rubric. A rating of 6 or higher is considered a "success," and a rating of 5 or lower is considered a "failure." The test passes if the observed success rate is high enough to reject the null hypothesis, providing statistical evidence that the system's performance exceeds the `min_proportion` at the specified `significance_level`.
 
 ```python
-from sigmaeval import BinaryEvaluator
+from sigmaeval import SuccessRateEvaluator
 
-binary_evaluator = BinaryEvaluator(
+binary_evaluator = SuccessRateEvaluator(
     significance_level=0.05,
     min_proportion=0.90,
     num_of_samples=30
@@ -174,12 +174,12 @@ mean_rating_evaluator = RatingMeanEvaluator(
 ```
 
 #### RatingProportionEvaluator
-For subjective qualities like helpfulness or tone, this evaluator tests if the true proportion of users who would rate a a response at or above a certain level exceeds a specified minimum. The Judge LLM grades each response on the 1-10 numerical scale from the rubric, and the evaluator then performs a one-sided hypothesis test, similar to the `BinaryEvaluator`, to make an inference about the entire user population.
+For subjective qualities like helpfulness or tone, this evaluator tests if the true proportion of users who would rate a a response at or above a certain level exceeds a specified minimum. The Judge LLM grades each response on the 1-10 numerical scale from the rubric, and the evaluator then performs a one-sided hypothesis test, similar to the `SuccessRateEvaluator`, to make an inference about the entire user population.
 
 ```python
 from sigmaeval import RatingProportionEvaluator
 
-# This would be used inside an `Expectation` object, just like BinaryEvaluator
+# This would be used inside an `Expectation` object, just like SuccessRateEvaluator
 rating_evaluator = RatingProportionEvaluator(
     significance_level=0.05,
     min_rating=8, # The minimum acceptable rating on a 1-10 scale
@@ -198,11 +198,11 @@ While both evaluators measure subjective quality, they answer different question
 Choosing between them depends on your specific quality goals. Are you aiming for a high average performance, or do you need to guarantee a consistent minimum level of quality for most users?
 
 
-### A Note on `BinaryEvaluator`
+### A Note on `SuccessRateEvaluator`
 
-You may have noticed that the functionality of `BinaryEvaluator` is a specific use case of `RatingProportionEvaluator`. That is correct. `BinaryEvaluator` is provided as a convenience API for the common scenario where any score of 6 or higher on a 1-10 scale is considered a "success."
+You may have noticed that the functionality of `SuccessRateEvaluator` is a specific use case of `RatingProportionEvaluator`. That is correct. `SuccessRateEvaluator` is provided as a convenience API for the common scenario where any score of 6 or higher on a 1-10 scale is considered a "success."
 
-Internally, `BinaryEvaluator(...)` is equivalent to `RatingProportionEvaluator(min_rating=6, ...)`. It simplifies test definition when you only need a simple pass/fail judgment based on a fixed threshold.
+Internally, `SuccessRateEvaluator(...)` is equivalent to `RatingProportionEvaluator(min_rating=6, ...)`. It simplifies test definition when you only need a simple pass/fail judgment based on a fixed threshold.
 
 
 ### Appendix A: Example Rubric

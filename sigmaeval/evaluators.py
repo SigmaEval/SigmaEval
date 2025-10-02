@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from typing import List
 
 
-class BinaryEvaluator(BaseModel):
+class SuccessRateEvaluator(BaseModel):
     """
     Performs one-sided hypothesis test for proportion of successful outcomes.
     
@@ -76,7 +76,7 @@ class RatingProportionEvaluator(BaseModel):
     """
     Tests if proportion of ratings at or above threshold exceeds minimum.
     
-    Similar to BinaryEvaluator but with configurable rating threshold.
+    Similar to SuccessRateEvaluator but with configurable rating threshold.
     
     Attributes:
         significance_level: Significance level for hypothesis test (e.g., 0.05)
