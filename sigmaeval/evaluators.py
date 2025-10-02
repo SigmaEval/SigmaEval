@@ -18,7 +18,10 @@ class SuccessRateEvaluator(BaseModel):
         min_proportion: Minimum acceptable proportion of successes (e.g., 0.90)
         num_of_samples: Number of samples to collect for statistical analysis
     """
-    significance_level: float = Field(..., description="Significance level (alpha)")
+    significance_level: float = Field(
+        ..., 
+        description="The probability of incorrectly rejecting the null hypothesis (a 'false positive'). Common values are 0.05 (5%) or 0.01 (1%). A value of 0.05 means you accept a 5% chance of concluding the system meets the minimum proportion when it actually doesn't."
+    )
     min_proportion: float = Field(..., description="Minimum proportion of successes")
     num_of_samples: int = Field(..., description="Number of samples to collect")
     
@@ -51,7 +54,10 @@ class RatingMeanEvaluator(BaseModel):
         min_mean_rating: Minimum acceptable mean rating (e.g., 7.0)
         num_of_samples: Number of samples to collect for statistical analysis
     """
-    significance_level: float = Field(..., description="Significance level (alpha)")
+    significance_level: float = Field(
+        ...,
+        description="The probability of incorrectly rejecting the null hypothesis (a 'false positive'). Common values are 0.05 (5%) or 0.01 (1%). A value of 0.05 means you accept a 5% chance of concluding the system's mean rating exceeds the minimum when it actually doesn't."
+    )
     min_mean_rating: float = Field(..., description="Minimum mean rating threshold")
     num_of_samples: int = Field(..., description="Number of samples to collect")
     
@@ -84,7 +90,10 @@ class RatingProportionEvaluator(BaseModel):
         min_proportion: Minimum proportion of responses meeting min_rating (e.g., 0.75)
         num_of_samples: Number of samples to collect for statistical analysis
     """
-    significance_level: float = Field(..., description="Significance level (alpha)")
+    significance_level: float = Field(
+        ...,
+        description="The probability of incorrectly rejecting the null hypothesis (a 'false positive'). Common values are 0.05 (5%) or 0.01 (1%). A value of 0.05 means you accept a 5% chance of concluding the system meets the minimum proportion when it actually doesn't."
+    )
     min_rating: int = Field(..., description="Minimum acceptable rating (1-10)")
     min_proportion: float = Field(..., description="Minimum proportion at or above min_rating")
     num_of_samples: int = Field(..., description="Number of samples to collect")
