@@ -207,7 +207,7 @@ Internally, `SuccessRateEvaluator(...)` is equivalent to `RatingProportionEvalua
 
 ### Supported LLMs
 
-SigmaEval is agnostic to the specific model/provider used by the application under test. For the LLM-as-a-Judge component, SigmaEval uses the [litellm](https://github.com/BerriAI/litellm) library under the hood, which provides a unified interface to many providers and models.
+SigmaEval is agnostic to the specific model/provider used by the application under test. For the LLM-as-a-Judge component, SigmaEval uses the [LiteLLM](https://github.com/BerriAI/litellm) library under the hood, which provides a unified interface to many providers and models.
 
 ### Appendix A: Example Rubric
 
