@@ -56,7 +56,7 @@ The evaluation process for a single `BehavioralTest` unfolds in three main phase
 **Phase 1: Test Setup**
 
 1.  **Defining Behavior with BDD:** You start by defining a test scenario using a `BehavioralTest` with its `Given`, `When`, and `Then` clauses. This sets the stage for the entire evaluation.
-2.  **Creating the Rubric:** Based on the `outcome` you specified in the `Then` clause, SigmaEval generates a detailed 1-10 scoring rubric. This rubric is created once per test case and ensures that every interaction is evaluated against the same consistent criteria (see Appendix A for an example).
+2.  **Creating the Rubric:** Based on the `expected_behavior` you specified in the `Then` clause, SigmaEval generates a detailed 1-10 scoring rubric. This rubric is created once per test case and ensures that every interaction is evaluated against the same consistent criteria (see Appendix A for an example).
 
 **Phase 2: Data Collection (Repeated for `num_of_samples`)**
 
@@ -64,7 +64,7 @@ To gather a statistically meaningful sample, the following steps are repeated mu
 
 3.  **Simulating the User:** For each repetition, SigmaEval uses the `Given` (user's persona) and `When` (user's goal) clauses to prompt a **User Simulator LLM**. This LLM realistically simulates a user interacting with your application. The interaction can span multiple turns.
 4.  **Recording the Interaction:** The entire conversation between the User Simulator LLM and your AI application is recorded for judgment.
-5.  **Judging the Outcome:** A separate **Judge LLM** analyzes the recorded conversation against the pre-defined rubric. It assigns a score from 1-10 based on how well the AI application's behavior met the desired `outcome`.
+5.  **Judging the Outcome:** A separate **Judge LLM** analyzes the recorded conversation against the pre-defined rubric. It assigns a score from 1-10 based on how well the AI application's behavior met the desired `expected_behavior`.
 
 **Phase 3: Statistical Analysis**
 
@@ -74,7 +74,7 @@ Each scenario is defined using a `BehavioralTest` object with three main parts:
 
 *   **`Given`**: This section establishes the prerequisite state and context for the **User Simulator LLM**. This can include the persona of the user (e.g., a new user, an expert user), the context of the conversation (e.g., a customer's order number), or any other background information.
 *   **`When`**: This describes the specific goal or action the **User Simulator LLM** will try to achieve. SigmaEval uses this to guide the simulation.
-*   **`Then`**: This section specifies the expected outcome. It is an `Expectation` object containing an `outcome` description (which is passed to the **Judge LLM**) and an `evaluator` to perform the statistical analysis.
+*   **`Then`**: This section specifies the expected outcome. It is an `Expectation` object containing an `expected_behavior` description (which is passed to the **Judge LLM**) and an `evaluator` to perform the statistical analysis.
 
 This approach allows for a robust, automated evaluation of the AI's behavior against clear, human-readable standards.
 
@@ -95,7 +95,7 @@ scenario = BehavioralTest(
     given="A new user who has not interacted with the bot before",
     when="The user asks a general question about the bot's capabilities",
     then=Expectation(
-        outcome="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
+        expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         evaluator=BinaryEvaluator(
             significance_level=0.05,
             min_proportion=0.90,
@@ -215,7 +215,7 @@ scenario = BehavioralTest(
     given="A new user who has not interacted with the bot before",
     when="The user asks a general question about the bot's capabilities",
     then=Expectation(
-        outcome="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
+        expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         # ... evaluator details
     )
 )

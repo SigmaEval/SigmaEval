@@ -23,10 +23,10 @@ class Expectation(BaseModel):
     Defines the expected outcome and evaluation method for a behavioral test case.
     
     Attributes:
-        outcome: Description of the expected outcome (passed to Judge LLM)
+        expected_behavior: Description of the expected behavior (passed to Judge LLM)
         evaluator: Statistical evaluator to assess the results
     """
-    outcome: str = Field(..., description="Expected outcome description")
+    expected_behavior: str = Field(..., description="Expected behavior description")
     evaluator: Any = Field(..., description="Evaluator instance for statistical analysis")
 
 
@@ -76,12 +76,12 @@ class SigmaEval:
         # TODO: Implement evaluation logic
         # Phase 1: Test Setup
         #   1. Parse BehavioralTest
-        #   2. Generate rubric from outcome
+        #   2. Generate rubric from expected_behavior
         
         # Phase 2: Data Collection (repeated num_of_samples times)
         #   3. Simulate user with User Simulator LLM
         #   4. Record interaction via app_callback
-        #   5. Judge outcome with Judge LLM using rubric
+        #   5. Judge expected behavior with Judge LLM using rubric
         
         # Phase 3: Statistical Analysis
         #   6. Pass scores to evaluator for statistical testing
