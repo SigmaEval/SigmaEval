@@ -15,9 +15,24 @@ class SigmaEval:
     evaluation within a BDD framework.
     """
     
-    def __init__(self):
-        """Initialize SigmaEval framework."""
-        pass
+    def __init__(self, model: str):
+        """
+        Initialize SigmaEval framework.
+
+        Args:
+            model: Fully-qualified model identifier used for LLM-as-a-Judge, e.g.,
+                "openai/gpt-4o". The application under test may use any model; this
+                parameter configures the judge model.
+
+        Note:
+            SigmaEval uses LiteLLM as the unified interface for the LLM-as-a-Judge.
+            For a complete list of supported providers, refer to the LiteLLM documentation:
+            https://docs.litellm.ai/docs/providers
+        """
+        if not isinstance(model, str) or not model.strip():
+            raise ValueError("model must be a non-empty string, e.g., 'openai/gpt-4o'.\nFor a complete list of supported providers, refer to the LiteLLM documentation: https://docs.litellm.ai/docs/providers")
+
+        self.model: str = model
     
     async def evaluate(
         self, 

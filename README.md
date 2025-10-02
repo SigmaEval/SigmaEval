@@ -131,7 +131,7 @@ async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
 
 # Initialize SigmaEval and run the evaluation
 async def main():
-    sigma_eval = SigmaEval()
+    sigma_eval = SigmaEval(model="openai/gpt-4o")
     results = await sigma_eval.evaluate(scenario, app_handler)
 
     # Print the results
@@ -207,7 +207,7 @@ Internally, `SuccessRateEvaluator(...)` is equivalent to `RatingProportionEvalua
 
 ### Supported LLMs
 
-SigmaEval is agnostic to the specific model/provider used by the application under test. For the LLM-as-a-Judge component, SigmaEval uses the [LiteLLM](https://github.com/BerriAI/litellm) library under the hood, which provides a unified interface to many providers and models.
+SigmaEval is agnostic to the specific model/provider used by the application under test. For the LLM-as-a-Judge component, SigmaEval uses the [LiteLLM](https://github.com/BerriAI/litellm) library under the hood, which provides a unified interface to many providers and models (OpenAI, Anthropic, Google, etc.).
 
 ### Appendix A: Example Rubric
 
