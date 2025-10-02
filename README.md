@@ -205,6 +205,10 @@ You may have noticed that the functionality of `SuccessRateEvaluator` is a speci
 Internally, `SuccessRateEvaluator(...)` is equivalent to `RatingProportionEvaluator(min_rating=6, ...)`. It simplifies test definition when you only need a simple pass/fail judgment based on a fixed threshold.
 
 
+### Supported LLMs
+
+SigmaEval is agnostic to the specific model/provider used by the application under test. For the LLM-as-a-Judge component, SigmaEval uses the [litellm](https://github.com/BerriAI/litellm) library under the hood, which provides a unified interface to many providers and models.
+
 ### Appendix A: Example Rubric
 
 For the `BehavioralTest` defined in the Python snippet:
