@@ -30,7 +30,7 @@ class Expectation(BaseModel):
     evaluator: Any = Field(..., description="Evaluator instance for statistical analysis")
 
 
-class BehavioralTestCase(BaseModel):
+class BehavioralTest(BaseModel):
     """
     Defines a behavioral test scenario using Given-When-Then BDD format.
     
@@ -58,9 +58,9 @@ class SigmaEval:
         """Initialize SigmaEval framework."""
         pass
     
-    async def run(
+    async def evaluate(
         self, 
-        scenario: BehavioralTestCase, 
+        scenario: BehavioralTest, 
         app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]]
     ) -> dict[str, Any]:
         """
@@ -75,7 +75,7 @@ class SigmaEval:
         """
         # TODO: Implement evaluation logic
         # Phase 1: Test Setup
-        #   1. Parse BehavioralTestCase
+        #   1. Parse BehavioralTest
         #   2. Generate rubric from outcome
         
         # Phase 2: Data Collection (repeated num_of_samples times)
