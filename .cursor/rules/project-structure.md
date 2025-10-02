@@ -5,7 +5,7 @@
 sigmaeval/
 ├── __init__.py           # Package initialization and public API
 ├── core/                 # Core evaluation functionality
-├── metrics/              # Metric implementations
+├── evaluators/           # Evaluator implementations
 ├── utils/                # Utility functions
 └── exceptions.py         # Custom exceptions
 ```
