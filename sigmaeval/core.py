@@ -78,7 +78,7 @@ class SigmaEval:
         #   1. Parse BehavioralTest
         #   2. Generate rubric from expected_behavior
         
-        # Phase 2: Data Collection (repeated num_of_samples times)
+        # Phase 2: Data Collection (repeated sample_size times)
         #   3. Simulate user with User Simulator LLM
         #   4. Record interaction via app_callback
         #   5. Judge expected behavior with Judge LLM using rubric

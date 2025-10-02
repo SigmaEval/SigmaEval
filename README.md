@@ -58,9 +58,9 @@ The evaluation process for a single `BehavioralTest` unfolds in three main phase
 1.  **Defining Behavior with BDD:** You start by defining a test scenario using a `BehavioralTest` with its `Given`, `When`, and `Then` clauses. This sets the stage for the entire evaluation.
 2.  **Creating the Rubric:** Based on the `expected_behavior` you specified in the `Then` clause, SigmaEval generates a detailed 1-10 scoring rubric. This rubric is created once per test case and ensures that every interaction is evaluated against the same consistent criteria (see Appendix A for an example).
 
-**Phase 2: Data Collection (Repeated for `num_of_samples`)**
+**Phase 2: Data Collection (Repeated for `sample_size`)**
 
-To gather a statistically meaningful sample, the following steps are repeated multiple times (as defined by `num_of_samples`):
+To gather a statistically meaningful sample, the following steps are repeated multiple times (as defined by `sample_size`):
 
 3.  **Simulating the User:** For each repetition, SigmaEval uses the `Given` (user's persona) and `When` (user's goal) clauses to prompt a **User Simulator LLM**. This LLM realistically simulates a user interacting with your application. The interaction can span multiple turns.
 4.  **Recording the Interaction:** The entire conversation between the User Simulator LLM and your AI application is recorded for judgment.
@@ -99,7 +99,7 @@ scenario = BehavioralTest(
         evaluator=SuccessRateEvaluator(
             significance_level=0.05,
             min_proportion=0.90,
-            num_of_samples=30
+            sample_size=30
         )
     )
 )
@@ -155,7 +155,7 @@ from sigmaeval import SuccessRateEvaluator
 binary_evaluator = SuccessRateEvaluator(
     significance_level=0.05,
     min_proportion=0.90,
-    num_of_samples=30
+    sample_size=30
 )
 ```
 
@@ -169,7 +169,7 @@ from sigmaeval import RatingMeanEvaluator
 mean_rating_evaluator = RatingMeanEvaluator(
     significance_level=0.05,
     min_mean_rating=7.0, # The minimum mean rating to test against
-    num_of_samples=50
+    sample_size=50
 )
 ```
 
@@ -184,7 +184,7 @@ rating_evaluator = RatingProportionEvaluator(
     significance_level=0.05,
     min_rating=8, # The minimum acceptable rating on a 1-10 scale
     min_proportion=0.75, # We want at least 75% of responses to have a rating of 8 or higher
-    num_of_samples=50
+    sample_size=50
 )
 ```
 
