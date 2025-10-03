@@ -209,6 +209,12 @@ Internally, `SuccessRateEvaluator(...)` is equivalent to `RatingProportionEvalua
 
 SigmaEval is agnostic to the specific model/provider used by the application under test. For the LLM-as-a-Judge component, SigmaEval uses the [LiteLLM](https://github.com/BerriAI/litellm) library under the hood, which provides a unified interface to many providers and models (OpenAI, Anthropic, Google, etc.).
 
+### Logging
+
+SigmaEval uses Python's standard `logging` module to provide visibility into the evaluation process. You can control the verbosity by passing a `log_level` to the `SigmaEval` constructor.
+*   **`logging.INFO`** (default): Provides a high-level overview, including a progress bar for data collection.
+*   **`logging.DEBUG`**: Offers detailed output for troubleshooting, including LLM prompts, conversation transcripts, and judge's reasoning.
+
 ### Appendix A: Example Rubric
 
 For the `BehavioralTest` defined in the Python snippet:

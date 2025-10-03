@@ -8,9 +8,12 @@ This module handles:
 """
 
 import asyncio
+import logging
+import secrets
 from typing import Callable, Awaitable, Any, Dict, List
 import json
 from litellm import acompletion
+from tqdm.asyncio import tqdm
 
 from .models import AppResponse, BehavioralTest
 from .prompts import (
@@ -19,6 +22,8 @@ from .prompts import (
     JUDGE_SYSTEM_PROMPT,
 )
 from .exceptions import LLMCommunicationError
+
+logger = logging.getLogger("sigmaeval")
 
 
 class ConversationRecord:
@@ -76,7 +81,8 @@ async def _simulate_user_turn(
     scenario: BehavioralTest,
     conversation_history: List[Dict[str, str]],
     model: str,
-    max_turns: int = 10
+    max_turns: int = 10,
+    eval_id: str = ""
 ) -> tuple[str, bool]:
     """
     Simulate a single user turn using the User Simulator LLM.
@@ -86,6 +92,7 @@ async def _simulate_user_turn(
         conversation_history: List of previous conversation turns
         model: The LLM model identifier
         max_turns: Maximum number of turns before ending conversation
+        eval_id: Unique identifier for the evaluation run
         
     Returns:
         Tuple of (user_message, should_continue)
@@ -93,12 +100,15 @@ async def _simulate_user_turn(
         - should_continue: Whether the conversation should continue
     """
     prompt = _build_user_simulator_prompt(scenario, conversation_history)
+    log_prefix = f"[{eval_id}] " if eval_id else ""
+    logger.debug(f"{log_prefix}User simulator prompt: {prompt}")
     
     messages = [{"role": "system", "content": prompt}]
     
     # Check if we've exceeded max turns
     turn_count = len([m for m in conversation_history if m["role"] == "user"])
     if turn_count >= max_turns:
+        logger.debug(f"{log_prefix}Max turns reached, ending conversation.")
         return "[Conversation ended - max turns reached]", False
     
     try:
@@ -112,6 +122,7 @@ async def _simulate_user_turn(
         raise LLMCommunicationError("User simulator LLM call failed") from e
     
     content = response.choices[0].message.content
+    logger.debug(f"{log_prefix}User simulator response: {content}")
     
     # Parse JSON response
     try:
@@ -129,7 +140,8 @@ async def _run_single_interaction(
     scenario: BehavioralTest,
     app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
     model: str,
-    max_turns: int = 10
+    max_turns: int = 10,
+    eval_id: str = ""
 ) -> ConversationRecord:
     """
     Run a single interaction between user simulator and the app.
@@ -141,6 +153,7 @@ async def _run_single_interaction(
         app_handler: Async callback to interact with the app under test
         model: The LLM model identifier for user simulation
         max_turns: Maximum conversation turns
+        eval_id: Unique identifier for the evaluation run
         
     Returns:
         ConversationRecord containing the full interaction
@@ -158,7 +171,8 @@ async def _run_single_interaction(
             scenario,
             simulator_conversation_history,
             model,
-            max_turns
+            max_turns,
+            eval_id
         )
         
         # Check if conversation should end
@@ -189,7 +203,8 @@ async def _judge_interaction(
     scenario: BehavioralTest,
     conversation: ConversationRecord,
     rubric: str,
-    model: str
+    model: str,
+    eval_id: str = ""
 ) -> tuple[float, str]:
     """
     Judge a single interaction using the Judge LLM.
@@ -201,6 +216,7 @@ async def _judge_interaction(
         conversation: The recorded conversation to judge
         rubric: The scoring rubric (1-10 scale)
         model: The LLM model identifier for judging
+        eval_id: Unique identifier for the evaluation run
         
     Returns:
         Tuple of (score, reasoning)
@@ -209,6 +225,8 @@ async def _judge_interaction(
     """
     conversation_text = conversation.to_formatted_string()
     prompt = _build_judge_prompt(scenario, conversation_text, rubric)
+    log_prefix = f"[{eval_id}] " if eval_id else ""
+    logger.debug(f"{log_prefix}Judge prompt: {prompt}")
     
     try:
         response = await acompletion(
@@ -230,6 +248,7 @@ async def _judge_interaction(
         raise LLMCommunicationError("Judge LLM call failed") from e
     
     content = response.choices[0].message.content
+    logger.debug(f"{log_prefix}Judge response: {content}")
     
     # Parse JSON response
     try:
@@ -254,7 +273,8 @@ async def _run_single_evaluation(
     app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
     rubric: str,
     model: str,
-    max_turns: int = 10
+    max_turns: int = 10,
+    eval_id: str = ""
 ) -> tuple[float, str, ConversationRecord]:
     """
     Run a complete single evaluation: simulate, interact, and judge.
@@ -265,6 +285,7 @@ async def _run_single_evaluation(
         rubric: The scoring rubric
         model: The LLM model identifier
         max_turns: Maximum conversation turns
+        eval_id: Unique identifier for the evaluation run
         
     Returns:
         Tuple of (score, reasoning, conversation_record)
@@ -277,7 +298,8 @@ async def _run_single_evaluation(
         scenario,
         app_handler,
         model,
-        max_turns
+        max_turns,
+        eval_id
     )
     
     # Step 5: Judge
@@ -285,7 +307,8 @@ async def _run_single_evaluation(
         scenario,
         conversation,
         rubric,
-        model
+        model,
+        eval_id
     )
     
     return score, reasoning, conversation
@@ -325,20 +348,22 @@ async def collect_evaluation_data(
     
     async def _run_with_semaphore() -> tuple[float, str, ConversationRecord]:
         """Run a single evaluation with semaphore control."""
+        eval_id = secrets.token_hex(9)  # 18-character random hex string
         async with semaphore:
             return await _run_single_evaluation(
                 scenario,
                 app_handler,
                 rubric,
                 model,
-                max_turns
+                max_turns,
+                eval_id=eval_id
             )
     
     # Create all tasks at once, semaphore controls concurrency
     tasks = [_run_with_semaphore() for _ in range(sample_size)]
     
-    # Wait for all tasks to complete
-    results = await asyncio.gather(*tasks)
+    # Wait for all tasks to complete with progress bar
+    results = await tqdm.gather(*tasks, desc="Running evaluations")
     
     # Separate scores, reasoning, and conversations
     scores = [score for score, _, _ in results]

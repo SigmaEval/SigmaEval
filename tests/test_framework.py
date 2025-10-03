@@ -3,6 +3,7 @@
 from typing import Any, Dict
 import os
 from dotenv import load_dotenv
+import logging
 
 import pytest
 
@@ -41,7 +42,7 @@ def test_sigmaeval_init_non_string_raises() -> None:
 
 
 @pytest.mark.integration
-async def test_e2e_evaluation_with_simple_example_app() -> None:
+async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     """
     Runs a full end-to-end test of SigmaEval against the example chat app.
 
@@ -93,8 +94,9 @@ async def test_e2e_evaluation_with_simple_example_app() -> None:
         return AppResponse(response=response_text, state={"history": updated_history})
 
     # 4. Run the evaluation
-    sigma_eval = SigmaEval(model=eval_model)
-    results = await sigma_eval.evaluate(scenario, app_handler)
+    sigma_eval = SigmaEval(model=eval_model, log_level=logging.INFO)
+    with caplog.at_level(logging.INFO):
+        results = await sigma_eval.evaluate(scenario, app_handler)
 
     # 5. Assert the results to ensure the evaluation ran correctly
     assert isinstance(results, dict)
@@ -122,11 +124,17 @@ async def test_e2e_evaluation_with_simple_example_app() -> None:
     assert first_conversation.turns[0]["role"] == "user"
     assert first_conversation.turns[1]["role"] == "assistant"
 
+    # 6. Assert logging output
+    assert "--- Starting evaluation" in caplog.text
+    assert f"Collecting {sample_size} samples..." in caplog.text
+    assert "--- Evaluation complete ---" in caplog.text
+    assert "Generated rubric" not in caplog.text  # DEBUG message
+
 
 
 
 @pytest.mark.integration
-async def test_e2e_evaluation_with_bad_app_returns_low_scores() -> None:
+async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     """
     Runs an end-to-end test of SigmaEval against a deliberately bad app handler
     that returns gibberish, expecting overall low scores from the judge.
@@ -174,8 +182,9 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores() -> None:
         return AppResponse(response=response_text, state=state)
 
     # 4. Run the evaluation
-    sigma_eval = SigmaEval(model=eval_model)
-    results = await sigma_eval.evaluate(scenario, app_handler)
+    sigma_eval = SigmaEval(model=eval_model, log_level=logging.DEBUG)
+    with caplog.at_level(logging.DEBUG):
+        results = await sigma_eval.evaluate(scenario, app_handler)
 
     # 5. Assert the results to ensure the evaluation ran and produced low scores
     assert isinstance(results, dict)
@@ -197,3 +206,9 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores() -> None:
     assert len(first_conversation.turns) > 1
     assert first_conversation.turns[0]["role"] == "user"
     assert first_conversation.turns[1]["role"] == "assistant"
+
+    # 6. Assert logging output
+    assert "--- Starting evaluation" in caplog.text
+    assert "Generated rubric" in caplog.text
+    assert "Collected scores" in caplog.text
+    assert "Judge prompt" in caplog.text

@@ -2,12 +2,15 @@
 Rubric generation logic for Phase 1 of SigmaEval evaluation.
 """
 
+import logging
 from typing import Dict, Any
 from litellm import acompletion
 
 from .models import BehavioralTest
 from .prompts import _build_rubric_generation_prompt, RUBRIC_GENERATOR_SYSTEM_PROMPT
 from .exceptions import LLMCommunicationError
+
+logger = logging.getLogger("sigmaeval")
 
 
 async def _generate_rubric(
@@ -40,6 +43,7 @@ async def _generate_rubric(
             and with natural, helpful phrasing.
     """
     prompt = _build_rubric_generation_prompt(scenario)
+    logger.debug(f"Rubric generation prompt: {prompt}")
     
     try:
         response = await acompletion(
@@ -62,6 +66,8 @@ async def _generate_rubric(
     rubric = response.choices[0].message.content
     if not isinstance(rubric, str) or not rubric.strip():
         raise LLMCommunicationError("Rubric generation returned empty content")
+    
+    logger.debug(f"Generated rubric: {rubric}")
     return rubric
 
 

@@ -2,6 +2,7 @@
 Framework orchestration logic for SigmaEval.
 """
 
+import logging
 from typing import Callable, Awaitable, Any, Dict
 
 from .models import AppResponse, BehavioralTest
@@ -17,7 +18,7 @@ class SigmaEval:
     evaluation within a BDD framework.
     """
     
-    def __init__(self, model: str):
+    def __init__(self, model: str, log_level: int = logging.INFO):
         """
         Initialize SigmaEval framework.
 
@@ -25,6 +26,7 @@ class SigmaEval:
             model: Fully-qualified model identifier used for LLM-as-a-Judge, e.g.,
                 "openai/gpt-4o". The application under test may use any model; this
                 parameter configures the judge model.
+            log_level: The logging level for the 'sigmaeval' logger.
 
         Note:
             SigmaEval uses LiteLLM as the unified interface for the LLM-as-a-Judge.
@@ -35,6 +37,15 @@ class SigmaEval:
             raise ValueError("model must be a non-empty string, e.g., 'openai/gpt-4o'.\nFor a complete list of supported providers, refer to the LiteLLM documentation: https://docs.litellm.ai/docs/providers")
 
         self.model: str = model
+        self.logger = logging.getLogger("sigmaeval")
+        
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+        
+        self.logger.setLevel(log_level)
     
     async def evaluate(
         self, 
@@ -63,18 +74,24 @@ class SigmaEval:
             LLMCommunicationError: If any LLM call (rubric generation, user simulation,
                 or judging) fails or returns an invalid/malformed response.
         """
+        self.logger.info(f"--- Starting evaluation for BehavioralTest: {scenario.title} ---")
+        
         # Phase 1: Test Setup
         # 1. Parse BehavioralTest
+        self.logger.debug(f"Parsing BehavioralTest: {scenario.title}")
         parsed_test = _parse_behavioral_test(scenario)
         
         # 2. Generate rubric from expected_behavior
+        self.logger.debug("Generating rubric...")
         rubric = await _generate_rubric(scenario, self.model)
+        self.logger.debug(f"Generated rubric: {rubric}")
         
         # Phase 2: Data Collection (repeated sample_size times)
         #   3. Simulate user with User Simulator LLM
         #   4. Initiate and record interaction with system under test via app_handler
         #   5. Judge expected behavior with Judge LLM using rubric
         sample_size = parsed_test["sample_size"]
+        self.logger.info(f"Collecting {sample_size} samples...")
         
         scores, reasoning_list, conversations = await collect_evaluation_data(
             scenario=scenario,
@@ -86,8 +103,14 @@ class SigmaEval:
             max_turns=max_turns
         )
         
-        # TODO: Phase 3: Statistical Analysis
+        # Phase 3: Statistical Analysis
         #   6. Pass scores to evaluator for statistical testing
+        self.logger.debug(f"Collected scores: {scores}")
+        self.logger.info("Starting statistical analysis...")
+        evaluator = scenario.then.evaluator
+        results = evaluator.evaluate(scores)
+        
+        self.logger.info("--- Evaluation complete ---")
         
         return {
             "model": self.model,
@@ -97,4 +120,5 @@ class SigmaEval:
             "reasoning": reasoning_list,
             "conversations": conversations,
             "num_conversations": len(conversations),
+            "results": results,
         }

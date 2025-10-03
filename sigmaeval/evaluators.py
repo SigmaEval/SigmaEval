@@ -1,9 +1,11 @@
 """
 Statistical evaluators for SigmaEval framework.
 """
-
+import logging
 from pydantic import BaseModel, Field
 from typing import List
+
+logger = logging.getLogger("sigmaeval")
 
 
 class SuccessRateEvaluator(BaseModel):
@@ -35,12 +37,15 @@ class SuccessRateEvaluator(BaseModel):
         Returns:
             Dictionary with evaluation results including pass/fail and statistics
         """
+        logger.debug(f"SuccessRateEvaluator received scores: {scores}")
         # TODO: Implement one-sided proportion hypothesis test
         # 1. Convert scores to binary (6+ = success, 5 or lower = failure)
         # 2. Calculate observed proportion
         # 3. Perform one-sided hypothesis test
         # 4. Return pass/fail with statistical details
-        return {}
+        results = {}
+        logger.info(f"SuccessRateEvaluator results: {results}")
+        return results
 
 
 class RatingMeanEvaluator(BaseModel):
@@ -71,11 +76,14 @@ class RatingMeanEvaluator(BaseModel):
         Returns:
             Dictionary with evaluation results including pass/fail and statistics
         """
+        logger.debug(f"RatingMeanEvaluator received scores: {scores}")
         # TODO: Implement one-sided t-test
         # 1. Calculate sample mean and standard deviation
         # 2. Perform one-sided t-test against min_mean_rating
         # 3. Return pass/fail with statistical details
-        return {}
+        results = {}
+        logger.info(f"RatingMeanEvaluator results: {results}")
+        return results
 
 
 class RatingProportionEvaluator(BaseModel):
@@ -108,10 +116,13 @@ class RatingProportionEvaluator(BaseModel):
         Returns:
             Dictionary with evaluation results including pass/fail and statistics
         """
+        logger.debug(f"RatingProportionEvaluator received scores: {scores}")
         # TODO: Implement one-sided proportion hypothesis test
         # 1. Convert scores to binary (>= min_rating = success, < min_rating = failure)
         # 2. Calculate observed proportion
         # 3. Perform one-sided hypothesis test
         # 4. Return pass/fail with statistical details
-        return {}
+        results = {}
+        logger.info(f"RatingProportionEvaluator results: {results}")
+        return results
 
