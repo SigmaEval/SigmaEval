@@ -60,7 +60,6 @@ class SigmaEval:
         scenario: BehavioralTest, 
         app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
         concurrency: int = 10,
-        max_turns: int = 10
     ) -> EvaluationResult:
         """
         Run evaluation for a behavioral test case.
@@ -73,7 +72,6 @@ class SigmaEval:
                 On the first turn, state will be an empty dict. Use it to track conversation 
                 history, user context, or any other stateful information your app needs.
             concurrency: Number of evaluations to run concurrently (default: 10)
-            max_turns: Maximum conversation turns per interaction (default: 10)
             
         Returns:
             EvaluationResult: A data class containing the evaluation results.
@@ -109,7 +107,7 @@ class SigmaEval:
             user_simulator_model=self.user_simulator_model,
             sample_size=sample_size,
             concurrency=concurrency,
-            max_turns=max_turns
+            max_turns=scenario.max_turns
         )
         
         # Phase 3: Statistical Analysis

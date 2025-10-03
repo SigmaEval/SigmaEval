@@ -4,6 +4,7 @@ Data models for the SigmaEval core package.
 
 from typing import Any, Dict
 from pydantic import BaseModel, Field
+from dataclasses import dataclass
 
 
 class AppResponse(BaseModel):
@@ -30,20 +31,16 @@ class Expectation(BaseModel):
     evaluator: Any = Field(..., description="Evaluator instance for statistical analysis")
 
 
-class BehavioralTest(BaseModel):
+@dataclass
+class BehavioralTest:
     """
-    Defines a behavioral test scenario using Given-When-Then BDD format.
-    
-    Attributes:
-        title: Short descriptive title for the test case
-        given: Prerequisite state and context for User Simulator LLM
-        when: Specific goal or action the User Simulator LLM will attempt
-        then: Expected outcome with evaluator for statistical analysis
+    Defines a test case for a specific behavior of an AI application.
     """
-    title: str = Field(..., description="Test case title")
-    given: str = Field(..., description="Context and prerequisites")
-    when: str = Field(..., description="User goal or action")
-    then: Expectation = Field(..., description="Expected outcome and evaluator")
+    title: str
+    given: str
+    when: str
+    then: "Expectation"
+    max_turns: int = 10
 
 
 class ConversationRecord(BaseModel):

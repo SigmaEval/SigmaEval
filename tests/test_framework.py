@@ -86,6 +86,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
                 sample_size=sample_size,
             ),
         ),
+        max_turns=5,
     )
 
     # 3. Create the app handler to bridge SigmaEval and the target app
@@ -180,6 +181,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
                 sample_size=sample_size,
             ),
         ),
+        max_turns=5,
     )
 
     # 3. Create a bad app handler that returns gibberish and does NOT call SimpleChatApp
