@@ -87,7 +87,8 @@ class EvaluationResult(BaseModel):
     Structured data class for the results of a single `BehavioralTest` evaluation.
 
     Attributes:
-        model: The model identifier used for the judge and user simulator.
+        judge_model: The model identifier used for the judge.
+        user_simulator_model: The model identifier used for the user simulator.
         test_config: The configuration of the behavioral test.
         rubric: The rubric used by the Judge LLM to score the interaction.
         scores: A list of scores (1-10) from the Judge LLM for each interaction.
@@ -96,7 +97,8 @@ class EvaluationResult(BaseModel):
         num_conversations: The total number of conversations (i.e., the sample size).
         results: The final statistical analysis results from the evaluator.
     """
-    model: str
+    judge_model: str
+    user_simulator_model: str
     test_config: Dict[str, Any]
     rubric: str
     scores: list[float]

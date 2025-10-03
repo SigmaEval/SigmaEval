@@ -132,7 +132,7 @@ async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
 
 # Initialize SigmaEval and run the evaluation
 async def main():
-    sigma_eval = SigmaEval(model="openai/gpt-4o")
+    sigma_eval = SigmaEval(judge_model="openai/gpt-4o")
     results: EvaluationResult = await sigma_eval.evaluate(scenario, app_handler)
 
     # Print the results

@@ -27,19 +27,28 @@ from tests.example_apps.simple_chat_app import SimpleChatApp
     ],
 )
 def test_sigmaeval_init_stores_model(valid_model: str) -> None:
-    se = SigmaEval(model=valid_model)
-    assert se.model == valid_model
+    se = SigmaEval(judge_model=valid_model)
+    assert se.judge_model == valid_model
+    assert se.user_simulator_model == valid_model
+
+
+def test_sigmaeval_init_stores_separate_models() -> None:
+    se = SigmaEval(
+        judge_model="openai/gpt-4o", user_simulator_model="openai/gpt-3.5-turbo"
+    )
+    assert se.judge_model == "openai/gpt-4o"
+    assert se.user_simulator_model == "openai/gpt-3.5-turbo"
 
 
 @pytest.mark.parametrize("invalid_model", ["", "   "])
 def test_sigmaeval_init_invalid_model_raises(invalid_model: str) -> None:
     with pytest.raises(ValueError):
-        SigmaEval(model=invalid_model)
+        SigmaEval(judge_model=invalid_model)
 
 
 def test_sigmaeval_init_non_string_raises() -> None:
     with pytest.raises(ValueError):
-        SigmaEval(model=None)  # type: ignore[arg-type]
+        SigmaEval(judge_model=None)  # type: ignore[arg-type]
 
 
 @pytest.mark.integration
@@ -95,7 +104,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         return AppResponse(response=response_text, state={"history": updated_history})
 
     # 4. Run the evaluation
-    sigma_eval = SigmaEval(model=eval_model, log_level=logging.INFO)
+    sigma_eval = SigmaEval(judge_model=eval_model, log_level=logging.INFO)
     with caplog.at_level(logging.INFO):
         results = await sigma_eval.evaluate(scenario, app_handler)
 
@@ -183,7 +192,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         return AppResponse(response=response_text, state=state)
 
     # 4. Run the evaluation
-    sigma_eval = SigmaEval(model=eval_model, log_level=logging.DEBUG)
+    sigma_eval = SigmaEval(judge_model=eval_model, log_level=logging.DEBUG)
     with caplog.at_level(logging.DEBUG):
         results = await sigma_eval.evaluate(scenario, app_handler)
 

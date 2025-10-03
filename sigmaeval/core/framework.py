@@ -18,14 +18,21 @@ class SigmaEval:
     evaluation within a BDD framework.
     """
     
-    def __init__(self, model: str, log_level: int = logging.INFO):
+    def __init__(
+        self,
+        judge_model: str,
+        user_simulator_model: str | None = None,
+        log_level: int = logging.INFO
+    ):
         """
         Initialize SigmaEval framework.
 
         Args:
-            model: Fully-qualified model identifier used for LLM-as-a-Judge, e.g.,
-                "openai/gpt-4o". The application under test may use any model; this
-                parameter configures the judge model.
+            judge_model: Fully-qualified model identifier used for the Judge LLM
+                and rubric generation, e.g., "openai/gpt-4o". The application under
+                test may use any model; this parameter configures the judge model.
+            user_simulator_model: Optional model identifier for the User Simulator
+                LLM. If None, the `judge_model` will be used for all roles.
             log_level: The logging level for the 'sigmaeval' logger.
 
         Note:
@@ -33,10 +40,11 @@ class SigmaEval:
             For a complete list of supported providers, refer to the LiteLLM documentation:
             https://docs.litellm.ai/docs/providers
         """
-        if not isinstance(model, str) or not model.strip():
-            raise ValueError("model must be a non-empty string, e.g., 'openai/gpt-4o'.\nFor a complete list of supported providers, refer to the LiteLLM documentation: https://docs.litellm.ai/docs/providers")
+        if not isinstance(judge_model, str) or not judge_model.strip():
+            raise ValueError("judge_model must be a non-empty string, e.g., 'openai/gpt-4o'.\nFor a complete list of supported providers, refer to the LiteLLM documentation: https://docs.litellm.ai/docs/providers")
 
-        self.model: str = model
+        self.judge_model: str = judge_model
+        self.user_simulator_model: str = user_simulator_model or judge_model
         self.logger = logging.getLogger("sigmaeval")
         
         if not self.logger.handlers:
@@ -83,7 +91,7 @@ class SigmaEval:
         
         # 2. Generate rubric from expected_behavior
         self.logger.debug("Generating rubric...")
-        rubric = await _generate_rubric(scenario, self.model)
+        rubric = await _generate_rubric(scenario, self.judge_model)
         self.logger.debug(f"Generated rubric: {rubric}")
         
         # Phase 2: Data Collection (repeated sample_size times)
@@ -97,7 +105,8 @@ class SigmaEval:
             scenario=scenario,
             app_handler=app_handler,
             rubric=rubric,
-            model=self.model,
+            judge_model=self.judge_model,
+            user_simulator_model=self.user_simulator_model,
             sample_size=sample_size,
             concurrency=concurrency,
             max_turns=max_turns
@@ -113,7 +122,8 @@ class SigmaEval:
         self.logger.info("--- Evaluation complete ---")
         
         return EvaluationResult(
-            model=self.model,
+            judge_model=self.judge_model,
+            user_simulator_model=self.user_simulator_model,
             test_config=parsed_test,
             rubric=rubric,
             scores=scores,

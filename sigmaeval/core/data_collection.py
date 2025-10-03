@@ -88,7 +88,7 @@ async def _simulate_user_turn(
 async def _run_single_interaction(
     scenario: BehavioralTest,
     app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
-    model: str,
+    user_simulator_model: str,
     max_turns: int = 10,
     eval_id: str = ""
 ) -> ConversationRecord:
@@ -100,7 +100,7 @@ async def _run_single_interaction(
     Args:
         scenario: The behavioral test case
         app_handler: Async callback to interact with the app under test
-        model: The LLM model identifier for user simulation
+        user_simulator_model: The LLM model identifier for user simulation
         max_turns: Maximum conversation turns
         eval_id: Unique identifier for the evaluation run
         
@@ -119,7 +119,7 @@ async def _run_single_interaction(
         user_message, should_continue = await _simulate_user_turn(
             scenario,
             simulator_conversation_history,
-            model,
+            user_simulator_model,
             max_turns,
             eval_id
         )
@@ -152,7 +152,7 @@ async def _judge_interaction(
     scenario: BehavioralTest,
     conversation: ConversationRecord,
     rubric: str,
-    model: str,
+    judge_model: str,
     eval_id: str = ""
 ) -> tuple[float, str]:
     """
@@ -164,7 +164,7 @@ async def _judge_interaction(
         scenario: The behavioral test case
         conversation: The recorded conversation to judge
         rubric: The scoring rubric (1-10 scale)
-        model: The LLM model identifier for judging
+        judge_model: The LLM model identifier for judging
         eval_id: Unique identifier for the evaluation run
         
     Returns:
@@ -179,7 +179,7 @@ async def _judge_interaction(
     
     try:
         response = await acompletion(
-            model=model,
+            model=judge_model,
             messages=[
                 {
                     "role": "system",
@@ -221,7 +221,8 @@ async def _run_single_evaluation(
     scenario: BehavioralTest,
     app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
     rubric: str,
-    model: str,
+    judge_model: str,
+    user_simulator_model: str,
     max_turns: int = 10,
     eval_id: str = ""
 ) -> tuple[float, str, ConversationRecord]:
@@ -232,7 +233,8 @@ async def _run_single_evaluation(
         scenario: The behavioral test case
         app_handler: Async callback to interact with the app under test
         rubric: The scoring rubric
-        model: The LLM model identifier
+        judge_model: The LLM model identifier for the judge
+        user_simulator_model: The LLM model identifier for the user simulator
         max_turns: Maximum conversation turns
         eval_id: Unique identifier for the evaluation run
         
@@ -246,7 +248,7 @@ async def _run_single_evaluation(
     conversation = await _run_single_interaction(
         scenario,
         app_handler,
-        model,
+        user_simulator_model,
         max_turns,
         eval_id
     )
@@ -256,7 +258,7 @@ async def _run_single_evaluation(
         scenario,
         conversation,
         rubric,
-        model,
+        judge_model,
         eval_id
     )
     
@@ -267,7 +269,8 @@ async def collect_evaluation_data(
     scenario: BehavioralTest,
     app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
     rubric: str,
-    model: str,
+    judge_model: str,
+    user_simulator_model: str,
     sample_size: int,
     concurrency: int = 10,
     max_turns: int = 10
@@ -282,7 +285,8 @@ async def collect_evaluation_data(
         scenario: The behavioral test case
         app_handler: Async callback to interact with the app under test
         rubric: The scoring rubric from Phase 1
-        model: The LLM model identifier
+        judge_model: The LLM model for the judge
+        user_simulator_model: The LLM model for the user simulator
         sample_size: Total number of evaluations to run
         concurrency: Maximum number of evaluations to run concurrently
         max_turns: Maximum conversation turns per interaction
@@ -303,7 +307,8 @@ async def collect_evaluation_data(
                 scenario,
                 app_handler,
                 rubric,
-                model,
+                judge_model,
+                user_simulator_model,
                 max_turns,
                 eval_id=eval_id
             )
