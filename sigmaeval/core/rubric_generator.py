@@ -122,7 +122,7 @@ def _parse_behavioral_test(scenario: BehavioralTest) -> Dict[str, Any]:
         - when: User goal or action
         - expected_behavior: Expected outcome description
         - evaluator: Statistical evaluator instance
-        - sample_size: Number of samples to collect (if evaluator has this attribute)
+        - sample_size: Number of samples to collect (defaults to 20 if not specified)
     """
     return {
         "title": scenario.title,
@@ -130,6 +130,6 @@ def _parse_behavioral_test(scenario: BehavioralTest) -> Dict[str, Any]:
         "when": scenario.when,
         "expected_behavior": scenario.then.expected_behavior,
         "evaluator": scenario.then.evaluator,
-        "sample_size": getattr(scenario.then.evaluator, "sample_size", None),
+        "sample_size": getattr(scenario.then.evaluator, "sample_size", 20),
     }
 
