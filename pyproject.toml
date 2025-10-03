@@ -1,5 +1,5 @@
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
@@ -29,11 +29,12 @@ litellm = "^1.77.5"
 tenacity = "^9.1.2"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.0"
-pytest-cov = "^4.0"
-black = "^23.0"
-ruff = "^0.1.0"
-python-dotenv = "^1.1.1"
+pytest = "^8.2.2"
+pytest-cov = "^5.0.0"
+black = "^24.4.2"
+ruff = "^0.5.5"
+python-dotenv = "^1.0.1"
+pytest-asyncio = "^1.2.0"
 
 [tool.poetry.urls]
 "Homepage" = "https://github.com/Itura-AI/sigmaeval"
@@ -59,3 +60,4 @@ filterwarnings = [
 markers = [
     "integration: marks tests as integration tests (slow, requires network)",
 ]
+asyncio_mode = "auto"

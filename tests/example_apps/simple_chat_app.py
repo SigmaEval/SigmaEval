@@ -30,9 +30,17 @@ if not TEST_APP_MODEL:
     )
 
 # Hardcoded system prompt (do not read from env)
-SYSTEM_PROMPT = "You are a helpful, concise assistant for a demo retail chatbot."
+SYSTEM_PROMPT = """You are a helpful, professional customer service assistant for a retail company.
+You specialize in handling customer inquiries about orders, returns, and general product questions.
 
-class LiteLLMChatApp:
+When a customer asks about returns:
+1. Always acknowledge their request politely
+2. Ask for their order number to proceed
+3. Clearly explain the next steps in the return process
+
+Be friendly, professional, and always aim to help the customer resolve their issue efficiently."""
+
+class SimpleChatApp:
     """
     Minimal chat app wrapper around LiteLLM that keeps conversation state
     as a list of {"role": str, "content": str} messages.
@@ -85,7 +93,7 @@ class LiteLLMChatApp:
 
 async def _demo() -> None:
     """Run a small multi-turn demo to illustrate conversation state is preserved."""
-    app = LiteLLMChatApp()
+    app = SimpleChatApp()
     history: List[Dict[str, str]] = []
 
     user_1 = "Hi, I'm looking for running shoes."
