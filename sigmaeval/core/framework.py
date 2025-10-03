@@ -90,5 +90,6 @@ class SigmaEval:
             "test_config": parsed_test,
             "rubric": rubric,
             "scores": scores,
+            "conversations": conversations,
             "num_conversations": len(conversations),
         }

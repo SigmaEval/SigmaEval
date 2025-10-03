@@ -2,7 +2,7 @@
 SigmaEval - A Python library for evaluating Generative AI agents and apps.
 """
 
-from sigmaeval.core import SigmaEval, BehavioralTest, Expectation, AppResponse
+from sigmaeval.core import SigmaEval, BehavioralTest, Expectation, AppResponse, ConversationRecord
 from sigmaeval.evaluators import (
     SuccessRateEvaluator,
     RatingMeanEvaluator,
@@ -18,6 +18,7 @@ __all__ = [
     "BehavioralTest",
     "Expectation",
     "AppResponse",
+    "ConversationRecord",
     "SuccessRateEvaluator",
     "RatingMeanEvaluator",
     "RatingProportionEvaluator",

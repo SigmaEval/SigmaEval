@@ -15,7 +15,15 @@ from .models import AppResponse, BehavioralTest
 
 
 class ConversationRecord:
-    """Record of a single conversation between user simulator and app."""
+    """
+    Record of a single conversation between user simulator and app.
+    
+    This class stores the turn-by-turn interaction between the simulated user
+    and the application under test.
+    
+    Attributes:
+        turns: List of conversation turns, each a dict with 'role' and 'content'
+    """
     
     def __init__(self):
         self.turns: List[Dict[str, str]] = []
@@ -29,7 +37,12 @@ class ConversationRecord:
         self.turns.append({"role": "assistant", "content": message})
     
     def to_formatted_string(self) -> str:
-        """Format the conversation as a string for judging."""
+        """
+        Format the conversation as a human-readable string.
+        
+        Returns:
+            A string with each turn formatted as "User: ..." or "Assistant: ..."
+        """
         lines = []
         for turn in self.turns:
             if turn["role"] == "user":
@@ -37,6 +50,19 @@ class ConversationRecord:
             else:
                 lines.append(f"Assistant: {turn['content']}")
         return "\n\n".join(lines)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert the conversation to a dictionary format.
+        
+        Returns:
+            Dictionary with 'turns' key containing the conversation turns
+        """
+        return {"turns": self.turns}
+    
+    def __repr__(self) -> str:
+        """String representation of the conversation record."""
+        return f"ConversationRecord(turns={len(self.turns)})"
 
 
 async def _simulate_user_turn(
@@ -59,13 +85,23 @@ async def _simulate_user_turn(
         - user_message: The simulated user's message
         - should_continue: Whether the conversation should continue
     """
+    # Build conversation context for system prompt
+    conversation_context = ""
+    if conversation_history:
+        conversation_context = "\n\n**Conversation so far:**\n"
+        for turn in conversation_history:
+            if turn["role"] == "user":
+                conversation_context += f"You (the user): {turn['content']}\n"
+            else:
+                conversation_context += f"Assistant: {turn['content']}\n"
+    
     system_prompt = f"""You are simulating a user interacting with an AI assistant.
 
 **Background information/context (Given):** {scenario.given}
 
 **The scenario (When):** {scenario.when}
-
-Your task is to naturally interact with the assistant according to the scenario described above. 
+{conversation_context}
+Your task is to naturally continue the conversation as the user according to the scenario described above. 
 
 - Be realistic and natural in your conversation
 - If the scenario's objective has been fulfilled or completed, politely end the conversation
@@ -76,7 +112,7 @@ After each message, you must decide whether to continue the conversation or end 
 
 Respond in the following JSON format:
 {{
-    "message": "Your message to the assistant",
+    "message": "Your next message to the assistant",
     "continue": true/false
 }}
 
@@ -87,7 +123,6 @@ Set "continue" to false when:
 - You've reached a natural stopping point"""
 
     messages = [{"role": "system", "content": system_prompt}]
-    messages.extend(conversation_history)
     
     # Check if we've exceeded max turns
     turn_count = len([m for m in conversation_history if m["role"] == "user"])
@@ -136,33 +171,38 @@ async def _run_single_interaction(
         ConversationRecord containing the full interaction
     """
     conversation = ConversationRecord()
-    conversation_history: List[Dict[str, str]] = []
+    # History for User Simulator LLM - only the actual conversation content
+    simulator_conversation_history: List[Dict[str, str]] = []
     app_state: Dict[str, Any] = {}
     
     should_continue = True
     
     while should_continue:
-        # Simulate user message
+        # Simulate user message based on current conversation history
         user_message, should_continue = await _simulate_user_turn(
             scenario,
-            conversation_history,
+            simulator_conversation_history,
             model,
             max_turns
         )
         
+        # Check if conversation should end
         if not user_message or user_message.startswith("[Conversation ended"):
             break
         
         # Record user message
         conversation.add_user_message(user_message)
-        conversation_history.append({"role": "user", "content": user_message})
         
-        # Get app response
+        # Get app response for this user message
         app_response = await app_handler(user_message, app_state)
         
-        # Record assistant message
+        # Record app response
         conversation.add_assistant_message(app_response.response)
-        conversation_history.append({"role": "assistant", "content": app_response.response})
+        
+        # Update histories for next iteration
+        # The simulator needs to see: what it said (user), what app replied (assistant)
+        simulator_conversation_history.append({"role": "user", "content": user_message})
+        simulator_conversation_history.append({"role": "assistant", "content": app_response.response})
         
         # Update app state for next turn
         app_state = app_response.state
