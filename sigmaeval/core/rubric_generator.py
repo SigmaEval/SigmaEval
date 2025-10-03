@@ -72,8 +72,6 @@ def _build_rubric_generation_prompt(scenario: BehavioralTest) -> str:
 
 Given the following test scenario:
 
-**Title:** {scenario.title}
-
 **Context (Given):** {scenario.given}
 
 **User Goal (When):** {scenario.when}
