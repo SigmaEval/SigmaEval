@@ -12,10 +12,10 @@ import logging
 import secrets
 from typing import Callable, Awaitable, Any, Dict, List
 import json
-from litellm import acompletion
+from .llm_client import _acompletion_with_retry
 from tqdm.asyncio import tqdm
 
-from .models import AppResponse, BehavioralTest, ConversationRecord
+from .models import AppResponse, BehavioralTest, ConversationRecord, RetryConfig
 from .prompts import (
     _build_user_simulator_prompt,
     _build_judge_prompt,
@@ -31,7 +31,8 @@ async def _simulate_user_turn(
     conversation_history: List[Dict[str, str]],
     model: str,
     max_turns: int = 10,
-    eval_id: str = ""
+    eval_id: str = "",
+    retry_config: RetryConfig | None = None,
 ) -> tuple[str, bool]:
     """
     Simulate a single user turn using the User Simulator LLM.
@@ -61,11 +62,12 @@ async def _simulate_user_turn(
         return "[Conversation ended - max turns reached]", False
     
     try:
-        response = await acompletion(
+        response = await _acompletion_with_retry(
             model=model,
             messages=messages,
             temperature=0.8,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            retry_config=retry_config,
         )
     except Exception as e:
         raise LLMCommunicationError("User simulator LLM call failed") from e
@@ -90,7 +92,8 @@ async def _run_single_interaction(
     app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
     user_simulator_model: str,
     max_turns: int = 10,
-    eval_id: str = ""
+    eval_id: str = "",
+    retry_config: RetryConfig | None = None,
 ) -> ConversationRecord:
     """
     Run a single interaction between user simulator and the app.
@@ -121,7 +124,8 @@ async def _run_single_interaction(
             simulator_conversation_history,
             user_simulator_model,
             max_turns,
-            eval_id
+            eval_id,
+            retry_config,
         )
         
         # Check if conversation should end
@@ -153,7 +157,8 @@ async def _judge_interaction(
     conversation: ConversationRecord,
     rubric: str,
     judge_model: str,
-    eval_id: str = ""
+    eval_id: str = "",
+    retry_config: RetryConfig | None = None,
 ) -> tuple[float, str]:
     """
     Judge a single interaction using the Judge LLM.
@@ -178,7 +183,7 @@ async def _judge_interaction(
     logger.debug(f"{log_prefix}Judge prompt: {prompt}")
     
     try:
-        response = await acompletion(
+        response = await _acompletion_with_retry(
             model=judge_model,
             messages=[
                 {
@@ -191,7 +196,8 @@ async def _judge_interaction(
                 }
             ],
             temperature=0.3,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            retry_config=retry_config,
         )
     except Exception as e:
         raise LLMCommunicationError("Judge LLM call failed") from e
@@ -224,7 +230,8 @@ async def _run_single_evaluation(
     judge_model: str,
     user_simulator_model: str,
     max_turns: int = 10,
-    eval_id: str = ""
+    eval_id: str = "",
+    retry_config: RetryConfig | None = None,
 ) -> tuple[float, str, ConversationRecord]:
     """
     Run a complete single evaluation: simulate, interact, and judge.
@@ -250,7 +257,8 @@ async def _run_single_evaluation(
         app_handler,
         user_simulator_model,
         max_turns,
-        eval_id
+        eval_id,
+        retry_config,
     )
     
     # Step 5: Judge
@@ -259,7 +267,8 @@ async def _run_single_evaluation(
         conversation,
         rubric,
         judge_model,
-        eval_id
+        eval_id,
+        retry_config,
     )
     
     return score, reasoning, conversation
@@ -273,7 +282,8 @@ async def collect_evaluation_data(
     user_simulator_model: str,
     sample_size: int,
     concurrency: int = 10,
-    max_turns: int = 10
+    max_turns: int = 10,
+    retry_config: RetryConfig | None = None,
 ) -> tuple[List[float], List[str], List[ConversationRecord]]:
     """
     Collect evaluation data by running multiple interactions with controlled concurrency.
@@ -310,7 +320,8 @@ async def collect_evaluation_data(
                 judge_model,
                 user_simulator_model,
                 max_turns,
-                eval_id=eval_id
+                eval_id=eval_id,
+                retry_config=retry_config,
             )
     
     # Create all tasks at once, semaphore controls concurrency

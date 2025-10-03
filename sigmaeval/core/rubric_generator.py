@@ -4,9 +4,9 @@ Rubric generation logic for Phase 1 of SigmaEval evaluation.
 
 import logging
 from typing import Dict, Any
-from litellm import acompletion
+from .llm_client import _acompletion_with_retry
 
-from .models import BehavioralTest
+from .models import BehavioralTest, RetryConfig
 from .prompts import _build_rubric_generation_prompt, RUBRIC_GENERATOR_SYSTEM_PROMPT
 from .exceptions import LLMCommunicationError
 
@@ -15,7 +15,8 @@ logger = logging.getLogger("sigmaeval")
 
 async def _generate_rubric(
     scenario: BehavioralTest,
-    model: str
+    model: str,
+    retry_config: RetryConfig | None = None,
 ) -> str:
     """
     Generate a 1-10 scoring rubric based on the expected behavior.
@@ -46,7 +47,7 @@ async def _generate_rubric(
     logger.debug(f"Rubric generation prompt: {prompt}")
     
     try:
-        response = await acompletion(
+        response = await _acompletion_with_retry(
             model=model,
             messages=[
                 {
@@ -59,6 +60,7 @@ async def _generate_rubric(
                 }
             ],
             temperature=0.7,
+            retry_config=retry_config,
         )
     except Exception as e:
         raise LLMCommunicationError("Rubric generation LLM call failed") from e

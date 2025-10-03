@@ -8,6 +8,7 @@ from typing import Callable, Awaitable, Any, Dict
 from .models import AppResponse, BehavioralTest, EvaluationResult
 from .rubric_generator import _parse_behavioral_test, _generate_rubric
 from .data_collection import collect_evaluation_data
+from .models import RetryConfig
 
 
 class SigmaEval:
@@ -22,7 +23,8 @@ class SigmaEval:
         self,
         judge_model: str,
         user_simulator_model: str | None = None,
-        log_level: int = logging.INFO
+        log_level: int = logging.INFO,
+        retry_config: RetryConfig | None = None,
     ):
         """
         Initialize SigmaEval framework.
@@ -34,11 +36,17 @@ class SigmaEval:
             user_simulator_model: Optional model identifier for the User Simulator
                 LLM. If None, the `judge_model` will be used for all roles.
             log_level: The logging level for the 'sigmaeval' logger.
+            retry_config: Optional configuration for Tenacity-based retries on
+                LiteLLM calls. If None, default settings are used (enabled=True, 
+                max_attempts=5, backoff_multiplier=0.5, max_backoff_seconds=30.0).
 
         Note:
             SigmaEval uses LiteLLM as the unified interface for the LLM-as-a-Judge.
             For a complete list of supported providers, refer to the LiteLLM documentation:
             https://docs.litellm.ai/docs/providers
+            
+            Tenacity-based retries are applied to rubric generation, user simulation,
+            and judge calls. Retries can be disabled via the RetryConfig object.
         """
         if not isinstance(judge_model, str) or not judge_model.strip():
             raise ValueError("judge_model must be a non-empty string, e.g., 'openai/gpt-4o'.\nFor a complete list of supported providers, refer to the LiteLLM documentation: https://docs.litellm.ai/docs/providers")
@@ -46,6 +54,7 @@ class SigmaEval:
         self.judge_model: str = judge_model
         self.user_simulator_model: str = user_simulator_model or judge_model
         self.logger = logging.getLogger("sigmaeval")
+        self.retry_config = retry_config or RetryConfig()
         
         if not self.logger.handlers:
             handler = logging.StreamHandler()
@@ -89,7 +98,7 @@ class SigmaEval:
         
         # 2. Generate rubric from expected_behavior
         self.logger.debug("Generating rubric...")
-        rubric = await _generate_rubric(scenario, self.judge_model)
+        rubric = await _generate_rubric(scenario, self.judge_model, self.retry_config)
         self.logger.debug(f"Generated rubric: {rubric}")
         
         # Phase 2: Data Collection (repeated sample_size times)
@@ -105,6 +114,7 @@ class SigmaEval:
             rubric=rubric,
             judge_model=self.judge_model,
             user_simulator_model=self.user_simulator_model,
+            retry_config=self.retry_config,
             sample_size=sample_size,
             concurrency=concurrency,
             max_turns=scenario.max_turns
@@ -123,6 +133,7 @@ class SigmaEval:
             judge_model=self.judge_model,
             user_simulator_model=self.user_simulator_model,
             test_config=parsed_test,
+            retry_config=self.retry_config,
             rubric=rubric,
             scores=scores,
             reasoning=reasoning_list,

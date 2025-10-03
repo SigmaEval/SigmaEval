@@ -9,6 +9,7 @@ from sigmaeval.core import (
     AppResponse,
     ConversationRecord,
     EvaluationResult,
+    RetryConfig,
 )
 from sigmaeval.evaluators import (
     SuccessRateEvaluator,
@@ -27,6 +28,7 @@ __all__ = [
     "AppResponse",
     "ConversationRecord",
     "EvaluationResult",
+    "RetryConfig",
     "SuccessRateEvaluator",
     "RatingMeanEvaluator",
     "RatingProportionEvaluator",

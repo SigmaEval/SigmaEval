@@ -14,6 +14,7 @@ from sigmaeval import (
     AppResponse,
     SuccessRateEvaluator,
     EvaluationResult,
+    RetryConfig,
 )
 from tests.example_apps.simple_chat_app import SimpleChatApp
 
@@ -105,7 +106,11 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         return AppResponse(response=response_text, state={"history": updated_history})
 
     # 4. Run the evaluation
-    sigma_eval = SigmaEval(judge_model=eval_model, log_level=logging.INFO)
+    sigma_eval = SigmaEval(
+        judge_model=eval_model,
+        log_level=logging.INFO,
+        retry_config=RetryConfig(enabled=False),
+    )
     with caplog.at_level(logging.INFO):
         results = await sigma_eval.evaluate(scenario, app_handler)
 
@@ -194,7 +199,11 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         return AppResponse(response=response_text, state=state)
 
     # 4. Run the evaluation
-    sigma_eval = SigmaEval(judge_model=eval_model, log_level=logging.DEBUG)
+    sigma_eval = SigmaEval(
+        judge_model=eval_model,
+        log_level=logging.DEBUG,
+        retry_config=RetryConfig(enabled=False),
+    )
     with caplog.at_level(logging.DEBUG):
         results = await sigma_eval.evaluate(scenario, app_handler)
 

@@ -43,6 +43,20 @@ class BehavioralTest:
     max_turns: int = 10
 
 
+@dataclass
+class RetryConfig:
+    """
+    Configuration for Tenacity retry behavior used for LiteLLM calls.
+
+    Set enabled=False or max_attempts<=1 to disable retries.
+    """
+
+    enabled: bool = True
+    max_attempts: int = 5
+    backoff_multiplier: float = 0.5
+    max_backoff_seconds: float = 30.0
+
+
 class ConversationRecord(BaseModel):
     """
     Record of a single conversation between user simulator and app.
@@ -87,6 +101,7 @@ class EvaluationResult(BaseModel):
         judge_model: The model identifier used for the judge.
         user_simulator_model: The model identifier used for the user simulator.
         test_config: The configuration of the behavioral test.
+        retry_config: The retry configuration used for the evaluation.
         rubric: The rubric used by the Judge LLM to score the interaction.
         scores: A list of scores (1-10) from the Judge LLM for each interaction.
         reasoning: A list of the Judge LLM's reasoning for each score.
@@ -97,6 +112,7 @@ class EvaluationResult(BaseModel):
     judge_model: str
     user_simulator_model: str
     test_config: Dict[str, Any]
+    retry_config: "RetryConfig"
     rubric: str
     scores: list[float]
     reasoning: list[str]

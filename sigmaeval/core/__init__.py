@@ -4,6 +4,7 @@ from .models import (
     BehavioralTest,
     EvaluationResult,
     ConversationRecord,
+    RetryConfig,
 )
 from .framework import SigmaEval
 
@@ -14,6 +15,7 @@ __all__ = [
     "EvaluationResult",
     "SigmaEval",
     "ConversationRecord",
+    "RetryConfig",
 ]
 
 
