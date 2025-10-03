@@ -7,6 +7,7 @@ from litellm import acompletion
 
 from .models import BehavioralTest
 from .prompts import _build_rubric_generation_prompt, RUBRIC_GENERATOR_SYSTEM_PROMPT
+from .exceptions import LLMCommunicationError
 
 
 async def _generate_rubric(
@@ -40,22 +41,27 @@ async def _generate_rubric(
     """
     prompt = _build_rubric_generation_prompt(scenario)
     
-    response = await acompletion(
-        model=model,
-        messages=[
-            {
-                "role": "system",
-                "content": RUBRIC_GENERATOR_SYSTEM_PROMPT
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.7,
-    )
+    try:
+        response = await acompletion(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": RUBRIC_GENERATOR_SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
+        )
+    except Exception as e:
+        raise LLMCommunicationError("Rubric generation LLM call failed") from e
     
     rubric = response.choices[0].message.content
+    if not isinstance(rubric, str) or not rubric.strip():
+        raise LLMCommunicationError("Rubric generation returned empty content")
     return rubric
 
 

@@ -58,6 +58,10 @@ class SigmaEval:
             
         Returns:
             Dictionary containing evaluation results
+        
+        Raises:
+            LLMCommunicationError: If any LLM call (rubric generation, user simulation,
+                or judging) fails or returns an invalid/malformed response.
         """
         # Phase 1: Test Setup
         # 1. Parse BehavioralTest

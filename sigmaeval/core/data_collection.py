@@ -9,6 +9,7 @@ This module handles:
 
 import asyncio
 from typing import Callable, Awaitable, Any, Dict, List
+import json
 from litellm import acompletion
 
 from .models import AppResponse, BehavioralTest
@@ -17,6 +18,7 @@ from .prompts import (
     _build_judge_prompt,
     JUDGE_SYSTEM_PROMPT,
 )
+from .exceptions import LLMCommunicationError
 
 
 class ConversationRecord:
@@ -99,25 +101,28 @@ async def _simulate_user_turn(
     if turn_count >= max_turns:
         return "[Conversation ended - max turns reached]", False
     
-    response = await acompletion(
-        model=model,
-        messages=messages,
-        temperature=0.8,
-        response_format={"type": "json_object"}
-    )
+    try:
+        response = await acompletion(
+            model=model,
+            messages=messages,
+            temperature=0.8,
+            response_format={"type": "json_object"}
+        )
+    except Exception as e:
+        raise LLMCommunicationError("User simulator LLM call failed") from e
     
     content = response.choices[0].message.content
     
     # Parse JSON response
-    import json
     try:
         parsed = json.loads(content)
         user_message = parsed.get("message", "")
         should_continue = parsed.get("continue", False)
         return user_message, should_continue
-    except json.JSONDecodeError:
-        # Fallback if JSON parsing fails
-        return content, False
+    except json.JSONDecodeError as e:
+        raise LLMCommunicationError(
+            f"User simulator returned non-JSON response: {content[:200]}"
+        ) from e
 
 
 async def _run_single_interaction(
@@ -205,36 +210,43 @@ async def _judge_interaction(
     conversation_text = conversation.to_formatted_string()
     prompt = _build_judge_prompt(scenario, conversation_text, rubric)
     
-    response = await acompletion(
-        model=model,
-        messages=[
-            {
-                "role": "system",
-                "content": JUDGE_SYSTEM_PROMPT
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.3,
-        response_format={"type": "json_object"}
-    )
+    try:
+        response = await acompletion(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": JUDGE_SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.3,
+            response_format={"type": "json_object"}
+        )
+    except Exception as e:
+        raise LLMCommunicationError("Judge LLM call failed") from e
     
     content = response.choices[0].message.content
     
     # Parse JSON response
-    import json
     try:
         parsed = json.loads(content)
-        score = float(parsed.get("score", 1))
+        if "score" not in parsed:
+            raise LLMCommunicationError("Judge LLM response missing 'score' field")
+        score = float(parsed["score"])
         reasoning = parsed.get("reasoning", "No reasoning provided")
         # Clamp score to valid range
         score = max(1.0, min(10.0, score))
         return score, reasoning
-    except (json.JSONDecodeError, ValueError):
-        # Fallback to minimum score if parsing fails
-        return 1.0, "Error parsing judge response"
+    except json.JSONDecodeError as e:
+        raise LLMCommunicationError(
+            f"Judge LLM returned non-JSON response: {content[:200]}"
+        ) from e
+    except ValueError as e:
+        raise LLMCommunicationError("Judge LLM response contained non-numeric 'score'") from e
 
 
 async def _run_single_evaluation(
