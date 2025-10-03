@@ -2,7 +2,7 @@
 Statistical evaluators for SigmaEval framework.
 """
 import logging
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List
 
 logger = logging.getLogger("sigmaeval")
@@ -26,7 +26,25 @@ class SuccessRateEvaluator(BaseModel):
     )
     min_proportion: float = Field(..., description="Minimum proportion of successes")
     sample_size: int = Field(..., description="Number of samples to collect")
-    
+
+    @field_validator("significance_level")
+    def validate_significance_level(cls, v):
+        if not (0 < v < 1):
+            raise ValueError("significance_level must be between 0 and 1")
+        return v
+
+    @field_validator("min_proportion")
+    def validate_min_proportion(cls, v):
+        if not (0 <= v <= 1):
+            raise ValueError("min_proportion must be between 0 and 1")
+        return v
+
+    @field_validator("sample_size")
+    def validate_sample_size(cls, v):
+        if v <= 0:
+            raise ValueError("sample_size must be a positive integer")
+        return v
+
     def evaluate(self, scores: List[float]) -> dict:
         """
         Evaluate if the proportion of successes meets the minimum threshold.
@@ -65,7 +83,25 @@ class RatingMeanEvaluator(BaseModel):
     )
     min_mean_rating: float = Field(..., description="Minimum mean rating threshold")
     sample_size: int = Field(..., description="Number of samples to collect")
-    
+
+    @field_validator("significance_level")
+    def validate_significance_level(cls, v):
+        if not (0 < v < 1):
+            raise ValueError("significance_level must be between 0 and 1")
+        return v
+
+    @field_validator("min_mean_rating")
+    def validate_min_mean_rating(cls, v):
+        if not (1 <= v <= 10):
+            raise ValueError("min_mean_rating must be between 1 and 10")
+        return v
+
+    @field_validator("sample_size")
+    def validate_sample_size(cls, v):
+        if v <= 0:
+            raise ValueError("sample_size must be a positive integer")
+        return v
+
     def evaluate(self, scores: List[float]) -> dict:
         """
         Evaluate if the mean rating meets the minimum threshold.
@@ -105,7 +141,31 @@ class RatingProportionEvaluator(BaseModel):
     min_rating: int = Field(..., description="Minimum acceptable rating (1-10)")
     min_proportion: float = Field(..., description="Minimum proportion at or above min_rating")
     sample_size: int = Field(..., description="Number of samples to collect")
-    
+
+    @field_validator("significance_level")
+    def validate_significance_level(cls, v):
+        if not (0 < v < 1):
+            raise ValueError("significance_level must be between 0 and 1")
+        return v
+
+    @field_validator("min_rating")
+    def validate_min_rating(cls, v):
+        if not (1 <= v <= 10):
+            raise ValueError("min_rating must be between 1 and 10")
+        return v
+
+    @field_validator("min_proportion")
+    def validate_min_proportion(cls, v):
+        if not (0 <= v <= 1):
+            raise ValueError("min_proportion must be between 0 and 1")
+        return v
+
+    @field_validator("sample_size")
+    def validate_sample_size(cls, v):
+        if v <= 0:
+            raise ValueError("sample_size must be a positive integer")
+        return v
+
     def evaluate(self, scores: List[float]) -> dict:
         """
         Evaluate if the proportion of ratings meeting threshold is sufficient.
