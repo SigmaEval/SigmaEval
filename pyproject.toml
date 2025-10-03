@@ -33,6 +33,7 @@ pytest = "^7.0"
 pytest-cov = "^4.0"
 black = "^23.0"
 ruff = "^0.1.0"
+python-dotenv = "^1.1.1"
 
 [tool.poetry.urls]
 "Homepage" = "https://github.com/Itura-AI/sigmaeval"
@@ -54,4 +55,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 filterwarnings = [
     "ignore::UserWarning:pydantic.main",
+]
+markers = [
+    "integration: marks tests as integration tests (slow, requires network)",
 ]
