@@ -6,6 +6,7 @@ from typing import Dict, Any
 from litellm import acompletion
 
 from .models import BehavioralTest
+from .prompts import _build_rubric_generation_prompt, RUBRIC_GENERATOR_SYSTEM_PROMPT
 
 
 async def _generate_rubric(
@@ -44,7 +45,7 @@ async def _generate_rubric(
         messages=[
             {
                 "role": "system",
-                "content": "You are an expert at creating detailed evaluation rubrics for AI system behavior."
+                "content": RUBRIC_GENERATOR_SYSTEM_PROMPT
             },
             {
                 "role": "user",
@@ -56,52 +57,6 @@ async def _generate_rubric(
     
     rubric = response.choices[0].message.content
     return rubric
-
-
-def _build_rubric_generation_prompt(scenario: BehavioralTest) -> str:
-    """
-    Build the prompt for generating a rubric from a BehavioralTest.
-    
-    Args:
-        scenario: The behavioral test case
-        
-    Returns:
-        A formatted prompt string for the LLM
-    """
-    prompt = f"""You are creating an evaluation rubric for judging AI system behavior.
-
-Given the following test scenario:
-
-**Context (Given):** {scenario.given}
-
-**User Goal (When):** {scenario.when}
-
-**Expected Behavior (Then):** {scenario.then.expected_behavior}
-
-Create a detailed 1-10 scoring rubric that will be used to evaluate whether the AI system's behavior meets the expected outcome. The rubric should:
-
-1. Provide clear criteria for each rating level from 1 to 10
-2. Rating of 1-5 should represent varying degrees of failure to meet expectations
-3. Rating of 6-10 should represent varying degrees of success in meeting expectations
-4. Be specific to the expected behavior described
-5. Consider both what the system does AND how well it does it (clarity, completeness, helpfulness)
-6. Use gradual progression - each level should be meaningfully different from adjacent levels
-
-Format your rubric as follows:
-**1:** [Description of worst possible response]
-**2:** [Description]
-**3:** [Description]
-**4:** [Description]
-**5:** [Description]
-**6:** [Description - minimum acceptable]
-**7:** [Description]
-**8:** [Description]
-**9:** [Description]
-**10:** [Description of ideal response]
-
-Be concise but specific. Each rating description should be 1-2 sentences maximum."""
-    
-    return prompt
 
 
 def _parse_behavioral_test(scenario: BehavioralTest) -> Dict[str, Any]:

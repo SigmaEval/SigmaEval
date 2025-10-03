@@ -12,6 +12,11 @@ from typing import Callable, Awaitable, Any, Dict, List
 from litellm import acompletion
 
 from .models import AppResponse, BehavioralTest
+from .prompts import (
+    _build_user_simulator_prompt,
+    _build_judge_prompt,
+    JUDGE_SYSTEM_PROMPT,
+)
 
 
 class ConversationRecord:
@@ -85,44 +90,9 @@ async def _simulate_user_turn(
         - user_message: The simulated user's message
         - should_continue: Whether the conversation should continue
     """
-    # Build conversation context for system prompt
-    conversation_context = ""
-    if conversation_history:
-        conversation_context = "\n\n**Conversation so far:**\n"
-        for turn in conversation_history:
-            if turn["role"] == "user":
-                conversation_context += f"You (the user): {turn['content']}\n"
-            else:
-                conversation_context += f"Assistant: {turn['content']}\n"
+    prompt = _build_user_simulator_prompt(scenario, conversation_history)
     
-    system_prompt = f"""You are simulating a user interacting with an AI assistant.
-
-**Background information/context (Given):** {scenario.given}
-
-**The scenario (When):** {scenario.when}
-{conversation_context}
-Your task is to naturally continue the conversation as the user according to the scenario described above. 
-
-- Be realistic and natural in your conversation
-- If the scenario's objective has been fulfilled or completed, politely end the conversation
-- If you're stuck or the assistant isn't helping after multiple turns, end the conversation
-- Keep your messages concise and natural (1-3 sentences typically)
-
-After each message, you must decide whether to continue the conversation or end it.
-
-Respond in the following JSON format:
-{{
-    "message": "Your next message to the assistant",
-    "continue": true/false
-}}
-
-Set "continue" to false when:
-- The scenario's objective has been achieved or completed
-- You've decided to end the conversation
-- The assistant has clearly failed to help after several attempts
-- You've reached a natural stopping point"""
-
-    messages = [{"role": "system", "content": system_prompt}]
+    messages = [{"role": "system", "content": prompt}]
     
     # Check if we've exceeded max turns
     turn_count = len([m for m in conversation_history if m["role"] == "user"])
@@ -233,35 +203,14 @@ async def _judge_interaction(
         - reasoning: Judge's explanation for the score
     """
     conversation_text = conversation.to_formatted_string()
+    prompt = _build_judge_prompt(scenario, conversation_text, rubric)
     
-    prompt = f"""You are an expert evaluator judging an AI assistant's performance.
-
-**Context (Given):** {scenario.given}
-
-**Action/Trigger (When):** {scenario.when}
-
-**Expected Behavior (Then):** {scenario.then.expected_behavior}
-
-**Scoring Rubric:**
-{rubric}
-
-**Conversation to Evaluate:**
-{conversation_text}
-
-Based on the rubric above, rate this conversation on a scale of 1-10. Consider how well the assistant's behavior matched the expected behavior in the given context and scenario.
-
-Respond in the following JSON format:
-{{
-    "score": <number from 1-10>,
-    "reasoning": "<brief explanation of your score>"
-}}"""
-
     response = await acompletion(
         model=model,
         messages=[
             {
                 "role": "system",
-                "content": "You are an expert evaluator. Provide fair, consistent judgments based on the rubric."
+                "content": JUDGE_SYSTEM_PROMPT
             },
             {
                 "role": "user",
