@@ -72,7 +72,7 @@ class SigmaEval:
         #   5. Judge expected behavior with Judge LLM using rubric
         sample_size = parsed_test["sample_size"]
         
-        scores, conversations = await collect_evaluation_data(
+        scores, reasoning_list, conversations = await collect_evaluation_data(
             scenario=scenario,
             app_handler=app_handler,
             rubric=rubric,
@@ -90,6 +90,7 @@ class SigmaEval:
             "test_config": parsed_test,
             "rubric": rubric,
             "scores": scores,
+            "reasoning": reasoning_list,
             "conversations": conversations,
             "num_conversations": len(conversations),
         }

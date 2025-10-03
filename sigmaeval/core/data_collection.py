@@ -215,7 +215,7 @@ async def _judge_interaction(
     conversation: ConversationRecord,
     rubric: str,
     model: str
-) -> float:
+) -> tuple[float, str]:
     """
     Judge a single interaction using the Judge LLM.
     
@@ -228,7 +228,9 @@ async def _judge_interaction(
         model: The LLM model identifier for judging
         
     Returns:
-        Score from 1-10 based on the rubric
+        Tuple of (score, reasoning)
+        - score: Score from 1-10 based on the rubric
+        - reasoning: Judge's explanation for the score
     """
     conversation_text = conversation.to_formatted_string()
     
@@ -277,12 +279,13 @@ Respond in the following JSON format:
     try:
         parsed = json.loads(content)
         score = float(parsed.get("score", 1))
+        reasoning = parsed.get("reasoning", "No reasoning provided")
         # Clamp score to valid range
         score = max(1.0, min(10.0, score))
-        return score
+        return score, reasoning
     except (json.JSONDecodeError, ValueError):
         # Fallback to minimum score if parsing fails
-        return 1.0
+        return 1.0, "Error parsing judge response"
 
 
 async def _run_single_evaluation(
@@ -291,7 +294,7 @@ async def _run_single_evaluation(
     rubric: str,
     model: str,
     max_turns: int = 10
-) -> tuple[float, ConversationRecord]:
+) -> tuple[float, str, ConversationRecord]:
     """
     Run a complete single evaluation: simulate, interact, and judge.
     
@@ -303,7 +306,10 @@ async def _run_single_evaluation(
         max_turns: Maximum conversation turns
         
     Returns:
-        Tuple of (score, conversation_record)
+        Tuple of (score, reasoning, conversation_record)
+        - score: Judge's score (1-10)
+        - reasoning: Judge's explanation for the score
+        - conversation_record: Full conversation transcript
     """
     # Steps 3-4: Simulate and record
     conversation = await _run_single_interaction(
@@ -314,14 +320,14 @@ async def _run_single_evaluation(
     )
     
     # Step 5: Judge
-    score = await _judge_interaction(
+    score, reasoning = await _judge_interaction(
         scenario,
         conversation,
         rubric,
         model
     )
     
-    return score, conversation
+    return score, reasoning, conversation
 
 
 async def collect_evaluation_data(
@@ -332,7 +338,7 @@ async def collect_evaluation_data(
     sample_size: int,
     concurrency: int = 10,
     max_turns: int = 10
-) -> tuple[List[float], List[ConversationRecord]]:
+) -> tuple[List[float], List[str], List[ConversationRecord]]:
     """
     Collect evaluation data by running multiple interactions with controlled concurrency.
     
@@ -349,13 +355,14 @@ async def collect_evaluation_data(
         max_turns: Maximum conversation turns per interaction
         
     Returns:
-        Tuple of (scores, conversations)
+        Tuple of (scores, reasoning_list, conversations)
         - scores: List of scores (1-10) from Judge LLM
+        - reasoning_list: List of judge's explanations for each score
         - conversations: List of ConversationRecord objects
     """
     semaphore = asyncio.Semaphore(concurrency)
     
-    async def _run_with_semaphore() -> tuple[float, ConversationRecord]:
+    async def _run_with_semaphore() -> tuple[float, str, ConversationRecord]:
         """Run a single evaluation with semaphore control."""
         async with semaphore:
             return await _run_single_evaluation(
@@ -372,9 +379,10 @@ async def collect_evaluation_data(
     # Wait for all tasks to complete
     results = await asyncio.gather(*tasks)
     
-    # Separate scores and conversations
-    scores = [score for score, _ in results]
-    conversations = [conversation for _, conversation in results]
+    # Separate scores, reasoning, and conversations
+    scores = [score for score, _, _ in results]
+    reasoning_list = [reasoning for _, reasoning, _ in results]
+    conversations = [conversation for _, _, conversation in results]
     
-    return scores, conversations
+    return scores, reasoning_list, conversations
 
