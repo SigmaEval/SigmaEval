@@ -5,7 +5,7 @@ Framework orchestration logic for SigmaEval.
 import logging
 from typing import Callable, Awaitable, Any, Dict
 
-from .models import AppResponse, BehavioralTest
+from .models import AppResponse, BehavioralTest, EvaluationResult
 from .rubric_generator import _parse_behavioral_test, _generate_rubric
 from .data_collection import collect_evaluation_data
 
@@ -53,7 +53,7 @@ class SigmaEval:
         app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
         concurrency: int = 10,
         max_turns: int = 10
-    ) -> dict[str, Any]:
+    ) -> EvaluationResult:
         """
         Run evaluation for a behavioral test case.
         
@@ -68,7 +68,7 @@ class SigmaEval:
             max_turns: Maximum conversation turns per interaction (default: 10)
             
         Returns:
-            Dictionary containing evaluation results
+            EvaluationResult: A data class containing the evaluation results.
         
         Raises:
             LLMCommunicationError: If any LLM call (rubric generation, user simulation,
@@ -112,13 +112,13 @@ class SigmaEval:
         
         self.logger.info("--- Evaluation complete ---")
         
-        return {
-            "model": self.model,
-            "test_config": parsed_test,
-            "rubric": rubric,
-            "scores": scores,
-            "reasoning": reasoning_list,
-            "conversations": conversations,
-            "num_conversations": len(conversations),
-            "results": results,
-        }
+        return EvaluationResult(
+            model=self.model,
+            test_config=parsed_test,
+            rubric=rubric,
+            scores=scores,
+            reasoning=reasoning_list,
+            conversations=conversations,
+            num_conversations=len(conversations),
+            results=results,
+        )

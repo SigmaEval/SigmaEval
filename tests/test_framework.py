@@ -13,6 +13,7 @@ from sigmaeval import (
     Expectation,
     AppResponse,
     SuccessRateEvaluator,
+    EvaluationResult,
 )
 from tests.example_apps.simple_chat_app import SimpleChatApp
 
@@ -99,14 +100,14 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         results = await sigma_eval.evaluate(scenario, app_handler)
 
     # 5. Assert the results to ensure the evaluation ran correctly
-    assert isinstance(results, dict)
-    assert results["test_config"]["title"] == scenario.title
-    assert "rubric" in results and len(results["rubric"]) > 0
-    assert "scores" in results and len(results["scores"]) == sample_size
-    assert "conversations" in results and len(results["conversations"]) == sample_size
+    assert isinstance(results, EvaluationResult)
+    assert results.test_config["title"] == scenario.title
+    assert results.rubric and len(results.rubric) > 0
+    assert results.scores and len(results.scores) == sample_size
+    assert results.conversations and len(results.conversations) == sample_size
 
     # Check that 70% of test scores are above 5 (indicating good performance)
-    scores = results["scores"]
+    scores = results.scores
     scores_above_5 = [score for score in scores if score > 5]
     proportion_above_5 = len(scores_above_5) / len(scores)
     
@@ -119,7 +120,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         print(f"WARNING: {len(scores_below_5)} out of {len(scores)} scores are below 5: {scores_below_5}")
 
     # Check that a multi-turn conversation was recorded
-    first_conversation = results["conversations"][0]
+    first_conversation = results.conversations[0]
     assert len(first_conversation.turns) > 1
     assert first_conversation.turns[0]["role"] == "user"
     assert first_conversation.turns[1]["role"] == "assistant"
@@ -187,14 +188,14 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         results = await sigma_eval.evaluate(scenario, app_handler)
 
     # 5. Assert the results to ensure the evaluation ran and produced low scores
-    assert isinstance(results, dict)
-    assert results["test_config"]["title"] == scenario.title
-    assert "rubric" in results and len(results["rubric"]) > 0
-    assert "scores" in results and len(results["scores"]) == sample_size
-    assert "conversations" in results and len(results["conversations"]) == sample_size
+    assert isinstance(results, EvaluationResult)
+    assert results.test_config["title"] == scenario.title
+    assert results.rubric and len(results.rubric) > 0
+    assert results.scores and len(results.scores) == sample_size
+    assert results.conversations and len(results.conversations) == sample_size
 
     # Expect that at most 30% of scores are above 2 for this bad app
-    scores = results["scores"]
+    scores = results.scores
     scores_above_2 = [score for score in scores if score > 2]
     proportion_above_2 = len(scores_above_2) / len(scores)
     assert (
@@ -202,7 +203,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     ), f"Too many high scores for a bad app: {proportion_above_2:.1%} above 2 (expected <= 30%)."
 
     # Check that a multi-turn conversation was recorded
-    first_conversation = results["conversations"][0]
+    first_conversation = results.conversations[0]
     assert len(first_conversation.turns) > 1
     assert first_conversation.turns[0]["role"] == "user"
     assert first_conversation.turns[1]["role"] == "assistant"

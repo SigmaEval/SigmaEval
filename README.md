@@ -85,6 +85,7 @@ from sigmaeval import (
     Expectation, 
     SuccessRateEvaluator, 
     AppResponse,
+    EvaluationResult,
 )
 import asyncio
 from typing import Dict, Any
@@ -132,11 +133,17 @@ async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
 # Initialize SigmaEval and run the evaluation
 async def main():
     sigma_eval = SigmaEval(model="openai/gpt-4o")
-    results = await sigma_eval.evaluate(scenario, app_handler)
+    results: EvaluationResult = await sigma_eval.evaluate(scenario, app_handler)
 
     # Print the results
     print(f"--- Results for BehavioralTest: {scenario.title} ---")
-    print(results)
+    print(f"Passed: {results.results['passed']}")
+    print(f"P-value: {results.results['p_value']:.4f}")
+    print(f"Average Score: {sum(results.scores) / len(results.scores):.2f}")
+    
+    # You can also inspect individual conversations
+    # print("--- Example Conversation ---")
+    # print(results.conversations[0])
 
 if __name__ == "__main__":
     asyncio.run(main())

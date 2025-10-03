@@ -1,11 +1,17 @@
-from .models import AppResponse, Expectation, BehavioralTest
+from .models import (
+    AppResponse,
+    Expectation,
+    BehavioralTest,
+    EvaluationResult,
+    ConversationRecord,
+)
 from .framework import SigmaEval
-from .data_collection import ConversationRecord
 
 __all__ = [
     "AppResponse",
     "Expectation",
     "BehavioralTest",
+    "EvaluationResult",
     "SigmaEval",
     "ConversationRecord",
 ]

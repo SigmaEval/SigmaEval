@@ -15,7 +15,7 @@ import json
 from litellm import acompletion
 from tqdm.asyncio import tqdm
 
-from .models import AppResponse, BehavioralTest
+from .models import AppResponse, BehavioralTest, ConversationRecord
 from .prompts import (
     _build_user_simulator_prompt,
     _build_judge_prompt,
@@ -24,57 +24,6 @@ from .prompts import (
 from .exceptions import LLMCommunicationError
 
 logger = logging.getLogger("sigmaeval")
-
-
-class ConversationRecord:
-    """
-    Record of a single conversation between user simulator and app.
-    
-    This class stores the turn-by-turn interaction between the simulated user
-    and the application under test.
-    
-    Attributes:
-        turns: List of conversation turns, each a dict with 'role' and 'content'
-    """
-    
-    def __init__(self):
-        self.turns: List[Dict[str, str]] = []
-    
-    def add_user_message(self, message: str):
-        """Add a user message to the conversation."""
-        self.turns.append({"role": "user", "content": message})
-    
-    def add_assistant_message(self, message: str):
-        """Add an assistant message to the conversation."""
-        self.turns.append({"role": "assistant", "content": message})
-    
-    def to_formatted_string(self) -> str:
-        """
-        Format the conversation as a human-readable string.
-        
-        Returns:
-            A string with each turn formatted as "User: ..." or "Assistant: ..."
-        """
-        lines = []
-        for turn in self.turns:
-            if turn["role"] == "user":
-                lines.append(f"User: {turn['content']}")
-            else:
-                lines.append(f"Assistant: {turn['content']}")
-        return "\n\n".join(lines)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the conversation to a dictionary format.
-        
-        Returns:
-            Dictionary with 'turns' key containing the conversation turns
-        """
-        return {"turns": self.turns}
-    
-    def __repr__(self) -> str:
-        """String representation of the conversation record."""
-        return f"ConversationRecord(turns={len(self.turns)})"
 
 
 async def _simulate_user_turn(
