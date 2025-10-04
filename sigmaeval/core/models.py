@@ -2,9 +2,75 @@
 Data models for the SigmaEval core package.
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 from pydantic import BaseModel, Field
 from dataclasses import dataclass
+
+
+class WritingStyleAxes(BaseModel):
+    """
+    Defines the axes for writing style variations.
+    """
+    proficiency: List[str] = Field(
+        default=[
+            "Third-grade level.",
+            "Fifth-grade level.",
+            "Middle-school level.",
+            "Frequent grammar and spelling errors.",
+            "Clear with some minor errors.",
+            "High-school level.",
+            "Good grammar and vocabulary.",
+            "University-graduate level.",
+            "Flawless grammar and sophisticated vocabulary.",
+        ]
+    )
+    tone: List[str] = Field(
+        default=[
+            "Enthusiastic and very friendly.",
+            "Polite and friendly.",
+            "Curious and inquisitive.",
+            "Formal and professional.",
+            "Direct and neutral.",
+            "Skeptical and questioning.",
+            "Slightly confused.",
+            "Impatient and slightly frustrated.",
+            "Annoyed and critical.",
+        ]
+    )
+    verbosity: List[str] = Field(
+        default=[
+            "Single words or very short phrases.",
+            "Extremely terse, uses incomplete sentences.",
+            "Terse and to-the-point.",
+            "Concise and clear.",
+            "Moderately detailed.",
+            "Slightly verbose.",
+            "Verbose and descriptive.",
+            "Overly detailed and rambling.",
+            "Long, multi-paragraph messages.",
+        ]
+    )
+    formality: List[str] = Field(
+        default=[
+            "Extremely formal, almost academic.",
+            "Formal and professional.",
+            "Slightly formal.",
+            "Neutral.",
+            "Slightly informal.",
+            "Casual and conversational.",
+            "Very casual, uses slang and abbreviations.",
+            "Uses internet slang and emojis.",
+            "Extremely informal, uses memespeak or textspeak.",
+        ]
+    )
+
+
+class WritingStyleConfig(BaseModel):
+    """
+    Configuration for user simulator writing style variations.
+    """
+    enabled: bool = True
+    axes: WritingStyleAxes = Field(default_factory=WritingStyleAxes)
 
 
 class AppResponse(BaseModel):
@@ -66,8 +132,10 @@ class ConversationRecord(BaseModel):
     
     Attributes:
         turns: List of conversation turns, each a dict with 'role' and 'content'
+        writing_style: The writing style used for this conversation, if any.
     """
-    turns: list[Dict[str, str]] = []
+    turns: list[Dict[str, str]] = Field(default_factory=list)
+    writing_style: str | None = None
 
     def add_user_message(self, message: str):
         """Add a user message to the conversation."""

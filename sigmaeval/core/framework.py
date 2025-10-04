@@ -5,7 +5,7 @@ Framework orchestration logic for SigmaEval.
 import logging
 from typing import Callable, Awaitable, Any, Dict
 
-from .models import AppResponse, BehavioralTest, EvaluationResult
+from .models import AppResponse, BehavioralTest, EvaluationResult, WritingStyleConfig
 from .rubric_generator import _parse_behavioral_test, _generate_rubric
 from .data_collection import collect_evaluation_data
 from .models import RetryConfig
@@ -25,6 +25,7 @@ class SigmaEval:
         user_simulator_model: str | None = None,
         log_level: int = logging.INFO,
         retry_config: RetryConfig | None = None,
+        writing_style_config: WritingStyleConfig | None = None,
     ):
         """
         Initialize SigmaEval framework.
@@ -39,6 +40,9 @@ class SigmaEval:
             retry_config: Optional configuration for Tenacity-based retries on
                 LiteLLM calls. If None, default settings are used (enabled=True, 
                 max_attempts=5, backoff_multiplier=0.5, max_backoff_seconds=30.0).
+            writing_style_config: Optional configuration for user simulator writing
+                style variations. To disable, pass `WritingStyleConfig(enabled=False)`.
+                See `WritingStyleAxes` for default style definitions.
 
         Note:
             SigmaEval uses LiteLLM as the unified interface for the LLM-as-a-Judge.
@@ -55,6 +59,7 @@ class SigmaEval:
         self.user_simulator_model: str = user_simulator_model or judge_model
         self.logger = logging.getLogger("sigmaeval")
         self.retry_config = retry_config or RetryConfig()
+        self.writing_style_config = writing_style_config or WritingStyleConfig()
         
         if not self.logger.handlers:
             handler = logging.StreamHandler()
@@ -117,7 +122,8 @@ class SigmaEval:
             retry_config=self.retry_config,
             sample_size=sample_size,
             concurrency=concurrency,
-            max_turns=scenario.max_turns
+            max_turns=scenario.max_turns,
+            writing_style_config=self.writing_style_config,
         )
         
         # Phase 3: Statistical Analysis

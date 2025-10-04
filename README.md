@@ -247,6 +247,41 @@ sigma_eval = SigmaEval(
 )
 ```
 
+### User Simulation Writing Styles
+
+To better address the "infinite input space" problem, SigmaEval's user simulator can be configured to adopt a wide variety of writing styles. This feature helps ensure your application is robust to the many ways real users communicate.
+
+By default, for each of the `sample_size` evaluation runs, the user simulator will randomly adopt a different writing style by combining four independent axes:
+*   **`proficiency`**: The user's grasp of grammar and vocabulary (e.g., "Middle-school level," "Flawless grammar and sophisticated vocabulary").
+*   **`tone`**: The user's emotional disposition (e.g., "Polite and friendly," "Impatient and slightly frustrated").
+*   **`verbosity`**: The length and detail of the user's messages (e.g., "Terse and to-the-point," "Verbose and descriptive").
+*   **`formality`**: The user's adherence to formal language conventions (e.g., "Formal and professional," "Casual with slang").
+
+This behavior is on by default and can be configured or disabled via the `WritingStyleConfig` object passed to the `SigmaEval` constructor.
+
+```python
+from sigmaeval import SigmaEval, WritingStyleConfig, WritingStyleAxes
+
+# Disable writing style variations completely
+no_style_config = WritingStyleConfig(enabled=False)
+
+# Customize the axes with your own values
+custom_axes = WritingStyleAxes(
+    proficiency=["writes perfectly", "makes some mistakes"],
+    tone=["happy", "sad"],
+    verbosity=["short", "long"],
+    formality=["formal", "casual"]
+)
+custom_style_config = WritingStyleConfig(axes=custom_axes)
+
+sigma_eval = SigmaEval(
+    judge_model="openai/gpt-4o",
+    writing_style_config=custom_style_config
+)
+```
+
+This system ensures that the `Given` (persona) and `When` (goal) clauses of your `BehavioralTest` are always prioritized. The writing style adds a layer of realistic, stylistic variation without overriding the core of the test scenario.
+
 ### Appendix A: Example Rubric
 
 For the `BehavioralTest` defined in the Python snippet:

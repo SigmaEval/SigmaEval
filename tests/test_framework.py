@@ -15,6 +15,7 @@ from sigmaeval import (
     SuccessRateEvaluator,
     EvaluationResult,
     RetryConfig,
+    WritingStyleConfig,
 )
 from tests.example_apps.simple_chat_app import SimpleChatApp
 
@@ -139,6 +140,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     assert len(first_conversation.turns) > 1
     assert first_conversation.turns[0]["role"] == "user"
     assert first_conversation.turns[1]["role"] == "assistant"
+    assert first_conversation.writing_style is not None
 
     # 6. Assert logging output
     assert "--- Starting evaluation" in caplog.text
@@ -203,6 +205,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         judge_model=eval_model,
         log_level=logging.DEBUG,
         retry_config=RetryConfig(enabled=False),
+        writing_style_config=WritingStyleConfig(enabled=False),
     )
     with caplog.at_level(logging.DEBUG):
         results = await sigma_eval.evaluate(scenario, app_handler)
@@ -227,6 +230,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     assert len(first_conversation.turns) > 1
     assert first_conversation.turns[0]["role"] == "user"
     assert first_conversation.turns[1]["role"] == "assistant"
+    assert first_conversation.writing_style is None
 
     # 6. Assert logging output
     assert "--- Starting evaluation" in caplog.text

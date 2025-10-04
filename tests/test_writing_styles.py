@@ -1,0 +1,171 @@
+"""
+Tests for the user simulation writing style variation feature.
+"""
+
+import pytest
+from unittest.mock import AsyncMock, patch
+
+from sigmaeval.core.models import (
+    AppResponse,
+    BehavioralTest,
+    Expectation,
+    WritingStyleConfig,
+    WritingStyleAxes,
+)
+from sigmaeval.evaluators import SuccessRateEvaluator
+from sigmaeval import SigmaEval
+
+
+@pytest.fixture
+def mock_app_handler():
+    """Fixture for a mock async app_handler."""
+    return AsyncMock(return_value=AppResponse(response="Test response", state={}))
+
+
+@pytest.fixture
+def basic_scenario():
+    """Fixture for a basic BehavioralTest scenario."""
+    return BehavioralTest(
+        title="Test Scenario",
+        given="A test user",
+        when="The user does something",
+        then=Expectation(
+            expected_behavior="The app should respond appropriately",
+            evaluator=SuccessRateEvaluator(
+                sample_size=2, significance_level=0.05, min_proportion=0.8
+            ),
+        ),
+    )
+
+
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework.collect_evaluation_data")
+@pytest.mark.asyncio
+async def test_writing_styles_enabled_by_default(
+    mock_collect_data, mock_generate_rubric, basic_scenario, mock_app_handler
+):
+    """
+    Verify that writing style variations are enabled by default.
+    """
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_collect_data.return_value = ([8.0, 9.0], ["reason", "reason"], [])
+
+    sigma_eval = SigmaEval(judge_model="test/model")
+    await sigma_eval.evaluate(basic_scenario, mock_app_handler)
+
+    mock_collect_data.assert_called_once()
+    call_args, call_kwargs = mock_collect_data.call_args
+    writing_style_config = call_kwargs.get("writing_style_config")
+
+    assert isinstance(writing_style_config, WritingStyleConfig)
+    assert writing_style_config.enabled is True
+
+
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework.collect_evaluation_data")
+@pytest.mark.asyncio
+async def test_writing_styles_can_be_disabled(
+    mock_collect_data, mock_generate_rubric, basic_scenario, mock_app_handler
+):
+    """
+    Verify that writing style variations can be disabled.
+    """
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_collect_data.return_value = ([8.0, 9.0], ["reason", "reason"], [])
+
+    config = WritingStyleConfig(enabled=False)
+    sigma_eval = SigmaEval(judge_model="test/model", writing_style_config=config)
+    await sigma_eval.evaluate(basic_scenario, mock_app_handler)
+
+    mock_collect_data.assert_called_once()
+    call_args, call_kwargs = mock_collect_data.call_args
+    writing_style_config = call_kwargs.get("writing_style_config")
+
+    assert isinstance(writing_style_config, WritingStyleConfig)
+    assert writing_style_config.enabled is False
+
+
+@patch("sigmaeval.core.data_collection._generate_writing_style")
+@patch("sigmaeval.core.data_collection._acompletion_with_retry", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+@pytest.mark.asyncio
+async def test_custom_writing_style_axes_are_used(
+    mock_generate_rubric,
+    mock_acompletion,
+    mock_generate_style,
+    basic_scenario,
+    mock_app_handler,
+):
+    """
+    Verify that custom writing style axes are correctly passed to the generator.
+    """
+    # Mock return values
+    mock_generate_rubric.return_value = "Test Rubric"
+    # User sim response, then judge response
+    mock_acompletion.side_effect = [
+        # User sim (sample 1)
+        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"message": "Hi", "continue": false}'))]),
+        # Judge (sample 1)
+        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"score": 8, "reasoning": "Good"}'))]),
+        # User sim (sample 2)
+        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"message": "Hi again", "continue": false}'))]),
+        # Judge (sample 2)
+        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"score": 9, "reasoning": "Great"}'))]),
+    ]
+    mock_generate_style.return_value = "Generated style"
+
+    custom_axes = WritingStyleAxes(
+        proficiency=["perfect"], tone=["happy"], verbosity=["short"], formality=["casual"]
+    )
+    config = WritingStyleConfig(axes=custom_axes)
+
+    sigma_eval = SigmaEval(judge_model="test/model", writing_style_config=config)
+    await sigma_eval.evaluate(basic_scenario, mock_app_handler)
+
+    assert mock_generate_style.call_count == basic_scenario.then.evaluator.sample_size
+    # All calls should have used the same custom axes
+    for call in mock_generate_style.call_args_list:
+        _, call_kwargs = call
+        assert call_kwargs.get("axes") == custom_axes
+
+
+@patch("sigmaeval.core.data_collection._acompletion_with_retry", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+@pytest.mark.asyncio
+async def test_writing_style_is_in_prompt(
+    mock_generate_rubric, mock_acompletion, basic_scenario, mock_app_handler
+):
+    """
+    Verify that the generated writing style is included in the user simulator prompt.
+    """
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_acompletion.side_effect = [
+        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"message": "Stop", "continue": false}'))]),
+        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"score": 8, "reasoning": "Good"}'))]),
+        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"message": "Stop", "continue": false}'))]),
+        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"score": 9, "reasoning": "Great"}'))]),
+    ]
+
+    # Use a very specific, unique value to make it easy to find in the prompt
+    custom_axes = WritingStyleAxes(
+        proficiency=["MyUniqueProficiency"],
+        tone=["MyUniqueTone"],
+        verbosity=["MyUniqueVerbosity"],
+        formality=["MyUniqueFormality"],
+    )
+    config = WritingStyleConfig(axes=custom_axes)
+    sigma_eval = SigmaEval(judge_model="test/model", writing_style_config=config)
+
+    await sigma_eval.evaluate(basic_scenario, mock_app_handler)
+
+    # The user simulator is the first call for each sample
+    user_sim_calls = [c for c in mock_acompletion.call_args_list if "You are simulating a user" in c.kwargs["messages"][0]["content"]]
+    assert len(user_sim_calls) == 2
+
+    for call in user_sim_calls:
+        prompt = call.kwargs["messages"][0]["content"]
+        assert "- Adopt the following writing style" in prompt
+        assert "- Proficiency: MyUniqueProficiency" in prompt
+        assert "- Tone: MyUniqueTone" in prompt
+        assert "- Verbosity: MyUniqueVerbosity" in prompt
+        assert "- Formality: MyUniqueFormality" in prompt

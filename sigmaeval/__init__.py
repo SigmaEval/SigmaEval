@@ -10,6 +10,8 @@ from sigmaeval.core import (
     ConversationRecord,
     EvaluationResult,
     RetryConfig,
+    WritingStyleConfig,
+    WritingStyleAxes,
 )
 from sigmaeval.evaluators import (
     SuccessRateEvaluator,
@@ -29,6 +31,8 @@ __all__ = [
     "ConversationRecord",
     "EvaluationResult",
     "RetryConfig",
+    "WritingStyleConfig",
+    "WritingStyleAxes",
     "SuccessRateEvaluator",
     "RatingMeanEvaluator",
     "RatingProportionEvaluator",

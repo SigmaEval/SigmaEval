@@ -5,6 +5,8 @@ from .models import (
     EvaluationResult,
     ConversationRecord,
     RetryConfig,
+    WritingStyleConfig,
+    WritingStyleAxes,
 )
 from .framework import SigmaEval
 
@@ -16,6 +18,8 @@ __all__ = [
     "SigmaEval",
     "ConversationRecord",
     "RetryConfig",
+    "WritingStyleConfig",
+    "WritingStyleAxes",
 ]
 
 

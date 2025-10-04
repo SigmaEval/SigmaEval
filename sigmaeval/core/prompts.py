@@ -59,7 +59,8 @@ Be concise but specific. Each rating description should be 1-2 sentences maximum
 
 def _build_user_simulator_prompt(
     scenario: BehavioralTest,
-    conversation_history: List[Dict[str, str]]
+    conversation_history: List[Dict[str, str]],
+    writing_style: str | None = None,
 ) -> str:
     """
     Build the prompt for simulating a user turn.
@@ -69,6 +70,7 @@ def _build_user_simulator_prompt(
     Args:
         scenario: The behavioral test case
         conversation_history: List of previous conversation turns
+        writing_style: Optional writing style instruction
         
     Returns:
         A formatted prompt string for the user simulator LLM
@@ -83,6 +85,21 @@ def _build_user_simulator_prompt(
             else:
                 conversation_context += f"Assistant: {turn['content']}\n"
     
+    # Build instructions list
+    instructions = [
+        "- Be realistic and natural in your conversation",
+    ]
+    if writing_style:
+        instructions.append(writing_style)
+
+    instructions.extend(
+        [
+            "- If the scenario's objective has been fulfilled or completed, politely end the conversation",
+            "- If you're stuck or the assistant isn't helping after multiple turns, end the conversation",
+        ]
+    )
+    instructions_str = "\n".join(instructions)
+
     return f"""You are simulating a user interacting with an AI assistant.
 
 **Background information/context (Given):** {scenario.given}
@@ -91,10 +108,7 @@ def _build_user_simulator_prompt(
 {conversation_context}
 Your task is to naturally continue the conversation as the user according to the scenario described above. 
 
-- Be realistic and natural in your conversation
-- If the scenario's objective has been fulfilled or completed, politely end the conversation
-- If you're stuck or the assistant isn't helping after multiple turns, end the conversation
-- Keep your messages concise and natural (1-3 sentences typically)
+{instructions_str}
 
 After each message, you must decide whether to continue the conversation or end it.
 

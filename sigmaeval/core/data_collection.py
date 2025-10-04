@@ -22,6 +22,8 @@ from .prompts import (
     JUDGE_SYSTEM_PROMPT,
 )
 from .exceptions import LLMCommunicationError
+from .writing_styles import _generate_writing_style
+from .models import WritingStyleConfig
 
 logger = logging.getLogger("sigmaeval")
 
@@ -33,6 +35,7 @@ async def _simulate_user_turn(
     max_turns: int = 10,
     eval_id: str = "",
     retry_config: RetryConfig | None = None,
+    writing_style: str | None = None,
 ) -> tuple[str, bool]:
     """
     Simulate a single user turn using the User Simulator LLM.
@@ -43,13 +46,16 @@ async def _simulate_user_turn(
         model: The LLM model identifier
         max_turns: Maximum number of turns before ending conversation
         eval_id: Unique identifier for the evaluation run
+        writing_style: Optional writing style instruction
         
     Returns:
         Tuple of (user_message, should_continue)
         - user_message: The simulated user's message
         - should_continue: Whether the conversation should continue
     """
-    prompt = _build_user_simulator_prompt(scenario, conversation_history)
+    prompt = _build_user_simulator_prompt(
+        scenario, conversation_history, writing_style=writing_style
+    )
     log_prefix = f"[{eval_id}] " if eval_id else ""
     logger.debug(f"{log_prefix}User simulator prompt: {prompt}")
     
@@ -94,6 +100,7 @@ async def _run_single_interaction(
     max_turns: int = 10,
     eval_id: str = "",
     retry_config: RetryConfig | None = None,
+    writing_style: str | None = None,
 ) -> ConversationRecord:
     """
     Run a single interaction between user simulator and the app.
@@ -106,11 +113,12 @@ async def _run_single_interaction(
         user_simulator_model: The LLM model identifier for user simulation
         max_turns: Maximum conversation turns
         eval_id: Unique identifier for the evaluation run
+        writing_style: Optional writing style instruction
         
     Returns:
         ConversationRecord containing the full interaction
     """
-    conversation = ConversationRecord()
+    conversation = ConversationRecord(writing_style=writing_style)
     # History for User Simulator LLM - only the actual conversation content
     simulator_conversation_history: List[Dict[str, str]] = []
     app_state: Dict[str, Any] = {}
@@ -126,6 +134,7 @@ async def _run_single_interaction(
             max_turns,
             eval_id,
             retry_config,
+            writing_style,
         )
         
         # Check if conversation should end
@@ -232,6 +241,7 @@ async def _run_single_evaluation(
     max_turns: int = 10,
     eval_id: str = "",
     retry_config: RetryConfig | None = None,
+    writing_style_config: WritingStyleConfig | None = None,
 ) -> tuple[float, str, ConversationRecord]:
     """
     Run a complete single evaluation: simulate, interact, and judge.
@@ -244,6 +254,7 @@ async def _run_single_evaluation(
         user_simulator_model: The LLM model identifier for the user simulator
         max_turns: Maximum conversation turns
         eval_id: Unique identifier for the evaluation run
+        writing_style_config: Configuration for writing style variations.
         
     Returns:
         Tuple of (score, reasoning, conversation_record)
@@ -252,6 +263,15 @@ async def _run_single_evaluation(
         - conversation_record: Full conversation transcript
     """
     # Steps 3-4: Simulate and record
+    config = writing_style_config or WritingStyleConfig()
+    writing_style = (
+        _generate_writing_style(axes=config.axes) if config.enabled else None
+    )
+
+    log_prefix = f"[{eval_id}] " if eval_id else ""
+    if writing_style:
+        logger.debug(f"{log_prefix}Using writing style:\n{writing_style}")
+
     conversation = await _run_single_interaction(
         scenario,
         app_handler,
@@ -259,6 +279,7 @@ async def _run_single_evaluation(
         max_turns,
         eval_id,
         retry_config,
+        writing_style,
     )
     
     # Step 5: Judge
@@ -284,6 +305,7 @@ async def collect_evaluation_data(
     concurrency: int = 10,
     max_turns: int = 10,
     retry_config: RetryConfig | None = None,
+    writing_style_config: WritingStyleConfig | None = None,
 ) -> tuple[List[float], List[str], List[ConversationRecord]]:
     """
     Collect evaluation data by running multiple interactions with controlled concurrency.
@@ -300,6 +322,7 @@ async def collect_evaluation_data(
         sample_size: Total number of evaluations to run
         concurrency: Maximum number of evaluations to run concurrently
         max_turns: Maximum conversation turns per interaction
+        writing_style_config: Configuration for writing style variations.
         
     Returns:
         Tuple of (scores, reasoning_list, conversations)
@@ -322,6 +345,7 @@ async def collect_evaluation_data(
                 max_turns,
                 eval_id=eval_id,
                 retry_config=retry_config,
+                writing_style_config=writing_style_config,
             )
     
     # Create all tasks at once, semaphore controls concurrency
