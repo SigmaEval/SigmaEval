@@ -1,5 +1,5 @@
 """
-SigmaEval - A Python library for evaluating Generative AI agents and apps.
+SigmaEval: A Python library for evaluating Generative AI agents and apps.
 """
 
 from sigmaeval.core import (
@@ -15,7 +15,7 @@ from sigmaeval.core import (
 )
 from sigmaeval.evaluators import (
     SuccessRateEvaluator,
-    RatingMeanEvaluator,
+    RatingAverageEvaluator,
     RatingProportionEvaluator,
 )
 
@@ -34,7 +34,7 @@ __all__ = [
     "WritingStyleConfig",
     "WritingStyleAxes",
     "SuccessRateEvaluator",
-    "RatingMeanEvaluator",
+    "RatingAverageEvaluator",
     "RatingProportionEvaluator",
 ]
 

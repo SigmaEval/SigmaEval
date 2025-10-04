@@ -14,6 +14,7 @@ from typing import Callable, Awaitable, Any, Dict, List
 import json
 from .llm_client import _acompletion_with_retry
 from tqdm.asyncio import tqdm
+import re
 
 from .models import AppResponse, BehavioralTest, ConversationRecord, RetryConfig
 from .prompts import (
@@ -80,14 +81,28 @@ async def _simulate_user_turn(
     
     content = response.choices[0].message.content
     logger.debug(f"{log_prefix}User simulator response: {content}")
-    
+
     # Parse JSON response
     try:
-        parsed = json.loads(content)
+        # First, clean the string to handle potential malformed escape sequences
+        cleaned_content = content.encode('utf-8').decode('unicode_escape')
+        parsed = json.loads(cleaned_content)
         user_message = parsed.get("message", "")
         should_continue = parsed.get("continue", False)
         return user_message, should_continue
     except json.JSONDecodeError as e:
+        # If parsing still fails, try to find the JSON object within the raw text
+        try:
+            json_match = re.search(r"\{.*\}", content, re.DOTALL)
+            if json_match:
+                cleaned_content = json_match.group(0)
+                parsed = json.loads(cleaned_content)
+                user_message = parsed.get("message", "")
+                should_continue = parsed.get("continue", False)
+                return user_message, should_continue
+        except json.JSONDecodeError:
+            pass  # Fall through to the original error if secondary parsing fails
+
         raise LLMCommunicationError(
             f"User simulator returned non-JSON response: {content[:200]}"
         ) from e
@@ -213,10 +228,12 @@ async def _judge_interaction(
     
     content = response.choices[0].message.content
     logger.debug(f"{log_prefix}Judge response: {content}")
-    
+
     # Parse JSON response
     try:
-        parsed = json.loads(content)
+        # First, clean the string to handle potential malformed escape sequences
+        cleaned_content = content.encode('utf-8').decode('unicode_escape')
+        parsed = json.loads(cleaned_content)
         if "score" not in parsed:
             raise LLMCommunicationError("Judge LLM response missing 'score' field")
         score = float(parsed["score"])
@@ -225,6 +242,21 @@ async def _judge_interaction(
         score = max(1.0, min(10.0, score))
         return score, reasoning
     except json.JSONDecodeError as e:
+        # If parsing still fails, try to find the JSON object within the raw text
+        try:
+            json_match = re.search(r"\{.*\}", content, re.DOTALL)
+            if json_match:
+                cleaned_content = json_match.group(0)
+                parsed = json.loads(cleaned_content)
+                if "score" not in parsed:
+                    raise LLMCommunicationError("Judge LLM response missing 'score' field")
+                score = float(parsed["score"])
+                reasoning = parsed.get("reasoning", "No reasoning provided")
+                score = max(1.0, min(10.0, score))
+                return score, reasoning
+        except (json.JSONDecodeError, ValueError):
+            pass  # Fall through to the original error if secondary parsing fails
+
         raise LLMCommunicationError(
             f"Judge LLM returned non-JSON response: {content[:200]}"
         ) from e

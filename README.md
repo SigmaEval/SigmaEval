@@ -68,7 +68,7 @@ To gather a statistically meaningful sample, the following steps are repeated mu
 
 **Phase 3: Statistical Analysis**
 
-6.  **Drawing a Conclusion:** After all repetitions are complete, the collection of scores (the sample) is passed to the statistical evaluator you defined (`SuccessRateEvaluator`, `RatingMeanEvaluator`, etc.). This evaluator performs the appropriate statistical tests to determine if the application's performance meets your quality bar, providing a final pass/fail result with statistical confidence.
+6.  **Drawing a Conclusion:** After all repetitions are complete, the collection of scores (the sample) is passed to the statistical evaluator you defined (`SuccessRateEvaluator`, `RatingAverageEvaluator`, etc.). This evaluator performs the appropriate statistical tests to determine if the application's performance meets your quality bar, providing a final pass/fail result with statistical confidence.
 
 Each scenario is defined using a `BehavioralTest` object with three main parts:
 
@@ -166,16 +166,18 @@ binary_evaluator = SuccessRateEvaluator(
 )
 ```
 
-#### RatingMeanEvaluator
-This evaluator is particularly useful for subjective qualities like helpfulness or tone. The Judge LLM provides a rating on a 1-10 scale based on the rubric, and the evaluator performs a one-sided t-test to determine if the true average rating for a response across the entire user population is significantly higher than a specified baseline. It is useful for ensuring a high average quality standard.
+#### RatingAverageEvaluator
+This evaluator is particularly useful for subjective qualities like helpfulness or tone. The Judge LLM provides a rating on a 1-10 scale based on the rubric, and the evaluator performs a one-sided **bootstrap hypothesis test**. This is a modern, non-parametric method that is robust to the underlying distribution of the data, making it a reliable choice for scores that might be skewed (e.g., clustered at the high end with a few low outliers).
+
+The bootstrap method works by resampling the collected scores thousands of times to build an empirical distribution of the median. From this distribution, a confidence interval is calculated to determine if the true median rating for a response across the entire user population is statistically higher than a specified baseline, without making strong assumptions about the data's shape (like normality or symmetry).
 
 ```python
-from sigmaeval import RatingMeanEvaluator
+from sigmaeval import RatingAverageEvaluator
 
 # This would be used inside an `Expectation` object
-mean_rating_evaluator = RatingMeanEvaluator(
+median_rating_evaluator = RatingAverageEvaluator(
     significance_level=0.05,
-    min_mean_rating=7.0, # The minimum mean rating to test against
+    min_median_rating=8.0, # The minimum median rating to test against
     sample_size=50
 )
 ```
@@ -195,14 +197,14 @@ rating_evaluator = RatingProportionEvaluator(
 )
 ```
 
-### Key Differences: `RatingMeanEvaluator` vs. `RatingProportionEvaluator`
+### Key Differences: `RatingAverageEvaluator` vs. `RatingProportionEvaluator`
 
 While both evaluators measure subjective quality, they answer different questions:
 
-*   **`RatingMeanEvaluator`** asks: "Is the *average* quality of the responses high enough?" It's useful when you want to ensure a generally high standard, but can be skewed by a few very high or very low scores. For example, if your `min_mean_rating` is 7, you might pass with an average score of 7.5, which could be achieved with half your responses rated a mediocre 5 and half rated a perfect 10, masking the fact that half of your users had a poor experience.
+*   **`RatingAverageEvaluator`** asks: "Is the *typical* quality of the responses high enough?" By testing the **median**, it ensures that at least 50% of responses meet a certain quality bar. It is robust to outliers, meaning that a few very low scores won't drag down the result if the majority of scores are high. For example, if your `min_median_rating` is 8, you would only pass if there is statistical evidence that the true median is greater than 8. This prevents a scenario where a high *mean* score masks a significant number of poor user experiences.
 *   **`RatingProportionEvaluator`** asks: "Do *enough* of our responses meet a specific quality bar?" This is better when you have a clear minimum standard that every response should ideally meet. It ensures a consistent user experience by minimizing the number of poor-quality responses, even if the average is high. For example, you can ensure that at least 75% of users rate the response an 8 or higher.
 
-Choosing between them depends on your specific quality goals. Are you aiming for a high average performance, or do you need to guarantee a consistent minimum level of quality for most users?
+Choosing between them depends on your specific quality goals. Are you aiming for a high typical performance, or do you need to guarantee a consistent minimum level of quality for a specific supermajority of users?
 
 
 ### A Note on `SuccessRateEvaluator`
@@ -210,6 +212,11 @@ Choosing between them depends on your specific quality goals. Are you aiming for
 You may have noticed that the functionality of `SuccessRateEvaluator` is a specific use case of `RatingProportionEvaluator`. That is correct. `SuccessRateEvaluator` is provided as a convenience API for the common scenario where any score of 6 or higher on a 1-10 scale is considered a "success."
 
 Internally, `SuccessRateEvaluator(...)` is equivalent to `RatingProportionEvaluator(min_rating=6, ...)`. It simplifies test definition when you only need a simple pass/fail judgment based on a fixed threshold.
+
+
+### A Note on Sample Size and Statistical Significance
+
+It is important to note that the `sample_size` plays a crucial role in the outcome of the hypothesis tests used by `SuccessRateEvaluator` and `RatingProportionEvaluator`. A larger sample size provides more statistical evidence, making it easier to detect a true effect. With very small sample sizes (e.g., less than 10), a test might fail to achieve statistical significance (i.e., pass) even if the observed success rate in the sample is 100%. This is the expected and correct behavior, as there isn't enough data to confidently conclude that the *true* success rate for the entire user population is above the minimum threshold.
 
 
 ### Supported LLMs
