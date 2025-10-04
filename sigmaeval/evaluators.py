@@ -79,7 +79,7 @@ class SuccessRateEvaluator(BaseModel):
 
         results = {
             "passed": bool(passed),
-            "p_value": p_value,
+            "p_value": float(p_value),
             "significance_level": self.significance_level,
             "min_proportion": self.min_proportion,
             "observed_proportion": successes / self.sample_size,
@@ -187,12 +187,12 @@ class RatingAverageEvaluator(BaseModel):
 
         results = {
             "passed": bool(passed),
-            "p_value": p_value,
-            "confidence_interval_lower_bound": confidence_interval_lower_bound,
+            "p_value": float(p_value),
+            "confidence_interval_lower_bound": float(confidence_interval_lower_bound),
             "significance_level": self.significance_level,
             "min_median_rating": self.min_median_rating,
-            "observed_median": np.median(scores),
-            "observed_mean": np.mean(scores),
+            "observed_median": float(np.median(scores)),
+            "observed_mean": float(np.mean(scores)),
             "sample_size": self.sample_size,
             "bootstrap_resamples": self.bootstrap_resamples,
         }
@@ -279,7 +279,7 @@ class RatingProportionEvaluator(BaseModel):
 
         results = {
             "passed": bool(passed),
-            "p_value": p_value,
+            "p_value": float(p_value),
             "significance_level": self.significance_level,
             "min_rating": self.min_rating,
             "min_proportion": self.min_proportion,
