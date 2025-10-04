@@ -2,8 +2,9 @@
 Data models for the SigmaEval core package.
 """
 
+import numpy as np
 from typing import Any, Dict, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from dataclasses import dataclass
 
 
@@ -165,6 +166,9 @@ class EvaluationResult(BaseModel):
     """
     Structured data class for the results of a single `BehavioralTest` evaluation.
 
+    This class not only stores the raw data from the evaluation but also provides
+    properties and methods for easier analysis and interpretation of the results.
+
     Attributes:
         judge_model: The model identifier used for the judge.
         user_simulator_model: The model identifier used for the user simulator.
@@ -187,5 +191,125 @@ class EvaluationResult(BaseModel):
     conversations: list[ConversationRecord]
     num_conversations: int
     results: Dict[str, Any]
+
+    @field_validator("scores")
+    def scores_must_not_be_empty(cls, v):
+        if not v:
+            raise ValueError("scores cannot be an empty list")
+        return v
+
+    @property
+    def passed(self) -> bool:
+        """Convenience property to check if the test passed."""
+        return self.results.get("passed", False)
+
+    @property
+    def p_value(self) -> float | None:
+        """Convenience property to get the p-value, if available."""
+        return self.results.get("p_value")
+
+    @property
+    def average_score(self) -> float:
+        """The average of all collected scores."""
+        return np.mean(self.scores) if self.scores else 0
+
+    @property
+    def median_score(self) -> float:
+        """The median of all collected scores."""
+        return np.median(self.scores) if self.scores else 0
+
+    @property
+    def min_score(self) -> float:
+        """The minimum score from the evaluation."""
+        return min(self.scores) if self.scores else 0
+
+    @property
+    def max_score(self) -> float:
+        """The maximum score from the evaluation."""
+        return max(self.scores) if self.scores else 0
+
+    @property
+    def std_dev_score(self) -> float:
+        """The standard deviation of the scores."""
+        return np.std(self.scores) if self.scores else 0
+
+    def get_worst_conversation(self) -> tuple[float, str, ConversationRecord]:
+        """
+        Finds and returns the conversation with the lowest score.
+
+        If there are multiple conversations with the same lowest score, the first
+        one encountered will be returned.
+
+        Returns:
+            A tuple containing the score, the judge's reasoning, and the
+            conversation record.
+        """
+        if not self.scores:
+            raise ValueError("Cannot get worst conversation from empty scores list.")
+
+        min_score = min(self.scores)
+        min_index = self.scores.index(min_score)
+        return (
+            self.scores[min_index],
+            self.reasoning[min_index],
+            self.conversations[min_index],
+        )
+
+    def get_best_conversation(self) -> tuple[float, str, ConversationRecord]:
+        """
+        Finds and returns the conversation with the highest score.
+
+        If there are multiple conversations with the same highest score, the first
+        one encountered will be returned.
+
+        Returns:
+            A tuple containing the score, the judge's reasoning, and the
+            conversation record.
+        """
+        if not self.scores:
+            raise ValueError("Cannot get best conversation from empty scores list.")
+
+        max_score = max(self.scores)
+        max_index = self.scores.index(max_score)
+        return (
+            self.scores[max_index],
+            self.reasoning[max_index],
+            self.conversations[max_index],
+        )
+
+    def __str__(self) -> str:
+        """
+        Provides a human-readable summary of the evaluation results.
+        """
+        # Title and Pass/Fail status
+        title = self.test_config.get("title", "Evaluation Results")
+        status = "✅ PASSED" if self.passed else "❌ FAILED"
+        header = f"--- {title}: {status} ---"
+
+        # Key stats
+        p_value_str = f"P-value: {self.p_value:.4f}" if self.p_value is not None else ""
+        stats = f"""
+Summary Statistics:
+  - Average Score: {self.average_score:.2f}
+  - Median Score:  {self.median_score:.2f}
+  - Min Score:     {self.min_score:.2f}
+  - Max Score:     {self.max_score:.2f}
+  - Std Dev:       {self.std_dev_score:.2f}
+        """
+
+        # Evaluator-specific results
+        evaluator_results = "\n".join(
+            [f"  - {key.replace('_', ' ').title()}: {value}" for key, value in self.results.items()]
+        )
+        
+        return f"""
+{header}
+{p_value_str}
+
+{stats.strip()}
+
+Full Evaluator Results:
+{evaluator_results}
+        """.strip()
 
 

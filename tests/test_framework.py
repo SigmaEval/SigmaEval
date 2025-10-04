@@ -16,6 +16,7 @@ from sigmaeval import (
     EvaluationResult,
     RetryConfig,
     WritingStyleConfig,
+    ConversationRecord,
 )
 from tests.example_apps.simple_chat_app import SimpleChatApp
 
@@ -149,6 +150,76 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     assert "Generated rubric" not in caplog.text  # DEBUG message
 
 
+def test_evaluation_result_properties_and_methods():
+    """
+    Tests the convenience properties and methods of the EvaluationResult class.
+    """
+    scores = [1.0, 5.0, 7.5, 8.0, 9.5]
+    reasoning = ["r1", "r2", "r3", "r4", "r5"]
+    conversations = [
+        ConversationRecord(turns=[{"role": "user", "content": "hello"}]),
+        ConversationRecord(turns=[{"role": "user", "content": "world"}]),
+        ConversationRecord(turns=[{"role": "user", "content": "foo"}]),
+        ConversationRecord(turns=[{"role": "user", "content": "bar"}]),
+        ConversationRecord(turns=[{"role": "user", "content": "baz"}]),
+    ]
+
+    results_pass = EvaluationResult(
+        judge_model="test/judge",
+        user_simulator_model="test/simulator",
+        test_config={"title": "Test Pass"},
+        retry_config=RetryConfig(),
+        rubric="Test Rubric",
+        scores=scores,
+        reasoning=reasoning,
+        conversations=conversations,
+        num_conversations=len(scores),
+        results={"passed": True, "p_value": 0.01},
+    )
+
+    # Test properties for a passing result
+    assert results_pass.passed is True
+    assert results_pass.p_value == 0.01
+    assert results_pass.average_score == 6.2
+    assert results_pass.median_score == 7.5
+    assert results_pass.min_score == 1.0
+    assert results_pass.max_score == 9.5
+    assert results_pass.std_dev_score == pytest.approx(2.977, abs=0.001)
+
+    # Test methods
+    worst_score, worst_reasoning, worst_convo = results_pass.get_worst_conversation()
+    assert worst_score == 1.0
+    assert worst_reasoning == "r1"
+    assert worst_convo == conversations[0]
+
+    best_score, best_reasoning, best_convo = results_pass.get_best_conversation()
+    assert best_score == 9.5
+    assert best_reasoning == "r5"
+    assert best_convo == conversations[4]
+
+    # Test __str__ method
+    summary_str = str(results_pass)
+    assert "--- Test Pass: ✅ PASSED ---" in summary_str
+    assert "P-value: 0.0100" in summary_str
+    assert "Average Score: 6.20" in summary_str
+    assert "Passed: True" in summary_str
+    
+    # Test a failing result
+    results_fail = EvaluationResult(
+        judge_model="test/judge",
+        user_simulator_model="test/simulator",
+        test_config={"title": "Test Fail"},
+        retry_config=RetryConfig(),
+        rubric="Test Rubric",
+        scores=scores,
+        reasoning=reasoning,
+        conversations=conversations,
+        num_conversations=len(scores),
+        results={"passed": False, "p_value": 0.88},
+    )
+    
+    assert results_fail.passed is False
+    assert "--- Test Fail: ❌ FAILED ---" in str(results_fail)
 
 
 @pytest.mark.integration

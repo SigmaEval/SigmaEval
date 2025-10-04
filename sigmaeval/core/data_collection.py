@@ -25,6 +25,7 @@ from .prompts import (
 from .exceptions import LLMCommunicationError
 from .writing_styles import _generate_writing_style
 from .models import WritingStyleConfig
+from .utils import _extract_json_from_response
 
 logger = logging.getLogger("sigmaeval")
 
@@ -84,27 +85,21 @@ async def _simulate_user_turn(
 
     # Parse JSON response
     try:
-        # First, clean the string to handle potential malformed escape sequences
-        cleaned_content = content.encode('utf-8').decode('unicode_escape')
-        parsed = json.loads(cleaned_content)
-        user_message = parsed.get("message", "")
-        should_continue = parsed.get("continue", False)
-        return user_message, should_continue
-    except json.JSONDecodeError as e:
-        # If parsing still fails, try to find the JSON object within the raw text
-        try:
-            json_match = re.search(r"\{.*\}", content, re.DOTALL)
-            if json_match:
-                cleaned_content = json_match.group(0)
-                parsed = json.loads(cleaned_content)
-                user_message = parsed.get("message", "")
-                should_continue = parsed.get("continue", False)
-                return user_message, should_continue
-        except json.JSONDecodeError:
-            pass  # Fall through to the original error if secondary parsing fails
+        parsed = _extract_json_from_response(content)
+        if parsed:
+            user_message = parsed.get("message", "")
+            should_continue = parsed.get("continue", False)
+            return user_message, should_continue
 
+        # If parsing fails, raise an error
         raise LLMCommunicationError(
             f"User simulator returned non-JSON response: {content[:200]}"
+        )
+    except Exception as e:
+        if isinstance(e, LLMCommunicationError):
+            raise
+        raise LLMCommunicationError(
+            f"Failed to parse user simulator response: {content[:200]}"
         ) from e
 
 
@@ -231,37 +226,27 @@ async def _judge_interaction(
 
     # Parse JSON response
     try:
-        # First, clean the string to handle potential malformed escape sequences
-        cleaned_content = content.encode('utf-8').decode('unicode_escape')
-        parsed = json.loads(cleaned_content)
-        if "score" not in parsed:
-            raise LLMCommunicationError("Judge LLM response missing 'score' field")
+        parsed = _extract_json_from_response(content)
+        if not parsed or "score" not in parsed:
+            raise LLMCommunicationError(
+                "Judge LLM response is not valid JSON or is missing the 'score' field."
+            )
+
         score = float(parsed["score"])
         reasoning = parsed.get("reasoning", "No reasoning provided")
         # Clamp score to valid range
         score = max(1.0, min(10.0, score))
         return score, reasoning
-    except json.JSONDecodeError as e:
-        # If parsing still fails, try to find the JSON object within the raw text
-        try:
-            json_match = re.search(r"\{.*\}", content, re.DOTALL)
-            if json_match:
-                cleaned_content = json_match.group(0)
-                parsed = json.loads(cleaned_content)
-                if "score" not in parsed:
-                    raise LLMCommunicationError("Judge LLM response missing 'score' field")
-                score = float(parsed["score"])
-                reasoning = parsed.get("reasoning", "No reasoning provided")
-                score = max(1.0, min(10.0, score))
-                return score, reasoning
-        except (json.JSONDecodeError, ValueError):
-            pass  # Fall through to the original error if secondary parsing fails
-
+    except (ValueError, TypeError) as e:
         raise LLMCommunicationError(
-            f"Judge LLM returned non-JSON response: {content[:200]}"
+            f"Judge LLM response contained non-numeric 'score': {content[:200]}"
         ) from e
-    except ValueError as e:
-        raise LLMCommunicationError("Judge LLM response contained non-numeric 'score'") from e
+    except Exception as e:
+        if isinstance(e, LLMCommunicationError):
+            raise
+        raise LLMCommunicationError(
+            f"Failed to parse judge response: {content[:200]}"
+        ) from e
 
 
 async def _run_single_evaluation(

@@ -137,13 +137,16 @@ async def main():
 
     # Print the results
     print(f"--- Results for BehavioralTest: {scenario.title} ---")
-    print(f"Passed: {results.results['passed']}")
-    print(f"P-value: {results.results['p_value']:.4f}")
-    print(f"Average Score: {sum(results.scores) / len(results.scores):.2f}")
+    print(f"Passed: {results.passed}")
+    print(f"P-value: {results.p_value:.4f}")
+    print(f"Average Score: {results.average_score:.2f}")
     
     # You can also inspect individual conversations
     # print("--- Example Conversation ---")
     # print(results.conversations[0])
+    
+    # Or print the full summary
+    print(results)
 
 if __name__ == "__main__":
     asyncio.run(main())
