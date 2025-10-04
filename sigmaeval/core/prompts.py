@@ -60,7 +60,7 @@ Be concise but specific. Each rating description should be 1-2 sentences maximum
 def _build_user_simulator_prompt(
     scenario: BehavioralTest,
     conversation_history: List[Dict[str, str]],
-    writing_style: str | None = None,
+    writing_style: Dict[str, str] | None = None,
 ) -> str:
     """
     Build the prompt for simulating a user turn.
@@ -77,20 +77,37 @@ def _build_user_simulator_prompt(
     """
     # Build conversation context
     conversation_context = ""
+    conversation_header = ""
+    action_verb = "start"
     if conversation_history:
-        conversation_context = "\n\n**Conversation so far:**\n"
+        action_verb = "continue"
+        conversation_header = "The conversation so far is provided in the <conversation_history> XML block. Each <turn> tag represents a single turn of the conversation, with the speaker attribute indicating whether it was the 'user' or the 'assistant'."
+        conversation_context = "\n<conversation_history>\n"
         for turn in conversation_history:
-            if turn["role"] == "user":
-                conversation_context += f"You (the user): {turn['content']}\n"
-            else:
-                conversation_context += f"Assistant: {turn['content']}\n"
+            speaker = turn["role"]
+            content = turn["content"]
+            conversation_context += f'<turn speaker="{speaker}">\n{content}\n</turn>\n'
+        conversation_context += "</conversation_history>"
     
     # Build instructions list
     instructions = [
         "- Be realistic and natural in your conversation",
     ]
     if writing_style:
-        instructions.append(writing_style)
+        style_str = (
+            "- Adopt the following writing style for the user. But your responses "
+            "should naturally vary and not strictly adhere to these at all times (e.g., "
+            "an extremely verbose person might still say 'thanks' or 'ok' as a short full response).\n"
+        )
+        for key, value in writing_style.items():
+            style_str += f"    - {key}: {value}\n"
+        style_str += (
+            "    (Note: If any aspect of this writing style conflicts with the 'Given' "
+            "(background) or 'When' (scenario) instructions noted above, you "
+            "must prioritize those instructions and disregard the conflicting "
+            "aspects of this writing style.)"
+        )
+        instructions.append(style_str)
 
     instructions.extend(
         [
@@ -105,8 +122,12 @@ def _build_user_simulator_prompt(
 **Background information/context (Given):** {scenario.given}
 
 **The scenario (When):** {scenario.when}
+
+{conversation_header}
 {conversation_context}
-Your task is to naturally continue the conversation as the user according to the scenario described above. 
+
+Your task is to naturally {action_verb} the conversation as the user according to the scenario described above. 
+
 
 {instructions_str}
 
@@ -127,8 +148,8 @@ Set "continue" to false when:
 
 def _build_judge_prompt(
     scenario: BehavioralTest,
-    conversation_text: str,
-    rubric: str
+    conversation_history: List[Dict[str, str]],
+    rubric: str,
 ) -> str:
     """
     Build the prompt for judging an interaction.
@@ -137,12 +158,23 @@ def _build_judge_prompt(
     
     Args:
         scenario: The behavioral test case
-        conversation_text: Formatted conversation to evaluate
+        conversation_history: List of conversation turns to evaluate
         rubric: The scoring rubric (1-10 scale)
         
     Returns:
         A formatted prompt string for the judge LLM
     """
+    conversation_text = ""
+    conversation_header = ""
+    if conversation_history:
+        conversation_header = "The conversation to evaluate is provided in the <conversation_history> XML block. Each <turn> tag represents a single turn of the conversation, with the speaker attribute indicating whether it was the 'user' or the 'assistant'."
+        conversation_text = "\n<conversation_history>\n"
+        for turn in conversation_history:
+            speaker = turn["role"]
+            content = turn["content"]
+            conversation_text += f'<turn speaker="{speaker}">\n{content}\n</turn>\n'
+        conversation_text += "</conversation_history>"
+
     return f"""You are an expert evaluator judging an AI assistant's performance.
 
 **Context (Given):** {scenario.given}
@@ -155,6 +187,7 @@ def _build_judge_prompt(
 {rubric}
 
 **Conversation to Evaluate:**
+{conversation_header}
 {conversation_text}
 
 Based on the rubric above, rate this conversation on a scale of 1-10. Consider how well the assistant's behavior matched the expected behavior in the given context and scenario.
@@ -169,7 +202,7 @@ Respond in the following JSON format:
 # System prompts for different LLM roles
 RUBRIC_GENERATOR_SYSTEM_PROMPT = "You are an expert at creating detailed evaluation rubrics for AI system behavior."
 
-USER_SIMULATOR_SYSTEM_PROMPT = "You are simulating a user interacting with an AI assistant."
+USER_SIMULATOR_SYSTEM_PROMPT = "You are simulating a user interacting with an AI assistant. You will be given a scenario and a conversation history in XML format. Follow the instructions to generate the user's next message."
 
 JUDGE_SYSTEM_PROMPT = "You are an expert evaluator. Provide fair, consistent judgments based on the rubric."
 

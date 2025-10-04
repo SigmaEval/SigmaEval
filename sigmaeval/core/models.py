@@ -40,15 +40,15 @@ class WritingStyleAxes(BaseModel):
     )
     verbosity: List[str] = Field(
         default=[
-            "Single words or very short phrases.",
-            "Extremely terse, uses incomplete sentences.",
-            "Terse and to-the-point.",
-            "Concise and clear.",
-            "Moderately detailed.",
-            "Slightly verbose.",
-            "Verbose and descriptive.",
-            "Overly detailed and rambling.",
-            "Long, multi-paragraph messages.",
+            "Very terse (1-5 words).",
+            "Terse (5-10 words).",
+            "Concise (10-20 words).",
+            "Moderately detailed (20-40 words).",
+            "Detailed (40-80 words).",
+            "Verbose (80-120 words).",
+            "Very verbose (120-180 words).",
+            "Extremely verbose (180-250 words).",
+            "Rambling and overly detailed (250+ words).",
         ]
     )
     formality: List[str] = Field(
@@ -136,7 +136,7 @@ class ConversationRecord(BaseModel):
         writing_style: The writing style used for this conversation, if any.
     """
     turns: list[Dict[str, str]] = Field(default_factory=list)
-    writing_style: str | None = None
+    writing_style: Dict[str, str] | None = None
 
     def add_user_message(self, message: str):
         """Add a user message to the conversation."""

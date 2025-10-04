@@ -5,6 +5,9 @@ import os
 from dotenv import load_dotenv
 import logging
 
+# Suppress excessive logging from LiteLLM during tests
+os.environ["LITELLM_LOG"] = "ERROR"
+
 import pytest
 
 from sigmaeval import (
@@ -16,6 +19,7 @@ from sigmaeval import (
     EvaluationResult,
     RetryConfig,
     WritingStyleConfig,
+    WritingStyleAxes,
     ConversationRecord,
 )
 from tests.example_apps.simple_chat_app import SimpleChatApp
@@ -308,3 +312,76 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     assert "Generated rubric" in caplog.text
     assert "Collected scores" in caplog.text
     assert "Judge prompt" in caplog.text
+
+
+@pytest.mark.integration
+async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
+    """
+    Runs an end-to-end test to verify that a custom WritingStyleConfig is
+    correctly used during evaluation.
+    """
+    # 1. Setup: Load environment and get model names
+    load_dotenv()
+    eval_model = os.getenv("TEST_EVAL_MODEL")
+    app_model = os.getenv("TEST_APP_MODEL")
+    if not eval_model or not app_model:
+        pytest.skip(
+            "TEST_EVAL_MODEL and TEST_APP_MODEL env vars must be set to run this test."
+        )
+
+    sample_size = 2  # Keep sample size low for a quick test
+
+    # 2. Define the Behavioral Test
+    scenario = BehavioralTest(
+        title="Bot handles a simple greeting",
+        given="A user starts a conversation.",
+        when="The user says 'hello'.",
+        then=Expectation(
+            expected_behavior="The bot should respond with a friendly greeting.",
+            evaluator=SuccessRateEvaluator(
+                significance_level=0.05,
+                min_proportion=0.6,  # Easy to pass
+                sample_size=sample_size,
+            ),
+        ),
+        max_turns=2,
+    )
+
+    # 3. Create the app handler
+    chat_app = SimpleChatApp(model=app_model)
+
+    async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
+        history = state.get("history", [])
+        response_text, updated_history = await chat_app.respond(
+            user_message=message, history=history
+        )
+        return AppResponse(response=response_text, state={"history": updated_history})
+
+    # 4. Define and run the evaluation with a custom writing style
+    custom_axes = WritingStyleAxes(
+        proficiency=["TEST_PROFICIENCY"],
+        tone=["TEST_TONE"],
+        verbosity=["TEST_VERBOSITY"],
+        formality=["TEST_FORMALITY"],
+    )
+    custom_style_config = WritingStyleConfig(axes=custom_axes)
+
+    sigma_eval = SigmaEval(
+        judge_model=eval_model,
+        log_level=logging.INFO,
+        writing_style_config=custom_style_config,
+    )
+    results = await sigma_eval.evaluate(scenario, app_handler)
+
+    # 5. Assert the results
+    assert isinstance(results, EvaluationResult)
+    assert len(results.scores) == sample_size
+    assert len(results.conversations) == sample_size
+
+    # Key assertion: check that the custom writing style was used for all conversations
+    for convo in results.conversations:
+        assert convo.writing_style is not None
+        assert convo.writing_style["Proficiency"] == "TEST_PROFICIENCY"
+        assert convo.writing_style["Tone"] == "TEST_TONE"
+        assert convo.writing_style["Verbosity"] == "TEST_VERBOSITY"
+        assert convo.writing_style["Formality"] == "TEST_FORMALITY"

@@ -132,7 +132,7 @@ async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
 
 # Initialize SigmaEval and run the evaluation
 async def main():
-    sigma_eval = SigmaEval(judge_model="openai/gpt-4o")
+    sigma_eval = SigmaEval(judge_model="openai/gpt-5-nano")
     results: EvaluationResult = await sigma_eval.evaluate(scenario, app_handler)
 
     # Print the results
@@ -234,7 +234,7 @@ SigmaEval uses Python's standard `logging` module to provide visibility into the
 
 ### Retry Configuration
 
-To improve robustness against transient network or API issues, SigmaEval automatically retries failed LLM calls using an exponential backoff strategy (powered by the [Tenacity](https://tenacity.readthedocs.io/en/latest/) library). This applies to rubric generation, user simulation, and judging calls.
+To improve robustness against transient network or API issues, SigmaEval automatically retries failed LLM calls using an exponential backoff strategy (powered by the [Tenacity](https://tenacity.readthedocs.io/en/latest/) library). This also includes retries for malformed or unparsable LLM responses. This applies to rubric generation, user simulation, and judging calls.
 
 The retry behavior can be customized by passing a `RetryConfig` object to the `SigmaEval` constructor. If no configuration is provided, default settings are used.
 
@@ -252,7 +252,7 @@ custom_retry_config = RetryConfig(
 # no_retry_config = RetryConfig(enabled=False)
 
 sigma_eval = SigmaEval(
-    judge_model="openai/gpt-4o",
+    judge_model="openai/gpt-5-nano",
     retry_config=custom_retry_config
 )
 ```
@@ -285,7 +285,7 @@ custom_axes = WritingStyleAxes(
 custom_style_config = WritingStyleConfig(axes=custom_axes)
 
 sigma_eval = SigmaEval(
-    judge_model="openai/gpt-4o",
+    judge_model="openai/gpt-5-nano",
     writing_style_config=custom_style_config
 )
 ```

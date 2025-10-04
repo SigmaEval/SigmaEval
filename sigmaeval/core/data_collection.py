@@ -12,15 +12,22 @@ import logging
 import secrets
 from typing import Callable, Awaitable, Any, Dict, List
 import json
-from .llm_client import _acompletion_with_retry
+from litellm import acompletion as _litellm_acompletion
 from tqdm.asyncio import tqdm
 import re
+from tenacity import (
+    AsyncRetrying,
+    stop_after_attempt,
+    wait_random_exponential,
+    before_sleep_log,
+)
 
 from .models import AppResponse, BehavioralTest, ConversationRecord, RetryConfig
 from .prompts import (
     _build_user_simulator_prompt,
     _build_judge_prompt,
     JUDGE_SYSTEM_PROMPT,
+    USER_SIMULATOR_SYSTEM_PROMPT,
 )
 from .exceptions import LLMCommunicationError
 from .writing_styles import _generate_writing_style
@@ -37,10 +44,11 @@ async def _simulate_user_turn(
     max_turns: int = 10,
     eval_id: str = "",
     retry_config: RetryConfig | None = None,
-    writing_style: str | None = None,
+    writing_style: dict[str, str] | None = None,
 ) -> tuple[str, bool]:
     """
-    Simulate a single user turn using the User Simulator LLM.
+    Simulate a single user turn using the User Simulator LLM. This function
+    includes retries for LLM communication and response parsing errors.
     
     Args:
         scenario: The behavioral test case
@@ -48,7 +56,8 @@ async def _simulate_user_turn(
         model: The LLM model identifier
         max_turns: Maximum number of turns before ending conversation
         eval_id: Unique identifier for the evaluation run
-        writing_style: Optional writing style instruction
+        retry_config: Configuration for retrying LLM calls on failure.
+        writing_style: Optional writing style instruction dictionary
         
     Returns:
         Tuple of (user_message, should_continue)
@@ -61,7 +70,10 @@ async def _simulate_user_turn(
     log_prefix = f"[{eval_id}] " if eval_id else ""
     logger.debug(f"{log_prefix}User simulator prompt: {prompt}")
     
-    messages = [{"role": "system", "content": prompt}]
+    messages = [
+        {"role": "system", "content": USER_SIMULATOR_SYSTEM_PROMPT},
+        {"role": "user", "content": prompt},
+    ]
     
     # Check if we've exceeded max turns
     turn_count = len([m for m in conversation_history if m["role"] == "user"])
@@ -69,38 +81,53 @@ async def _simulate_user_turn(
         logger.debug(f"{log_prefix}Max turns reached, ending conversation.")
         return "[Conversation ended - max turns reached]", False
     
-    try:
-        response = await _acompletion_with_retry(
-            model=model,
-            messages=messages,
-            temperature=0.8,
-            response_format={"type": "json_object"},
-            retry_config=retry_config,
-        )
-    except Exception as e:
-        raise LLMCommunicationError("User simulator LLM call failed") from e
+    cfg = retry_config or RetryConfig()
+    retrying = AsyncRetrying(
+        reraise=True,
+        stop=stop_after_attempt(cfg.max_attempts if cfg.enabled else 1),
+        wait=wait_random_exponential(
+            multiplier=cfg.backoff_multiplier, max=cfg.max_backoff_seconds
+        ),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+
+    async for attempt in retrying:
+        with attempt:
+            try:
+                response = await _litellm_acompletion(
+                    model=model,
+                    messages=messages,
+                    temperature=0.8,
+                    response_format={"type": "json_object"},
+                    drop_params=True,
+                )
+            except Exception as e:
+                raise LLMCommunicationError("User simulator LLM call failed") from e
+            
+            content = response.choices[0].message.content
+            logger.debug(f"{log_prefix}User simulator response: {content}")
+
+            # Parse JSON response
+            try:
+                parsed = _extract_json_from_response(content)
+                if parsed:
+                    user_message = parsed.get("message", "")
+                    should_continue = parsed.get("continue", False)
+                    return user_message, should_continue
+
+                # If parsing fails, raise an error to trigger a retry
+                raise LLMCommunicationError(
+                    f"User simulator returned non-JSON response: {content[:200]}"
+                )
+            except Exception as e:
+                if isinstance(e, LLMCommunicationError):
+                    raise
+                raise LLMCommunicationError(
+                    f"Failed to parse user simulator response: {content[:200]}"
+                ) from e
     
-    content = response.choices[0].message.content
-    logger.debug(f"{log_prefix}User simulator response: {content}")
-
-    # Parse JSON response
-    try:
-        parsed = _extract_json_from_response(content)
-        if parsed:
-            user_message = parsed.get("message", "")
-            should_continue = parsed.get("continue", False)
-            return user_message, should_continue
-
-        # If parsing fails, raise an error
-        raise LLMCommunicationError(
-            f"User simulator returned non-JSON response: {content[:200]}"
-        )
-    except Exception as e:
-        if isinstance(e, LLMCommunicationError):
-            raise
-        raise LLMCommunicationError(
-            f"Failed to parse user simulator response: {content[:200]}"
-        ) from e
+    # This path should not be reachable if reraise=True is set
+    raise LLMCommunicationError("Exhausted all retries for user simulator.")
 
 
 async def _run_single_interaction(
@@ -110,7 +137,7 @@ async def _run_single_interaction(
     max_turns: int = 10,
     eval_id: str = "",
     retry_config: RetryConfig | None = None,
-    writing_style: str | None = None,
+    writing_style: dict[str, str] | None = None,
 ) -> ConversationRecord:
     """
     Run a single interaction between user simulator and the app.
@@ -123,7 +150,7 @@ async def _run_single_interaction(
         user_simulator_model: The LLM model identifier for user simulation
         max_turns: Maximum conversation turns
         eval_id: Unique identifier for the evaluation run
-        writing_style: Optional writing style instruction
+        writing_style: Optional writing style instruction dictionary
         
     Returns:
         ConversationRecord containing the full interaction
@@ -180,7 +207,8 @@ async def _judge_interaction(
     retry_config: RetryConfig | None = None,
 ) -> tuple[float, str]:
     """
-    Judge a single interaction using the Judge LLM.
+    Judge a single interaction using the Judge LLM. This function
+    includes retries for LLM communication and response parsing errors.
     
     This is Phase 2, Step 5: Judge expected behavior with Judge LLM.
     
@@ -190,63 +218,72 @@ async def _judge_interaction(
         rubric: The scoring rubric (1-10 scale)
         judge_model: The LLM model identifier for judging
         eval_id: Unique identifier for the evaluation run
+        retry_config: Configuration for retrying LLM calls on failure.
         
     Returns:
         Tuple of (score, reasoning)
         - score: Score from 1-10 based on the rubric
         - reasoning: Judge's explanation for the score
     """
-    conversation_text = conversation.to_formatted_string()
-    prompt = _build_judge_prompt(scenario, conversation_text, rubric)
+    prompt = _build_judge_prompt(scenario, conversation.turns, rubric)
     log_prefix = f"[{eval_id}] " if eval_id else ""
     logger.debug(f"{log_prefix}Judge prompt: {prompt}")
     
-    try:
-        response = await _acompletion_with_retry(
-            model=judge_model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": JUDGE_SYSTEM_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.3,
-            response_format={"type": "json_object"},
-            retry_config=retry_config,
-        )
-    except Exception as e:
-        raise LLMCommunicationError("Judge LLM call failed") from e
-    
-    content = response.choices[0].message.content
-    logger.debug(f"{log_prefix}Judge response: {content}")
+    cfg = retry_config or RetryConfig()
+    retrying = AsyncRetrying(
+        reraise=True,
+        stop=stop_after_attempt(cfg.max_attempts if cfg.enabled else 1),
+        wait=wait_random_exponential(
+            multiplier=cfg.backoff_multiplier, max=cfg.max_backoff_seconds
+        ),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
 
-    # Parse JSON response
-    try:
-        parsed = _extract_json_from_response(content)
-        if not parsed or "score" not in parsed:
-            raise LLMCommunicationError(
-                "Judge LLM response is not valid JSON or is missing the 'score' field."
-            )
+    async for attempt in retrying:
+        with attempt:
+            try:
+                response = await _litellm_acompletion(
+                    model=judge_model,
+                    messages=[
+                        {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.3,
+                    response_format={"type": "json_object"},
+                    drop_params=True,
+                )
+            except Exception as e:
+                raise LLMCommunicationError("Judge LLM call failed") from e
+            
+            content = response.choices[0].message.content
+            logger.debug(f"{log_prefix}Judge response: {content}")
 
-        score = float(parsed["score"])
-        reasoning = parsed.get("reasoning", "No reasoning provided")
-        # Clamp score to valid range
-        score = max(1.0, min(10.0, score))
-        return score, reasoning
-    except (ValueError, TypeError) as e:
-        raise LLMCommunicationError(
-            f"Judge LLM response contained non-numeric 'score': {content[:200]}"
-        ) from e
-    except Exception as e:
-        if isinstance(e, LLMCommunicationError):
-            raise
-        raise LLMCommunicationError(
-            f"Failed to parse judge response: {content[:200]}"
-        ) from e
+            # Parse JSON response
+            try:
+                parsed = _extract_json_from_response(content)
+                if not parsed or "score" not in parsed:
+                    raise LLMCommunicationError(
+                        "Judge LLM response is not valid JSON or is missing the 'score' field."
+                    )
+
+                score = float(parsed["score"])
+                reasoning = parsed.get("reasoning", "No reasoning provided")
+                # Clamp score to valid range
+                score = max(1.0, min(10.0, score))
+                return score, reasoning
+            except (ValueError, TypeError) as e:
+                raise LLMCommunicationError(
+                    f"Judge LLM response contained non-numeric 'score': {content[:200]}"
+                ) from e
+            except Exception as e:
+                if isinstance(e, LLMCommunicationError):
+                    raise
+                raise LLMCommunicationError(
+                    f"Failed to parse judge response: {content[:200]}"
+                ) from e
+
+    # This path should not be reachable if reraise=True is set
+    raise LLMCommunicationError("Exhausted all retries for judge.")
 
 
 async def _run_single_evaluation(
@@ -287,7 +324,8 @@ async def _run_single_evaluation(
 
     log_prefix = f"[{eval_id}] " if eval_id else ""
     if writing_style:
-        logger.debug(f"{log_prefix}Using writing style:\n{writing_style}")
+        style_str = "\n".join(f"  - {k.capitalize()}: {v}" for k, v in writing_style.items())
+        logger.debug(f"{log_prefix}Using writing style:\n{style_str}")
 
     conversation = await _run_single_interaction(
         scenario,

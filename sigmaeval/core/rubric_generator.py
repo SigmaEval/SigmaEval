@@ -4,7 +4,13 @@ Rubric generation logic for Phase 1 of SigmaEval evaluation.
 
 import logging
 from typing import Dict, Any
-from .llm_client import _acompletion_with_retry
+from litellm import acompletion as _litellm_acompletion
+from tenacity import (
+    AsyncRetrying,
+    stop_after_attempt,
+    wait_random_exponential,
+    before_sleep_log,
+)
 
 from .models import BehavioralTest, RetryConfig
 from .prompts import _build_rubric_generation_prompt, RUBRIC_GENERATOR_SYSTEM_PROMPT
@@ -46,31 +52,43 @@ async def _generate_rubric(
     prompt = _build_rubric_generation_prompt(scenario)
     logger.debug(f"Rubric generation prompt: {prompt}")
     
-    try:
-        response = await _acompletion_with_retry(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": RUBRIC_GENERATOR_SYSTEM_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.7,
-            retry_config=retry_config,
-        )
-    except Exception as e:
-        raise LLMCommunicationError("Rubric generation LLM call failed") from e
+    cfg = retry_config or RetryConfig()
+    retrying = AsyncRetrying(
+        reraise=True,
+        stop=stop_after_attempt(cfg.max_attempts if cfg.enabled else 1),
+        wait=wait_random_exponential(
+            multiplier=cfg.backoff_multiplier, max=cfg.max_backoff_seconds
+        ),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+
+    async for attempt in retrying:
+        with attempt:
+            try:
+                response = await _litellm_acompletion(
+                    model=model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": RUBRIC_GENERATOR_SYSTEM_PROMPT,
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.7,
+                    drop_params=True,
+                )
+            except Exception as e:
+                raise LLMCommunicationError("Rubric generation LLM call failed") from e
+
+            rubric = response.choices[0].message.content
+            if not isinstance(rubric, str) or not rubric.strip():
+                raise LLMCommunicationError("Rubric generation returned empty content")
+
+            logger.debug(f"Generated rubric: {rubric}")
+            return rubric
     
-    rubric = response.choices[0].message.content
-    if not isinstance(rubric, str) or not rubric.strip():
-        raise LLMCommunicationError("Rubric generation returned empty content")
-    
-    logger.debug(f"Generated rubric: {rubric}")
-    return rubric
+    # This path should not be reachable if reraise=True is set
+    raise LLMCommunicationError("Exhausted all retries for rubric generation.")
 
 
 def _parse_behavioral_test(scenario: BehavioralTest) -> Dict[str, Any]:

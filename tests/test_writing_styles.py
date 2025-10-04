@@ -86,7 +86,7 @@ async def test_writing_styles_can_be_disabled(
 
 
 @patch("sigmaeval.core.data_collection._generate_writing_style")
-@patch("sigmaeval.core.data_collection._acompletion_with_retry", new_callable=AsyncMock)
+@patch("sigmaeval.core.data_collection._litellm_acompletion", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
 @pytest.mark.asyncio
 async def test_custom_writing_style_axes_are_used(
@@ -112,7 +112,10 @@ async def test_custom_writing_style_axes_are_used(
         # Judge (sample 2)
         AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"score": 9, "reasoning": "Great"}'))]),
     ]
-    mock_generate_style.return_value = "Generated style"
+    mock_generate_style.return_value = {
+        "Proficiency": "Generated style proficiency",
+        "Tone": "Generated style tone",
+    }
 
     custom_axes = WritingStyleAxes(
         proficiency=["perfect"], tone=["happy"], verbosity=["short"], formality=["casual"]
@@ -129,11 +132,16 @@ async def test_custom_writing_style_axes_are_used(
         assert call_kwargs.get("axes") == custom_axes
 
 
-@patch("sigmaeval.core.data_collection._acompletion_with_retry", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+@patch("sigmaeval.core.data_collection._generate_writing_style")
+@patch("sigmaeval.core.data_collection._litellm_acompletion", new_callable=AsyncMock)
 @pytest.mark.asyncio
 async def test_writing_style_is_in_prompt(
-    mock_generate_rubric, mock_acompletion, basic_scenario, mock_app_handler
+    mock_acompletion,
+    mock_generate_style,
+    mock_generate_rubric,
+    basic_scenario,
+    mock_app_handler,
 ):
     """
     Verify that the generated writing style is included in the user simulator prompt.
@@ -147,25 +155,31 @@ async def test_writing_style_is_in_prompt(
     ]
 
     # Use a very specific, unique value to make it easy to find in the prompt
-    custom_axes = WritingStyleAxes(
-        proficiency=["MyUniqueProficiency"],
-        tone=["MyUniqueTone"],
-        verbosity=["MyUniqueVerbosity"],
-        formality=["MyUniqueFormality"],
-    )
-    config = WritingStyleConfig(axes=custom_axes)
+    style_dict = {
+        "Proficiency": "MyUniqueProficiency",
+        "Tone": "MyUniqueTone",
+        "Verbosity": "MyUniqueVerbosity",
+        "Formality": "MyUniqueFormality",
+    }
+    mock_generate_style.return_value = style_dict
+
+    config = WritingStyleConfig() # Use default axes, but mock the output
     sigma_eval = SigmaEval(judge_model="test/model", writing_style_config=config)
 
     await sigma_eval.evaluate(basic_scenario, mock_app_handler)
 
     # The user simulator is the first call for each sample
-    user_sim_calls = [c for c in mock_acompletion.call_args_list if "You are simulating a user" in c.kwargs["messages"][0]["content"]]
+    user_sim_calls = [
+        c
+        for c in mock_acompletion.call_args_list
+        if "You are simulating a user" in c.kwargs["messages"][0]["content"]
+    ]
     assert len(user_sim_calls) == 2
 
     for call in user_sim_calls:
-        prompt = call.kwargs["messages"][0]["content"]
+        prompt = call.kwargs["messages"][1]["content"]
         assert "- Adopt the following writing style" in prompt
-        assert "- Proficiency: MyUniqueProficiency" in prompt
-        assert "- Tone: MyUniqueTone" in prompt
-        assert "- Verbosity: MyUniqueVerbosity" in prompt
-        assert "- Formality: MyUniqueFormality" in prompt
+        assert "    - Proficiency: MyUniqueProficiency" in prompt
+        assert "    - Tone: MyUniqueTone" in prompt
+        assert "    - Verbosity: MyUniqueVerbosity" in prompt
+        assert "    - Formality: MyUniqueFormality" in prompt

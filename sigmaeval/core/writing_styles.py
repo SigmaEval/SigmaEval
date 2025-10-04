@@ -2,33 +2,25 @@
 Defines and generates writing style variations for the user simulator.
 """
 
-import secrets
-
+import random
+from typing import Dict, List, Optional
 from .models import WritingStyleAxes
 
 
-def _generate_writing_style(axes: WritingStyleAxes) -> str:
+def _generate_writing_style(
+    axes: Optional[WritingStyleAxes] = None,
+) -> Dict[str, str]:
     """
-    Generates a single writing style instruction sentence by randomly combining axes.
-    
-    Internal implementation detail - API may change without backward compatibility.
-    
-    Args:
-        axes: A WritingStyleAxes object containing the values for each axis.
+    Generate a random writing style from the available axes.
     """
-    proficiency = secrets.choice(axes.proficiency)
-    tone = secrets.choice(axes.tone)
-    verbosity = secrets.choice(axes.verbosity)
-    formality = secrets.choice(axes.formality)
+    if axes is None:
+        axes = WritingStyleAxes()
 
-    return (
-        "- Adopt the following writing style for the user:\n"
-        f"    - Proficiency: {proficiency}\n"
-        f"    - Tone: {tone}\n"
-        f"    - Verbosity: {verbosity}\n"
-        f"    - Formality: {formality}\n\n"
-        "    (Note: If any aspect of this writing style conflicts with the 'Given' "
-        "(background) or 'When' (scenario) instructions noted above, you "
-        "must prioritize those instructions and disregard the conflicting "
-        "aspects of this writing style.)"
-    )
+    style = {
+        "Proficiency": random.choice(axes.proficiency),
+        "Tone": random.choice(axes.tone),
+        "Verbosity": random.choice(axes.verbosity),
+        "Formality": random.choice(axes.formality),
+    }
+
+    return style

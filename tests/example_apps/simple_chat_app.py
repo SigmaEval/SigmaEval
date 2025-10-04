@@ -14,9 +14,16 @@ Environment:
 import os
 import asyncio
 from typing import Dict, List
+import logging
 
 from dotenv import load_dotenv
 from litellm import acompletion
+from tenacity import (
+    AsyncRetrying,
+    stop_after_attempt,
+    wait_random_exponential,
+    before_sleep_log,
+)
 
 
 # Load environment variables from a .env file if present
@@ -75,20 +82,32 @@ class SimpleChatApp:
         """
         messages = self._build_messages(history, user_message)
 
-        response = await acompletion(
-            model=self.model,
-            messages=messages,
-            temperature=0.6,
-            max_tokens=400,
+        logger = logging.getLogger(__name__)
+        retrying = AsyncRetrying(
+            reraise=True,
+            stop=stop_after_attempt(3),
+            wait=wait_random_exponential(multiplier=0.5, max=10),
+            before_sleep=before_sleep_log(logger, logging.WARNING),
         )
 
-        assistant_text = response.choices[0].message.content
+        async for attempt in retrying:
+            with attempt:
+                response = await acompletion(
+                    model=self.model,
+                    messages=messages,
+                    temperature=0.6,
+                    drop_params=True,
+                )
+                assistant_text = response.choices[0].message.content
 
-        # Update conversation history for next turn
-        history.append({"role": "user", "content": user_message})
-        history.append({"role": "assistant", "content": assistant_text})
+                # Update conversation history for next turn
+                history.append({"role": "user", "content": user_message})
+                history.append({"role": "assistant", "content": assistant_text})
 
-        return assistant_text, history
+                return assistant_text, history
+
+        # This path is not reachable with reraise=True, but satisfies type checker
+        raise RuntimeError("LLM call failed after multiple retries.")
 
 
 async def _demo() -> None:
