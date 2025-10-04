@@ -222,6 +222,31 @@ SigmaEval uses Python's standard `logging` module to provide visibility into the
 *   **`logging.INFO`** (default): Provides a high-level overview, including a progress bar for data collection.
 *   **`logging.DEBUG`**: Offers detailed output for troubleshooting, including LLM prompts, conversation transcripts, and judge's reasoning.
 
+### Retry Configuration
+
+To improve robustness against transient network or API issues, SigmaEval automatically retries failed LLM calls using an exponential backoff strategy (powered by the [Tenacity](https://tenacity.readthedocs.io/en/latest/) library). This applies to rubric generation, user simulation, and judging calls.
+
+The retry behavior can be customized by passing a `RetryConfig` object to the `SigmaEval` constructor. If no configuration is provided, default settings are used.
+
+```python
+from sigmaeval import SigmaEval, RetryConfig
+
+# Example: Customize retry settings
+custom_retry_config = RetryConfig(
+    max_attempts=3,
+    backoff_multiplier=1,
+    max_backoff_seconds=10
+)
+
+# You can also disable retries completely
+# no_retry_config = RetryConfig(enabled=False)
+
+sigma_eval = SigmaEval(
+    judge_model="openai/gpt-4o",
+    retry_config=custom_retry_config
+)
+```
+
 ### Appendix A: Example Rubric
 
 For the `BehavioralTest` defined in the Python snippet:
@@ -288,4 +313,3 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
