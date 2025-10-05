@@ -82,6 +82,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         title="Bot handles a product return request",
         given="A user wants to return a recently purchased pair of shoes.",
         when="The user asks how to start a return.",
+        sample_size=sample_size,
         then=Expectation(
             expected_behavior=(
                 "The bot should acknowledge the user's request, ask for an order "
@@ -90,7 +91,6 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
             evaluator=SuccessRateEvaluator(
                 significance_level=0.05,
                 min_proportion=0.7,
-                sample_size=sample_size,
             ),
         ),
         max_turns=5,
@@ -252,6 +252,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         title="Bot handles a product return request",
         given="A user wants to return a recently purchased pair of shoes.",
         when="The user asks how to start a return.",
+        sample_size=sample_size,
         then=Expectation(
             expected_behavior=(
                 "The bot should acknowledge the user's request, ask for an order "
@@ -260,7 +261,6 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
             evaluator=SuccessRateEvaluator(
                 significance_level=0.05,
                 min_proportion=0.7,
-                sample_size=sample_size,
             ),
         ),
         max_turns=5,
@@ -336,12 +336,12 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
         title="Bot handles a simple greeting",
         given="A user starts a conversation.",
         when="The user says 'hello'.",
+        sample_size=sample_size,
         then=Expectation(
             expected_behavior="The bot should respond with a friendly greeting.",
             evaluator=SuccessRateEvaluator(
                 significance_level=0.05,
                 min_proportion=0.6,  # Easy to pass
-                sample_size=sample_size,
             ),
         ),
         max_turns=2,
@@ -406,10 +406,11 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         title="Minimal Test 1",
         given="A user",
         when="The user says hi",
+        sample_size=sample_size,
         then=Expectation(
             expected_behavior="The bot says hi back.",
             evaluator=SuccessRateEvaluator(
-                sample_size=sample_size, min_proportion=0.1, significance_level=0.05
+                min_proportion=0.1, significance_level=0.05
             ),
         ),
         max_turns=2,
@@ -418,10 +419,11 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         title="Minimal Test 2",
         given="A user",
         when="The user says bye",
+        sample_size=sample_size,
         then=Expectation(
             expected_behavior="The bot says bye back.",
             evaluator=SuccessRateEvaluator(
-                sample_size=sample_size, min_proportion=0.1, significance_level=0.05
+                min_proportion=0.1, significance_level=0.05
             ),
         ),
         max_turns=2,

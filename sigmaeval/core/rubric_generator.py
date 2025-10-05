@@ -91,32 +91,3 @@ async def _generate_rubric(
     raise LLMCommunicationError("Exhausted all retries for rubric generation.")
 
 
-def _parse_behavioral_test(scenario: ScenarioTest) -> Dict[str, Any]:
-    """
-    Parse a ScenarioTest into its constituent components.
-    
-    This is Phase 1, Step 1 of the evaluation process.
-    
-    Internal implementation detail - API may change without backward compatibility.
-    
-    Args:
-        scenario: The behavioral test case to parse
-        
-    Returns:
-        Dictionary containing parsed components:
-        - title: Test case title
-        - given: Context and prerequisites
-        - when: User goal or action
-        - expected_behavior: Expected outcome description
-        - evaluator: Statistical evaluator instance
-        - sample_size: Number of samples to collect
-    """
-    return {
-        "title": scenario.title,
-        "given": scenario.given,
-        "when": scenario.when,
-        "expected_behavior": scenario.then.expected_behavior,
-        "evaluator": scenario.then.evaluator,
-        "sample_size": scenario.then.evaluator.sample_size,
-    }
-

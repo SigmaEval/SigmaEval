@@ -5,7 +5,6 @@ Data models for the SigmaEval core package.
 import numpy as np
 from typing import Any, Dict, List
 from pydantic import BaseModel, Field, field_validator
-from dataclasses import dataclass
 
 
 class WritingStyleAxes(BaseModel):
@@ -98,20 +97,38 @@ class Expectation(BaseModel):
     evaluator: Any = Field(..., description="Evaluator instance for statistical analysis")
 
 
-@dataclass
-class ScenarioTest:
+class ScenarioTest(BaseModel):
     """
     Defines a test case for a specific behavior of an AI application.
     """
+
     title: str
     given: str
     when: str
     then: "Expectation"
+    sample_size: int
     max_turns: int = 10
 
+    @field_validator("sample_size")
+    def validate_sample_size(cls, v):
+        if v <= 0:
+            raise ValueError("sample_size must be a positive integer")
+        return v
 
-@dataclass
-class RetryConfig:
+    @field_validator("max_turns")
+    def validate_max_turns(cls, v):
+        if v <= 0:
+            raise ValueError("max_turns must be a positive integer")
+        return v
+
+    @field_validator("title", "given", "when")
+    def validate_non_empty_strings(cls, v):
+        if not v or not v.strip():
+            raise ValueError("string fields must not be empty")
+        return v
+
+
+class RetryConfig(BaseModel):
     """
     Configuration for Tenacity retry behavior used for LiteLLM calls.
 

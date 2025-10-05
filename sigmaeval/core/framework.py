@@ -7,7 +7,7 @@ import asyncio
 from typing import Callable, Awaitable, Any, Dict, List
 
 from .models import AppResponse, ScenarioTest, EvaluationResult, WritingStyleConfig
-from .rubric_generator import _parse_behavioral_test, _generate_rubric
+from .rubric_generator import _generate_rubric
 from .data_collection import collect_evaluation_data
 from .models import RetryConfig
 
@@ -98,11 +98,7 @@ class SigmaEval:
         self.logger.info(f"--- Starting evaluation for ScenarioTest: {scenario.title} ---")
         
         # Phase 1: Test Setup
-        # 1. Parse ScenarioTest
-        self.logger.debug(f"Parsing ScenarioTest: {scenario.title}")
-        parsed_test = _parse_behavioral_test(scenario)
-        
-        # 2. Generate rubric from expected_behavior
+        # 1. Generate rubric from expected_behavior
         self.logger.debug("Generating rubric...")
         rubric = await _generate_rubric(scenario, self.judge_model, self.retry_config)
         self.logger.debug(f"Generated rubric: {rubric}")
@@ -111,8 +107,7 @@ class SigmaEval:
         #   3. Simulate user with User Simulator LLM
         #   4. Initiate and record interaction with system under test via app_handler
         #   5. Judge expected behavior with Judge LLM using rubric
-        sample_size = parsed_test["sample_size"]
-        self.logger.info(f"Collecting {sample_size} samples for '{scenario.title}'...")
+        self.logger.info(f"Collecting {scenario.sample_size} samples for '{scenario.title}'...")
         
         scores, reasoning_list, conversations = await collect_evaluation_data(
             scenario=scenario,
@@ -121,7 +116,7 @@ class SigmaEval:
             judge_model=self.judge_model,
             user_simulator_model=self.user_simulator_model,
             retry_config=self.retry_config,
-            sample_size=sample_size,
+            sample_size=scenario.sample_size,
             concurrency=concurrency,
             max_turns=scenario.max_turns,
             writing_style_config=self.writing_style_config,
@@ -136,10 +131,19 @@ class SigmaEval:
         
         self.logger.info(f"--- Evaluation complete for: {scenario.title} ---")
         
+        test_config = {
+            "title": scenario.title,
+            "given": scenario.given,
+            "when": scenario.when,
+            "expected_behavior": scenario.then.expected_behavior,
+            "evaluator": scenario.then.evaluator,
+            "sample_size": scenario.sample_size,
+        }
+        
         return EvaluationResult(
             judge_model=self.judge_model,
             user_simulator_model=self.user_simulator_model,
-            test_config=parsed_test,
+            test_config=test_config,
             retry_config=self.retry_config,
             rubric=rubric,
             scores=scores,

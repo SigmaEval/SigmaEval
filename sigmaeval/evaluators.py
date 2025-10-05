@@ -20,14 +20,12 @@ class SuccessRateEvaluator(BaseModel):
     Attributes:
         significance_level: Significance level for hypothesis test (e.g., 0.05)
         min_proportion: Minimum acceptable proportion of successes (e.g., 0.90)
-        sample_size: Number of samples to collect for statistical analysis
     """
     significance_level: float = Field(
         ..., 
         description="The probability of incorrectly rejecting the null hypothesis (a 'false positive'). Common values are 0.05 (5%) or 0.01 (1%). A value of 0.05 means you accept a 5% chance of concluding the system meets the minimum proportion when it actually doesn't."
     )
     min_proportion: float = Field(..., description="Minimum proportion of successes")
-    sample_size: int = Field(..., description="Number of samples to collect")
 
     @field_validator("significance_level")
     def validate_significance_level(cls, v):
@@ -41,12 +39,6 @@ class SuccessRateEvaluator(BaseModel):
             raise ValueError("min_proportion must be between 0 and 1")
         return v
 
-    @field_validator("sample_size")
-    def validate_sample_size(cls, v):
-        if v <= 0:
-            raise ValueError("sample_size must be a positive integer")
-        return v
-
     def evaluate(self, scores: List[float]) -> dict:
         """
         Evaluate if the proportion of successes meets the minimum threshold.
@@ -58,8 +50,7 @@ class SuccessRateEvaluator(BaseModel):
             Dictionary with evaluation results including pass/fail and statistics
         """
         logger.debug(f"SuccessRateEvaluator received scores: {scores}")
-        if len(scores) != self.sample_size:
-            raise ValueError(f"Expected {self.sample_size} scores, but got {len(scores)}")
+        sample_size = len(scores)
 
         successes = sum(1 for score in scores if score >= 6)
         
@@ -71,7 +62,7 @@ class SuccessRateEvaluator(BaseModel):
         # a 100% success rate. This is expected behavior, as there isn't
         # enough evidence to reject the null hypothesis with confidence.
         result = binomtest(
-            k=successes, n=self.sample_size, p=self.min_proportion, alternative="greater"
+            k=successes, n=sample_size, p=self.min_proportion, alternative="greater"
         )
         p_value = result.pvalue
 
@@ -82,12 +73,12 @@ class SuccessRateEvaluator(BaseModel):
             "p_value": float(p_value),
             "significance_level": self.significance_level,
             "min_proportion": self.min_proportion,
-            "observed_proportion": successes / self.sample_size,
+            "observed_proportion": successes / sample_size,
             "successes": successes,
-            "sample_size": self.sample_size,
+            "sample_size": sample_size,
         }
         logger.info(
-            f"SuccessRateEvaluator results: passed={bool(passed)}, p_value={p_value:.4f}, observed_proportion={successes / self.sample_size:.2f}"
+            f"SuccessRateEvaluator results: passed={bool(passed)}, p_value={p_value:.4f}, observed_proportion={successes / sample_size:.2f}"
         )
         logger.debug(f"Full SuccessRateEvaluator results: {results}")
         return results
@@ -108,7 +99,6 @@ class RatingAverageEvaluator(BaseModel):
     Attributes:
         significance_level: Significance level for hypothesis test (e.g., 0.05)
         min_median_rating: Minimum acceptable median rating (e.g., 7.0)
-        sample_size: Number of samples to collect for statistical analysis
         bootstrap_resamples: Number of bootstrap resamples to perform (default: 10000).
     """
 
@@ -117,7 +107,6 @@ class RatingAverageEvaluator(BaseModel):
         description="The probability of incorrectly rejecting the null hypothesis (a 'false positive'). Common values are 0.05 (5%) or 0.01 (1%). A value of 0.05 means you accept a 5% chance of concluding the system's median rating exceeds the minimum when it actually doesn't.",
     )
     min_median_rating: float = Field(..., description="Minimum median rating threshold")
-    sample_size: int = Field(..., description="Number of samples to collect")
     bootstrap_resamples: int = Field(
         10000, description="Number of bootstrap resamples to perform"
     )
@@ -132,12 +121,6 @@ class RatingAverageEvaluator(BaseModel):
     def validate_min_median_rating(cls, v):
         if not (1 <= v <= 10):
             raise ValueError("min_median_rating must be between 1 and 10")
-        return v
-
-    @field_validator("sample_size")
-    def validate_sample_size(cls, v):
-        if v <= 0:
-            raise ValueError("sample_size must be a positive integer")
         return v
 
     @field_validator("bootstrap_resamples")
@@ -157,8 +140,7 @@ class RatingAverageEvaluator(BaseModel):
             Dictionary with evaluation results including pass/fail and statistics
         """
         logger.debug(f"RatingAverageEvaluator received scores: {scores}")
-        if len(scores) != self.sample_size:
-            raise ValueError(f"Expected {self.sample_size} scores, but got {len(scores)}")
+        sample_size = len(scores)
 
         # H0: median <= min_median_rating
         # H1: median > min_median_rating
@@ -166,7 +148,7 @@ class RatingAverageEvaluator(BaseModel):
         # Generate bootstrap samples and calculate their medians
         bootstrap_medians = np.array(
             [
-                np.median(np.random.choice(scores, size=self.sample_size, replace=True))
+                np.median(np.random.choice(scores, size=sample_size, replace=True))
                 for _ in range(self.bootstrap_resamples)
             ]
         )
@@ -193,7 +175,7 @@ class RatingAverageEvaluator(BaseModel):
             "min_median_rating": self.min_median_rating,
             "observed_median": float(np.median(scores)),
             "observed_mean": float(np.mean(scores)),
-            "sample_size": self.sample_size,
+            "sample_size": sample_size,
             "bootstrap_resamples": self.bootstrap_resamples,
         }
         logger.info(
@@ -213,7 +195,6 @@ class RatingProportionEvaluator(BaseModel):
         significance_level: Significance level for hypothesis test (e.g., 0.05)
         min_rating: Minimum acceptable rating on 1-10 scale (e.g., 8)
         min_proportion: Minimum proportion of responses meeting min_rating (e.g., 0.75)
-        sample_size: Number of samples to collect for statistical analysis
     """
     significance_level: float = Field(
         ...,
@@ -221,7 +202,6 @@ class RatingProportionEvaluator(BaseModel):
     )
     min_rating: int = Field(..., description="Minimum acceptable rating (1-10)")
     min_proportion: float = Field(..., description="Minimum proportion at or above min_rating")
-    sample_size: int = Field(..., description="Number of samples to collect")
 
     @field_validator("significance_level")
     def validate_significance_level(cls, v):
@@ -241,12 +221,6 @@ class RatingProportionEvaluator(BaseModel):
             raise ValueError("min_proportion must be between 0 and 1")
         return v
 
-    @field_validator("sample_size")
-    def validate_sample_size(cls, v):
-        if v <= 0:
-            raise ValueError("sample_size must be a positive integer")
-        return v
-
     def evaluate(self, scores: List[float]) -> dict:
         """
         Evaluate if the proportion of ratings meeting threshold is sufficient.
@@ -258,8 +232,7 @@ class RatingProportionEvaluator(BaseModel):
             Dictionary with evaluation results including pass/fail and statistics
         """
         logger.debug(f"RatingProportionEvaluator received scores: {scores}")
-        if len(scores) != self.sample_size:
-            raise ValueError(f"Expected {self.sample_size} scores, but got {len(scores)}")
+        sample_size = len(scores)
 
         successes = sum(1 for score in scores if score >= self.min_rating)
 
@@ -271,7 +244,7 @@ class RatingProportionEvaluator(BaseModel):
         # a 100% success rate. This is expected behavior, as there isn't
         # enough evidence to reject the null hypothesis with confidence.
         result = binomtest(
-            k=successes, n=self.sample_size, p=self.min_proportion, alternative="greater"
+            k=successes, n=sample_size, p=self.min_proportion, alternative="greater"
         )
         p_value = result.pvalue
 
@@ -283,12 +256,12 @@ class RatingProportionEvaluator(BaseModel):
             "significance_level": self.significance_level,
             "min_rating": self.min_rating,
             "min_proportion": self.min_proportion,
-            "observed_proportion": successes / self.sample_size,
+            "observed_proportion": successes / sample_size,
             "successes": successes,
-            "sample_size": self.sample_size,
+            "sample_size": sample_size,
         }
         logger.info(
-            f"RatingProportionEvaluator results: passed={bool(passed)}, p_value={p_value:.4f}, observed_proportion={successes / self.sample_size:.2f}"
+            f"RatingProportionEvaluator results: passed={bool(passed)}, p_value={p_value:.4f}, observed_proportion={successes / sample_size:.2f}"
         )
         logger.debug(f"Full RatingProportionEvaluator results: {results}")
         return results

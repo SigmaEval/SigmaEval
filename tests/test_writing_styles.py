@@ -29,10 +29,11 @@ def basic_scenario():
         title="Test Scenario",
         given="A test user",
         when="The user does something",
+        sample_size=2,
         then=Expectation(
             expected_behavior="The app should respond appropriately",
             evaluator=SuccessRateEvaluator(
-                sample_size=2, significance_level=0.05, min_proportion=0.8
+                significance_level=0.05, min_proportion=0.8
             ),
         ),
     )
@@ -125,7 +126,7 @@ async def test_custom_writing_style_axes_are_used(
     sigma_eval = SigmaEval(judge_model="test/model", writing_style_config=config)
     await sigma_eval.evaluate(basic_scenario, mock_app_handler)
 
-    assert mock_generate_style.call_count == basic_scenario.then.evaluator.sample_size
+    assert mock_generate_style.call_count == basic_scenario.sample_size
     # All calls should have used the same custom axes
     for call in mock_generate_style.call_args_list:
         _, call_kwargs = call

@@ -95,12 +95,12 @@ scenario = ScenarioTest(
     title="Bot explains its capabilities",
     given="A new user who has not interacted with the bot before",
     when="The user asks a general question about the bot's capabilities",
+    sample_size=30,
     then=Expectation(
         expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         evaluator=SuccessRateEvaluator(
             significance_level=0.05,
             min_proportion=0.90,
-            sample_size=30
         )
     )
 )
@@ -165,7 +165,6 @@ from sigmaeval import SuccessRateEvaluator
 binary_evaluator = SuccessRateEvaluator(
     significance_level=0.05,
     min_proportion=0.90,
-    sample_size=30
 )
 ```
 
@@ -181,7 +180,6 @@ from sigmaeval import RatingAverageEvaluator
 median_rating_evaluator = RatingAverageEvaluator(
     significance_level=0.05,
     min_median_rating=8.0, # The minimum median rating to test against
-    sample_size=50
 )
 ```
 
@@ -196,7 +194,6 @@ rating_evaluator = RatingProportionEvaluator(
     significance_level=0.05,
     min_rating=8, # The minimum acceptable rating on a 1-10 scale
     min_proportion=0.75, # We want at least 75% of responses to have a rating of 8 or higher
-    sample_size=50
 )
 ```
 
@@ -315,6 +312,7 @@ scenario = ScenarioTest(
     title="Bot explains its capabilities",
     given="A new user who has not interacted with the bot before",
     when="The user asks a general question about the bot's capabilities",
+    sample_size=30,
     then=Expectation(
         expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         # ... evaluator details
