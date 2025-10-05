@@ -12,7 +12,7 @@ import pytest
 
 from sigmaeval import (
     SigmaEval,
-    BehavioralTest,
+    ScenarioTest,
     Expectation,
     AppResponse,
     SuccessRateEvaluator,
@@ -78,7 +78,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     sample_size = 10 # Keep sample size low for a quick test
 
     # 2. Define the Behavioral Test
-    scenario = BehavioralTest(
+    scenario = ScenarioTest(
         title="Bot handles a product return request",
         given="A user wants to return a recently purchased pair of shoes.",
         when="The user asks how to start a return.",
@@ -248,7 +248,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     sample_size = 10  # Keep sample size low for a quick test
 
     # 2. Define the Behavioral Test (same scenario as the good app test)
-    scenario = BehavioralTest(
+    scenario = ScenarioTest(
         title="Bot handles a product return request",
         given="A user wants to return a recently purchased pair of shoes.",
         when="The user asks how to start a return.",
@@ -332,7 +332,7 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
     sample_size = 2  # Keep sample size low for a quick test
 
     # 2. Define the Behavioral Test
-    scenario = BehavioralTest(
+    scenario = ScenarioTest(
         title="Bot handles a simple greeting",
         given="A user starts a conversation.",
         when="The user says 'hello'.",
@@ -402,7 +402,7 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
     sample_size = 1  # Keep sample size at 1 for a very fast test
 
     # 2. Define two minimal Behavioral Tests
-    scenario_1 = BehavioralTest(
+    scenario_1 = ScenarioTest(
         title="Minimal Test 1",
         given="A user",
         when="The user says hi",
@@ -414,7 +414,7 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         ),
         max_turns=2,
     )
-    scenario_2 = BehavioralTest(
+    scenario_2 = ScenarioTest(
         title="Minimal Test 2",
         given="A user",
         when="The user says bye",
@@ -452,5 +452,5 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
     assert "--- Starting evaluation for test suite with 2 scenarios ---" in caplog.text
     assert "--- Test suite evaluation complete ---" in caplog.text
     # Check that individual test logs are also present
-    assert "--- Starting evaluation for BehavioralTest: Minimal Test 1 ---" in caplog.text
+    assert "--- Starting evaluation for ScenarioTest: Minimal Test 1 ---" in caplog.text
     assert "--- Evaluation complete for: Minimal Test 1 ---" in caplog.text

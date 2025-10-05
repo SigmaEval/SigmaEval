@@ -22,7 +22,7 @@ from tenacity import (
     before_sleep_log,
 )
 
-from .models import AppResponse, BehavioralTest, ConversationRecord, RetryConfig
+from .models import AppResponse, ScenarioTest, ConversationRecord, RetryConfig
 from .prompts import (
     _build_user_simulator_prompt,
     _build_judge_prompt,
@@ -38,7 +38,7 @@ logger = logging.getLogger("sigmaeval")
 
 
 async def _simulate_user_turn(
-    scenario: BehavioralTest,
+    scenario: ScenarioTest,
     conversation_history: List[Dict[str, str]],
     model: str,
     max_turns: int = 10,
@@ -131,7 +131,7 @@ async def _simulate_user_turn(
 
 
 async def _run_single_interaction(
-    scenario: BehavioralTest,
+    scenario: ScenarioTest,
     app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
     user_simulator_model: str,
     max_turns: int = 10,
@@ -199,7 +199,7 @@ async def _run_single_interaction(
 
 
 async def _judge_interaction(
-    scenario: BehavioralTest,
+    scenario: ScenarioTest,
     conversation: ConversationRecord,
     rubric: str,
     judge_model: str,
@@ -287,7 +287,7 @@ async def _judge_interaction(
 
 
 async def _run_single_evaluation(
-    scenario: BehavioralTest,
+    scenario: ScenarioTest,
     app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
     rubric: str,
     judge_model: str,
@@ -351,7 +351,7 @@ async def _run_single_evaluation(
 
 
 async def collect_evaluation_data(
-    scenario: BehavioralTest,
+    scenario: ScenarioTest,
     app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
     rubric: str,
     judge_model: str,

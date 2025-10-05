@@ -6,7 +6,7 @@ import logging
 import asyncio
 from typing import Callable, Awaitable, Any, Dict, List
 
-from .models import AppResponse, BehavioralTest, EvaluationResult, WritingStyleConfig
+from .models import AppResponse, ScenarioTest, EvaluationResult, WritingStyleConfig
 from .rubric_generator import _parse_behavioral_test, _generate_rubric
 from .data_collection import collect_evaluation_data
 from .models import RetryConfig
@@ -72,7 +72,7 @@ class SigmaEval:
     
     async def _evaluate_single(
         self,
-        scenario: BehavioralTest,
+        scenario: ScenarioTest,
         app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
         concurrency: int = 10,
     ) -> EvaluationResult:
@@ -95,11 +95,11 @@ class SigmaEval:
             LLMCommunicationError: If any LLM call (rubric generation, user simulation,
                 or judging) fails or returns an invalid/malformed response.
         """
-        self.logger.info(f"--- Starting evaluation for BehavioralTest: {scenario.title} ---")
+        self.logger.info(f"--- Starting evaluation for ScenarioTest: {scenario.title} ---")
         
         # Phase 1: Test Setup
-        # 1. Parse BehavioralTest
-        self.logger.debug(f"Parsing BehavioralTest: {scenario.title}")
+        # 1. Parse ScenarioTest
+        self.logger.debug(f"Parsing ScenarioTest: {scenario.title}")
         parsed_test = _parse_behavioral_test(scenario)
         
         # 2. Generate rubric from expected_behavior
@@ -151,7 +151,7 @@ class SigmaEval:
 
     async def evaluate(
         self, 
-        scenarios: BehavioralTest | List[BehavioralTest], 
+        scenarios: ScenarioTest | List[ScenarioTest], 
         app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
         concurrency: int = 10,
     ) -> EvaluationResult | List[EvaluationResult]:
@@ -171,15 +171,15 @@ class SigmaEval:
                 within a single test, not the concurrency of running multiple tests in parallel.
             
         Returns:
-            - If a single `BehavioralTest` is provided, returns a single `EvaluationResult`.
-            - If a list of `BehavioralTest` is provided, returns a list of `EvaluationResult`.
+            - If a single `ScenarioTest` is provided, returns a single `EvaluationResult`.
+            - If a list of `ScenarioTest` is provided, returns a list of `EvaluationResult`.
         
         Raises:
             LLMCommunicationError: If any LLM call (rubric generation, user simulation,
                 or judging) fails or returns an invalid/malformed response.
         """
         is_single_item = False
-        if isinstance(scenarios, BehavioralTest):
+        if isinstance(scenarios, ScenarioTest):
             scenarios = [scenarios]
             is_single_item = True
         else:

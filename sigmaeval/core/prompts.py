@@ -8,12 +8,12 @@ This module contains all prompt templates used for:
 """
 
 from typing import List, Dict
-from .models import BehavioralTest
+from .models import ScenarioTest
 
 
-def _build_rubric_generation_prompt(scenario: BehavioralTest) -> str:
+def _build_rubric_generation_prompt(scenario: ScenarioTest) -> str:
     """
-    Build the prompt for generating a rubric from a BehavioralTest.
+    Build the prompt for generating a rubric from a ScenarioTest.
     
     Internal implementation detail - API may change without backward compatibility.
     
@@ -58,7 +58,7 @@ Be concise but specific. Each rating description should be 1-2 sentences maximum
 
 
 def _build_user_simulator_prompt(
-    scenario: BehavioralTest,
+    scenario: ScenarioTest,
     conversation_history: List[Dict[str, str]],
     writing_style: Dict[str, str] | None = None,
 ) -> str:
@@ -147,7 +147,7 @@ Set "continue" to false when:
 
 
 def _build_judge_prompt(
-    scenario: BehavioralTest,
+    scenario: ScenarioTest,
     conversation_history: List[Dict[str, str]],
     rubric: str,
 ) -> str:

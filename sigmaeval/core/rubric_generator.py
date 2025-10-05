@@ -12,7 +12,7 @@ from tenacity import (
     before_sleep_log,
 )
 
-from .models import BehavioralTest, RetryConfig
+from .models import ScenarioTest, RetryConfig
 from .prompts import _build_rubric_generation_prompt, RUBRIC_GENERATOR_SYSTEM_PROMPT
 from .exceptions import LLMCommunicationError
 
@@ -20,7 +20,7 @@ logger = logging.getLogger("sigmaeval")
 
 
 async def _generate_rubric(
-    scenario: BehavioralTest,
+    scenario: ScenarioTest,
     model: str,
     retry_config: RetryConfig | None = None,
 ) -> str:
@@ -91,9 +91,9 @@ async def _generate_rubric(
     raise LLMCommunicationError("Exhausted all retries for rubric generation.")
 
 
-def _parse_behavioral_test(scenario: BehavioralTest) -> Dict[str, Any]:
+def _parse_behavioral_test(scenario: ScenarioTest) -> Dict[str, Any]:
     """
-    Parse a BehavioralTest into its constituent components.
+    Parse a ScenarioTest into its constituent components.
     
     This is Phase 1, Step 1 of the evaluation process.
     

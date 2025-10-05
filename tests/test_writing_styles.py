@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 from sigmaeval.core.models import (
     AppResponse,
-    BehavioralTest,
+    ScenarioTest,
     Expectation,
     WritingStyleConfig,
     WritingStyleAxes,
@@ -24,8 +24,8 @@ def mock_app_handler():
 
 @pytest.fixture
 def basic_scenario():
-    """Fixture for a basic BehavioralTest scenario."""
-    return BehavioralTest(
+    """Fixture for a basic ScenarioTest scenario."""
+    return ScenarioTest(
         title="Test Scenario",
         given="A test user",
         when="The user does something",

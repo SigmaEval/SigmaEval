@@ -51,11 +51,11 @@ Similarly, for LLM-based applications, the key is to ensure the system is reliab
 
 SigmaEval combines inferential statistics, AI-driven user simulation, and LLM-as-a-Judge evaluation within a Behavior-Driven Development (BDD) framework. This powerful combination allows you to move beyond simple pass/fail tests and gain statistical confidence in your AI's performance.
 
-The evaluation process for a single `BehavioralTest` unfolds in three main phases:
+The evaluation process for a single `ScenarioTest` unfolds in three main phases:
 
 **Phase 1: Test Setup**
 
-1.  **Defining Behavior with BDD:** You start by defining a test scenario using a `BehavioralTest` with its `Given`, `When`, and `Then` clauses. This sets the stage for the entire evaluation.
+1.  **Defining Behavior with BDD:** You start by defining a test scenario using a `ScenarioTest` with its `Given`, `When`, and `Then` clauses. This sets the stage for the entire evaluation.
 2.  **Creating the Rubric:** Based on the `expected_behavior` you specified in the `Then` clause, SigmaEval generates a detailed 1-10 scoring rubric. This rubric is created once per test case and ensures that every interaction is evaluated against the same consistent criteria (see Appendix A for an example).
 
 **Phase 2: Data Collection (Repeated for `sample_size`)**
@@ -70,7 +70,7 @@ To gather a statistically meaningful sample, the following steps are repeated mu
 
 6.  **Drawing a Conclusion:** After all repetitions are complete, the collection of scores (the sample) is passed to the statistical evaluator you defined (`SuccessRateEvaluator`, `RatingAverageEvaluator`, etc.). This evaluator performs the appropriate statistical tests to determine if the application's performance meets your quality bar, providing a final pass/fail result with statistical confidence.
 
-Each scenario is defined using a `BehavioralTest` object with three main parts:
+Each scenario is defined using a `ScenarioTest` object with three main parts:
 
 *   **`Given`**: This section establishes the prerequisite state and context for the **User Simulator LLM**. This can include the persona of the user (e.g., a new user, an expert user), the context of the conversation (e.g., a customer's order number), or any other background information.
 *   **`When`**: This describes the specific goal or action the **User Simulator LLM** will try to achieve. SigmaEval uses this to guide the simulation.
@@ -81,7 +81,7 @@ This approach allows for a robust, automated evaluation of the AI's behavior aga
 ```python
 from sigmaeval import (
     SigmaEval, 
-    BehavioralTest, 
+    ScenarioTest, 
     Expectation, 
     SuccessRateEvaluator, 
     AppResponse,
@@ -90,8 +90,8 @@ from sigmaeval import (
 import asyncio
 from typing import Dict, Any
 
-# --- Define the BehavioralTest ---
-scenario = BehavioralTest(
+# --- Define the ScenarioTest ---
+scenario = ScenarioTest(
     title="Bot explains its capabilities",
     given="A new user who has not interacted with the bot before",
     when="The user asks a general question about the bot's capabilities",
@@ -136,7 +136,7 @@ async def main():
     results: EvaluationResult = await sigma_eval.evaluate(scenario, app_handler)
 
     # Print the results
-    print(f"--- Results for BehavioralTest: {scenario.title} ---")
+    print(f"--- Results for ScenarioTest: {scenario.title} ---")
     print(f"Passed: {results.passed}")
     print(f"P-value: {results.p_value:.4f}")
     print(f"Average Score: {results.average_score:.2f}")
@@ -290,14 +290,14 @@ sigma_eval = SigmaEval(
 )
 ```
 
-This system ensures that the `Given` (persona) and `When` (goal) clauses of your `BehavioralTest` are always prioritized. The writing style adds a layer of realistic, stylistic variation without overriding the core of the test scenario.
+This system ensures that the `Given` (persona) and `When` (goal) clauses of your `ScenarioTest` are always prioritized. The writing style adds a layer of realistic, stylistic variation without overriding the core of the test scenario.
 
 ### Evaluating a Test Suite
 
-You can also run a full suite of tests by passing a list of `BehavioralTest` objects to the `evaluate` method. The tests will be run concurrently.
+You can also run a full suite of tests by passing a list of `ScenarioTest` objects to the `evaluate` method. The tests will be run concurrently.
 
 ```python
-# Assume scenario_1 and scenario_2 are defined BehavioralTest objects
+# Assume scenario_1 and scenario_2 are defined ScenarioTest objects
 test_suite = [scenario_1, scenario_2]
 all_results = await sigma_eval.evaluate(test_suite, app_handler)
 
@@ -308,10 +308,10 @@ for result in all_results:
 
 ### Appendix A: Example Rubric
 
-For the `BehavioralTest` defined in the Python snippet:
+For the `ScenarioTest` defined in the Python snippet:
 
 ```python
-scenario = BehavioralTest(
+scenario = ScenarioTest(
     title="Bot explains its capabilities",
     given="A new user who has not interacted with the bot before",
     when="The user asks a general question about the bot's capabilities",

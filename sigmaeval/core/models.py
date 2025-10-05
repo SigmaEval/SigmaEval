@@ -99,7 +99,7 @@ class Expectation(BaseModel):
 
 
 @dataclass
-class BehavioralTest:
+class ScenarioTest:
     """
     Defines a test case for a specific behavior of an AI application.
     """
@@ -164,7 +164,7 @@ class ConversationRecord(BaseModel):
 
 class EvaluationResult(BaseModel):
     """
-    Structured data class for the results of a single `BehavioralTest` evaluation.
+    Structured data class for the results of a single `ScenarioTest` evaluation.
 
     This class not only stores the raw data from the evaluation but also provides
     properties and methods for easier analysis and interpretation of the results.
