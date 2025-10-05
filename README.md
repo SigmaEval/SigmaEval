@@ -292,6 +292,20 @@ sigma_eval = SigmaEval(
 
 This system ensures that the `Given` (persona) and `When` (goal) clauses of your `BehavioralTest` are always prioritized. The writing style adds a layer of realistic, stylistic variation without overriding the core of the test scenario.
 
+### Evaluating a Test Suite
+
+You can also run a full suite of tests by passing a list of `BehavioralTest` objects to the `evaluate` method. The tests will be run concurrently.
+
+```python
+# Assume scenario_1 and scenario_2 are defined BehavioralTest objects
+test_suite = [scenario_1, scenario_2]
+all_results = await sigma_eval.evaluate(test_suite, app_handler)
+
+# all_results will be a list of EvaluationResult objects
+for result in all_results:
+    print(result)
+```
+
 ### Appendix A: Example Rubric
 
 For the `BehavioralTest` defined in the Python snippet:

@@ -149,8 +149,8 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
 
     # 6. Assert logging output
     assert "--- Starting evaluation" in caplog.text
-    assert f"Collecting {sample_size} samples..." in caplog.text
-    assert "--- Evaluation complete ---" in caplog.text
+    assert f"Collecting {sample_size} samples for '{scenario.title}'..." in caplog.text
+    assert f"--- Evaluation complete for: {scenario.title} ---" in caplog.text
     assert "Generated rubric" not in caplog.text  # DEBUG message
 
 
@@ -272,7 +272,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         This intentionally poor handler ignores the input and returns gibberish,
         returning the state unchanged.
         """
-        response_text = os.urandom(16).hex()
+        response_text = "Go away"
         return AppResponse(response=response_text, state=state)
 
     # 4. Run the evaluation
@@ -385,3 +385,72 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
         assert convo.writing_style["Tone"] == "TEST_TONE"
         assert convo.writing_style["Verbosity"] == "TEST_VERBOSITY"
         assert convo.writing_style["Formality"] == "TEST_FORMALITY"
+
+
+@pytest.mark.integration
+async def test_e2e_evaluation_with_test_suite(caplog) -> None:
+    """
+    Runs a minimal end-to-end test to verify that evaluating a list of
+    scenarios (a test suite) works correctly.
+    """
+    # 1. Setup: Load environment and get model names
+    load_dotenv()
+    eval_model = os.getenv("TEST_EVAL_MODEL")
+    if not eval_model:
+        pytest.skip("TEST_EVAL_MODEL env var must be set to run this test.")
+
+    sample_size = 1  # Keep sample size at 1 for a very fast test
+
+    # 2. Define two minimal Behavioral Tests
+    scenario_1 = BehavioralTest(
+        title="Minimal Test 1",
+        given="A user",
+        when="The user says hi",
+        then=Expectation(
+            expected_behavior="The bot says hi back.",
+            evaluator=SuccessRateEvaluator(
+                sample_size=sample_size, min_proportion=0.1, significance_level=0.05
+            ),
+        ),
+        max_turns=2,
+    )
+    scenario_2 = BehavioralTest(
+        title="Minimal Test 2",
+        given="A user",
+        when="The user says bye",
+        then=Expectation(
+            expected_behavior="The bot says bye back.",
+            evaluator=SuccessRateEvaluator(
+                sample_size=sample_size, min_proportion=0.1, significance_level=0.05
+            ),
+        ),
+        max_turns=2,
+    )
+    test_suite = [scenario_1, scenario_2]
+
+    # 3. Create a simple, fixed-response app handler
+    async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
+        return AppResponse(response="ok", state=state)
+
+    # 4. Run the evaluation on the full suite
+    sigma_eval = SigmaEval(
+        judge_model=eval_model,
+        log_level=logging.INFO,
+        writing_style_config=WritingStyleConfig(enabled=False),
+    )
+    with caplog.at_level(logging.INFO):
+        all_results = await sigma_eval.evaluate(test_suite, app_handler)
+
+    # 5. Assert the results
+    assert isinstance(all_results, list)
+    assert len(all_results) == 2
+    assert isinstance(all_results[0], EvaluationResult)
+    assert all_results[0].test_config["title"] == "Minimal Test 1"
+    assert all_results[1].test_config["title"] == "Minimal Test 2"
+
+    # 6. Assert logging output for test suites
+    assert "--- Starting evaluation for test suite with 2 scenarios ---" in caplog.text
+    assert "--- Test suite evaluation complete ---" in caplog.text
+    # Check that individual test logs are also present
+    assert "--- Starting evaluation for BehavioralTest: Minimal Test 1 ---" in caplog.text
+    assert "--- Evaluation complete for: Minimal Test 1 ---" in caplog.text

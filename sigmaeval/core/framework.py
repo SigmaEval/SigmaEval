@@ -3,7 +3,8 @@ Framework orchestration logic for SigmaEval.
 """
 
 import logging
-from typing import Callable, Awaitable, Any, Dict
+import asyncio
+from typing import Callable, Awaitable, Any, Dict, List
 
 from .models import AppResponse, BehavioralTest, EvaluationResult, WritingStyleConfig
 from .rubric_generator import _parse_behavioral_test, _generate_rubric
@@ -69,14 +70,14 @@ class SigmaEval:
         
         self.logger.setLevel(log_level)
     
-    async def evaluate(
-        self, 
-        scenario: BehavioralTest, 
+    async def _evaluate_single(
+        self,
+        scenario: BehavioralTest,
         app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
         concurrency: int = 10,
     ) -> EvaluationResult:
         """
-        Run evaluation for a behavioral test case.
+        Run evaluation for a single behavioral test case.
         
         Args:
             scenario: The behavioral test case to evaluate
@@ -111,7 +112,7 @@ class SigmaEval:
         #   4. Initiate and record interaction with system under test via app_handler
         #   5. Judge expected behavior with Judge LLM using rubric
         sample_size = parsed_test["sample_size"]
-        self.logger.info(f"Collecting {sample_size} samples...")
+        self.logger.info(f"Collecting {sample_size} samples for '{scenario.title}'...")
         
         scores, reasoning_list, conversations = await collect_evaluation_data(
             scenario=scenario,
@@ -128,12 +129,12 @@ class SigmaEval:
         
         # Phase 3: Statistical Analysis
         #   6. Pass scores to evaluator for statistical testing
-        self.logger.debug(f"Collected scores: {scores}")
-        self.logger.info("Starting statistical analysis...")
+        self.logger.debug(f"Collected scores for '{scenario.title}': {scores}")
+        self.logger.info(f"Starting statistical analysis for '{scenario.title}'...")
         evaluator = scenario.then.evaluator
         results = evaluator.evaluate(scores)
         
-        self.logger.info("--- Evaluation complete ---")
+        self.logger.info(f"--- Evaluation complete for: {scenario.title} ---")
         
         return EvaluationResult(
             judge_model=self.judge_model,
@@ -147,3 +148,53 @@ class SigmaEval:
             num_conversations=len(conversations),
             results=results,
         )
+
+    async def evaluate(
+        self, 
+        scenarios: BehavioralTest | List[BehavioralTest], 
+        app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
+        concurrency: int = 10,
+    ) -> EvaluationResult | List[EvaluationResult]:
+        """
+        Run evaluation for one or more behavioral test cases. When a list of tests
+        is provided, they are run concurrently.
+        
+        Args:
+            scenarios: A single behavioral test case or a list of test cases to evaluate.
+            app_handler: Async callback that takes a user message and state dict, and returns 
+                an AppResponse. The state dict is managed by your application - SigmaEval 
+                passes back the state from your previous AppResponse without modification. 
+                On the first turn, state will be an empty dict. Use it to track conversation 
+                history, user context, or any other stateful information your app needs.
+            concurrency: Number of evaluations to run concurrently for each test case
+                (default: 10). This refers to the concurrency of the sample collection
+                within a single test, not the concurrency of running multiple tests in parallel.
+            
+        Returns:
+            - If a single `BehavioralTest` is provided, returns a single `EvaluationResult`.
+            - If a list of `BehavioralTest` is provided, returns a list of `EvaluationResult`.
+        
+        Raises:
+            LLMCommunicationError: If any LLM call (rubric generation, user simulation,
+                or judging) fails or returns an invalid/malformed response.
+        """
+        is_single_item = False
+        if isinstance(scenarios, BehavioralTest):
+            scenarios = [scenarios]
+            is_single_item = True
+        else:
+            self.logger.info(f"--- Starting evaluation for test suite with {len(scenarios)} scenarios ---")
+
+        tasks = [
+            self._evaluate_single(scenario, app_handler, concurrency)
+            for scenario in scenarios
+        ]
+        all_results = await asyncio.gather(*tasks)
+
+        if not is_single_item:
+            self.logger.info("--- Test suite evaluation complete ---")
+
+        if is_single_item:
+            return all_results[0]
+        
+        return all_results
