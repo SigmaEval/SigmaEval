@@ -58,6 +58,31 @@ def test_median_gte_returns_correct_dataclass():
     assert crit.significance_level == 0.05
 
 
+def test_proportion_lt_returns_correct_dataclass():
+    """
+    Tests that assertions.metrics.proportion_lt creates the correct dataclass.
+    """
+    crit = assertions.metrics.proportion_lt(
+        threshold=1.5, proportion=0.95, significance_level=0.01
+    )
+    assert isinstance(crit, ProportionAssertion)
+    assert crit.threshold == 1.5
+    assert crit.proportion == 0.95
+    assert crit.comparison == "lte"
+    assert crit.significance_level == 0.01
+
+
+def test_median_lt_returns_correct_dataclass():
+    """
+    Tests that assertions.metrics.median_lt creates the correct dataclass.
+    """
+    crit = assertions.metrics.median_lt(threshold=200.0, significance_level=0.05)
+    assert isinstance(crit, MedianAssertion)
+    assert crit.threshold == 200.0
+    assert crit.comparison == "lte"
+    assert crit.significance_level == 0.05
+
+
 @pytest.mark.parametrize(
     "invalid_params, error_match",
     [
@@ -106,3 +131,49 @@ def test_median_gte_invalid_params_raise(invalid_params, error_match):
     """
     with pytest.raises(ValueError, match=error_match):
         assertions.scores.median_gte(**invalid_params)
+
+
+@pytest.mark.parametrize(
+    "invalid_params, error_match",
+    [
+        ({"threshold": 1.0, "proportion": -0.1}, "proportion must be between 0 and 1"),
+        ({"threshold": 1.0, "proportion": 1.1}, "proportion must be between 0 and 1"),
+        (
+            {"threshold": 1.0, "proportion": 0.9, "significance_level": -0.1},
+            "significance_level must be between 0 and 1",
+        ),
+        (
+            {"threshold": 1.0, "proportion": 0.9, "significance_level": 1.1},
+            "significance_level must be between 0 and 1",
+        ),
+    ],
+)
+def test_proportion_lt_invalid_params_raise(invalid_params, error_match):
+    """
+    Tests that creating a proportion_lt assertion with invalid parameters
+    raises a ValueError.
+    """
+    with pytest.raises(ValueError, match=error_match):
+        assertions.metrics.proportion_lt(**invalid_params)
+
+
+@pytest.mark.parametrize(
+    "invalid_params, error_match",
+    [
+        (
+            {"threshold": 100.0, "significance_level": -0.05},
+            "significance_level must be between 0 and 1",
+        ),
+        (
+            {"threshold": 100.0, "significance_level": 1.05},
+            "significance_level must be between 0 and 1",
+        ),
+    ],
+)
+def test_median_lt_invalid_params_raise(invalid_params, error_match):
+    """
+    Tests that creating a median_lt assertion with invalid parameters raises
+    a ValueError.
+    """
+    with pytest.raises(ValueError, match=error_match):
+        assertions.metrics.median_lt(**invalid_params)

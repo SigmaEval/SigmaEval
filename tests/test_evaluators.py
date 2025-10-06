@@ -87,6 +87,45 @@ def test_proportion_evaluator_gte(
 
 
 @pytest.mark.parametrize(
+    "scores, threshold, proportion, expected_pass, description",
+    [
+        (
+            [0.5] * 49 + [2.0] * 1,
+            1.0,
+            0.9,
+            True,
+            "49/50 successes (98%) at 90% -> clear pass",
+        ),
+        (
+            [0.5] * 44 + [2.0] * 6,
+            1.0,
+            0.9,
+            False,
+            "44/50 successes (88%) at 90% -> borderline fail",
+        ),
+        ([0.5] * 10 + [2.0] * 30, 1.0, 0.9, False, "10/40 successes (25%) -> clear fail"),
+        ([0.1], 0.5, 0.9, False, "1/1 success at 90% -> not enough evidence"),
+    ],
+)
+def test_proportion_evaluator_lt(
+    scores, threshold, proportion, expected_pass, description
+):
+    """Tests the ProportionEvaluator with lt comparison."""
+    evaluator = ProportionEvaluator(
+        significance_level=0.05,
+        threshold=threshold,
+        proportion=proportion,
+        comparison="lte",
+    )
+    results = evaluator.evaluate(scores)
+    assert results["passed"] is expected_pass, f"Failed on: {description}"
+    if expected_pass:
+        assert results["p_value"] < 0.05, f"p-value should be < 0.05 for: {description}"
+    else:
+        assert results["p_value"] >= 0.05, f"p-value should be >= 0.05 for: {description}"
+
+
+@pytest.mark.parametrize(
     "scores, threshold, expected_pass, description",
     [
         ([8, 9, 8, 10, 9, 9, 10, 8], 7.0, True, "Scores clearly above threshold"),
@@ -106,6 +145,31 @@ def test_median_evaluator_gte(scores, threshold, expected_pass, description):
         significance_level=0.05,
         threshold=threshold,
         comparison="gte",
+        bootstrap_resamples=1000,
+    )
+    results = evaluator.evaluate(scores)
+    assert results["passed"] is expected_pass, f"Failed on: {description}"
+
+
+@pytest.mark.parametrize(
+    "scores, threshold, expected_pass, description",
+    [
+        ([1, 2, 1, 3, 2, 2, 1, 3], 4.0, True, "Scores clearly below threshold"),
+        ([8, 9, 8, 10, 9, 9, 10, 8], 7.0, False, "Scores clearly above threshold"),
+        ([7, 8, 9, 8, 7, 9, 8, 8, 9, 7], 8.0, False, "Scores centered on threshold"),
+        ([7] * 20, 8.0, True, "All scores are identical and below the threshold"),
+        ([8] * 20, 8.0, False, "All scores are identical and equal to the threshold"),
+        ([1, 2, 1, 3], 4.0, True, "Small sample size, should pass"),
+        ([8], 9.0, True, "Single sample, should pass"),
+        ([8], 8.0, False, "Single sample, should fail (equal to threshold)"),
+    ],
+)
+def test_median_evaluator_lt(scores, threshold, expected_pass, description):
+    """Tests the MedianEvaluator with lt comparison."""
+    evaluator = MedianEvaluator(
+        significance_level=0.05,
+        threshold=threshold,
+        comparison="lte",
         bootstrap_resamples=1000,
     )
     results = evaluator.evaluate(scores)
