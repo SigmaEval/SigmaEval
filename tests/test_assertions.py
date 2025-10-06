@@ -89,11 +89,13 @@ def test_median_gte_returns_correct_dataclass():
         ),
     ],
 )
-@patch("sigmaeval.core.framework.collect_evaluation_data", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
 async def test_proportion_gte_invalid_params_raise_in_evaluate(
     mock_generate_rubric,
-    mock_collect_data,
+    mock_collect_conversations,
+    mock_judge_conversations,
     invalid_criteria,
     error_match,
     basic_scenario,
@@ -104,9 +106,10 @@ async def test_proportion_gte_invalid_params_raise_in_evaluate(
     during the evaluation process.
     """
     mock_generate_rubric.return_value = "Mocked rubric"
-    mock_collect_data.return_value = ([10.0], ["reason"], [])  # Need non-empty scores
+    mock_collect_conversations.return_value = []  # Mock conversations
+    mock_judge_conversations.return_value = ([10.0], ["reason"])  # Need non-empty scores
 
-    basic_scenario.then.criteria = invalid_criteria
+    basic_scenario.then[0].criteria = invalid_criteria
     sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
 
     with pytest.raises(ValueError, match=error_match):
@@ -135,11 +138,13 @@ async def test_proportion_gte_invalid_params_raise_in_evaluate(
         ),
     ],
 )
-@patch("sigmaeval.core.framework.collect_evaluation_data", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
 async def test_median_gte_invalid_params_raise_in_evaluate(
     mock_generate_rubric,
-    mock_collect_data,
+    mock_collect_conversations,
+    mock_judge_conversations,
     invalid_criteria,
     error_match,
     basic_scenario,
@@ -150,9 +155,10 @@ async def test_median_gte_invalid_params_raise_in_evaluate(
     ValueError during the evaluation process.
     """
     mock_generate_rubric.return_value = "Mocked rubric"
-    mock_collect_data.return_value = ([10.0], ["reason"], [])  # Need non-empty scores
+    mock_collect_conversations.return_value = []  # Mock conversations
+    mock_judge_conversations.return_value = ([10.0], ["reason"])  # Need non-empty scores
 
-    basic_scenario.then.criteria = invalid_criteria
+    basic_scenario.then[0].criteria = invalid_criteria
     sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
 
     with pytest.raises(ValueError, match=error_match):

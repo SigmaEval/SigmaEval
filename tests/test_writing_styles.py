@@ -41,30 +41,55 @@ def basic_scenario():
 
 
 @patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
-@patch("sigmaeval.core.framework.collect_evaluation_data")
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
 @pytest.mark.asyncio
 async def test_writing_styles_enabled_by_default(
-    mock_collect_data, mock_generate_rubric, basic_scenario, mock_app_handler
+    mock_collect_conversations,
+    mock_judge_conversations,
+    mock_generate_rubric,
+    basic_scenario,
+    mock_app_handler,
 ):
     """
     Verify that writing style variations are enabled by default.
     """
     mock_generate_rubric.return_value = "Test Rubric"
-    
+
     # Mock the return value to include valid ConversationRecord objects
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc)
     mock_conversations = [
-        ConversationRecord(turns=[ConversationTurn(role="user", content="Test", request_timestamp=now, response_timestamp=now)]),
-        ConversationRecord(turns=[ConversationTurn(role="user", content="Test", request_timestamp=now, response_timestamp=now)]),
+        ConversationRecord(
+            turns=[
+                ConversationTurn(
+                    role="user",
+                    content="Test",
+                    request_timestamp=now,
+                    response_timestamp=now,
+                )
+            ]
+        ),
+        ConversationRecord(
+            turns=[
+                ConversationTurn(
+                    role="user",
+                    content="Test",
+                    request_timestamp=now,
+                    response_timestamp=now,
+                )
+            ]
+        ),
     ]
-    mock_collect_data.return_value = ([8.0, 9.0], ["reason", "reason"], mock_conversations)
+    mock_collect_conversations.return_value = mock_conversations
+    mock_judge_conversations.return_value = ([8.0, 9.0], ["reason", "reason"])
 
     sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
     await sigma_eval.evaluate(basic_scenario, mock_app_handler)
 
-    mock_collect_data.assert_called_once()
-    call_args, call_kwargs = mock_collect_data.call_args
+    mock_collect_conversations.assert_called_once()
+    call_args, call_kwargs = mock_collect_conversations.call_args
     writing_style_config = call_kwargs.get("writing_style_config")
 
     assert isinstance(writing_style_config, WritingStyleConfig)
@@ -72,24 +97,49 @@ async def test_writing_styles_enabled_by_default(
 
 
 @patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
-@patch("sigmaeval.core.framework.collect_evaluation_data")
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
 @pytest.mark.asyncio
 async def test_writing_styles_can_be_disabled(
-    mock_collect_data, mock_generate_rubric, basic_scenario, mock_app_handler
+    mock_collect_conversations,
+    mock_judge_conversations,
+    mock_generate_rubric,
+    basic_scenario,
+    mock_app_handler,
 ):
     """
     Verify that writing style variations can be disabled.
     """
     mock_generate_rubric.return_value = "Test Rubric"
-    
+
     # Mock the return value to include valid ConversationRecord objects
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc)
     mock_conversations = [
-        ConversationRecord(turns=[ConversationTurn(role="user", content="Test", request_timestamp=now, response_timestamp=now)]),
-        ConversationRecord(turns=[ConversationTurn(role="user", content="Test", request_timestamp=now, response_timestamp=now)]),
+        ConversationRecord(
+            turns=[
+                ConversationTurn(
+                    role="user",
+                    content="Test",
+                    request_timestamp=now,
+                    response_timestamp=now,
+                )
+            ]
+        ),
+        ConversationRecord(
+            turns=[
+                ConversationTurn(
+                    role="user",
+                    content="Test",
+                    request_timestamp=now,
+                    response_timestamp=now,
+                )
+            ]
+        ),
     ]
-    mock_collect_data.return_value = ([8.0, 9.0], ["reason", "reason"], mock_conversations)
+    mock_collect_conversations.return_value = mock_conversations
+    mock_judge_conversations.return_value = ([8.0, 9.0], ["reason", "reason"])
 
     config = WritingStyleConfig(enabled=False)
     sigma_eval = SigmaEval(
@@ -99,8 +149,8 @@ async def test_writing_styles_can_be_disabled(
     )
     await sigma_eval.evaluate(basic_scenario, mock_app_handler)
 
-    mock_collect_data.assert_called_once()
-    call_args, call_kwargs = mock_collect_data.call_args
+    mock_collect_conversations.assert_called_once()
+    call_args, call_kwargs = mock_collect_conversations.call_args
     writing_style_config = call_kwargs.get("writing_style_config")
 
     assert isinstance(writing_style_config, WritingStyleConfig)
@@ -126,13 +176,39 @@ async def test_custom_writing_style_axes_are_used(
     # User sim response, then judge response
     mock_acompletion.side_effect = [
         # User sim (sample 1)
-        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"message": "Hi", "continue": false}'))]),
-        # Judge (sample 1)
-        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"score": 8, "reasoning": "Good"}'))]),
+        AsyncMock(
+            choices=[
+                AsyncMock(
+                    message=AsyncMock(content='{"message": "Hi", "continue": false}')
+                )
+            ]
+        ),
         # User sim (sample 2)
-        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"message": "Hi again", "continue": false}'))]),
+        AsyncMock(
+            choices=[
+                AsyncMock(
+                    message=AsyncMock(
+                        content='{"message": "Hi again", "continue": false}'
+                    )
+                )
+            ]
+        ),
+        # Judge (sample 1)
+        AsyncMock(
+            choices=[
+                AsyncMock(
+                    message=AsyncMock(content='{"score": 8, "reasoning": "Good"}')
+                )
+            ]
+        ),
         # Judge (sample 2)
-        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"score": 9, "reasoning": "Great"}'))]),
+        AsyncMock(
+            choices=[
+                AsyncMock(
+                    message=AsyncMock(content='{"score": 9, "reasoning": "Great"}')
+                )
+            ]
+        ),
     ]
     mock_generate_style.return_value = {
         "Proficiency": "Generated style proficiency",
@@ -174,10 +250,38 @@ async def test_writing_style_is_in_prompt(
     """
     mock_generate_rubric.return_value = "Test Rubric"
     mock_acompletion.side_effect = [
-        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"message": "Stop", "continue": false}'))]),
-        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"score": 8, "reasoning": "Good"}'))]),
-        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"message": "Stop", "continue": false}'))]),
-        AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"score": 9, "reasoning": "Great"}'))]),
+        # User sim 1
+        AsyncMock(
+            choices=[
+                AsyncMock(
+                    message=AsyncMock(content='{"message": "Stop", "continue": false}')
+                )
+            ]
+        ),
+        # User sim 2
+        AsyncMock(
+            choices=[
+                AsyncMock(
+                    message=AsyncMock(content='{"message": "Stop", "continue": false}')
+                )
+            ]
+        ),
+        # Judge 1
+        AsyncMock(
+            choices=[
+                AsyncMock(
+                    message=AsyncMock(content='{"score": 8, "reasoning": "Good"}')
+                )
+            ]
+        ),
+        # Judge 2
+        AsyncMock(
+            choices=[
+                AsyncMock(
+                    message=AsyncMock(content='{"score": 9, "reasoning": "Great"}')
+                )
+            ]
+        ),
     ]
 
     # Use a very specific, unique value to make it easy to find in the prompt

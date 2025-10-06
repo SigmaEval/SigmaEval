@@ -52,7 +52,9 @@ async def test_retry_succeeds_after_failures(monkeypatch, mock_scenario):
         backoff_multiplier=0.0,
         max_backoff_seconds=0.0,
     )
-    rubric = await _generate_rubric(scenario=mock_scenario, model="dummy", retry_config=cfg)
+    rubric = await _generate_rubric(
+        scenario=mock_scenario, expectation=mock_scenario.then, model="dummy", retry_config=cfg
+    )
 
     assert rubric == "ok rubric"
     # Should have tried exactly 3 times (2 failures + 1 success)
@@ -81,7 +83,9 @@ async def test_retry_on_empty_response(monkeypatch, mock_scenario):
         backoff_multiplier=0.0,
         max_backoff_seconds=0.0,
     )
-    rubric = await _generate_rubric(scenario=mock_scenario, model="dummy", retry_config=cfg)
+    rubric = await _generate_rubric(
+        scenario=mock_scenario, expectation=mock_scenario.then, model="dummy", retry_config=cfg
+    )
 
     assert rubric == "ok rubric"
     assert call_counter["n"] == 3
@@ -101,7 +105,9 @@ async def test_retry_disabled_no_retry(monkeypatch, mock_scenario):
 
     cfg = RetryConfig(enabled=False, max_attempts=5)
     with pytest.raises(LLMCommunicationError):
-        await _generate_rubric(scenario=mock_scenario, model="dummy", retry_config=cfg)
+        await _generate_rubric(
+            scenario=mock_scenario, expectation=mock_scenario.then, model="dummy", retry_config=cfg
+        )
 
     # Only one attempt should be made when retries are disabled
     assert call_counter["n"] == 1
@@ -124,7 +130,9 @@ async def test_retry_exhausts_attempts(monkeypatch, mock_scenario):
         max_backoff_seconds=0.0,
     )
     with pytest.raises(LLMCommunicationError):
-        await _generate_rubric(scenario=mock_scenario, model="dummy", retry_config=cfg)
+        await _generate_rubric(
+            scenario=mock_scenario, expectation=mock_scenario.then, model="dummy", retry_config=cfg
+        )
 
     # Should have attempted exactly max_attempts times
     assert call_counter["n"] == 3

@@ -155,7 +155,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
 
     # 6. Assert logging output
     assert "--- Starting evaluation" in caplog.text
-    assert f"Collecting {sample_size} samples for '{scenario.title}'..." in caplog.text
+    assert f"Simulating {sample_size} conversations for '{scenario.title}'..." in caplog.text
     assert f"--- Evaluation complete for: {scenario.title} ---" in caplog.text
     assert "Generated rubric" not in caplog.text  # DEBUG message
 
@@ -500,11 +500,15 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
 
 
 @pytest.mark.asyncio
-@patch("sigmaeval.core.framework.collect_evaluation_data")
-@patch("sigmaeval.core.framework._generate_rubric")
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework.RatingProportionEvaluator")
 async def test_assertion_significance_level_overrides_constructor(
-    mock_evaluator_class, mock_generate_rubric, mock_collect_evaluation_data
+    mock_evaluator_class,
+    mock_generate_rubric,
+    mock_collect_conversations,
+    mock_judge_conversations,
 ) -> None:
     """
     Tests that the significance_level provided in an assertion overrides the
@@ -515,7 +519,8 @@ async def test_assertion_significance_level_overrides_constructor(
     mock_evaluator_instance.evaluate.return_value = {"passed": True}
     mock_evaluator_class.return_value = mock_evaluator_instance
     mock_generate_rubric.return_value = "Test Rubric"
-    mock_collect_evaluation_data.return_value = ([10.0], ["reason"], [])
+    mock_collect_conversations.return_value = []
+    mock_judge_conversations.return_value = ([10.0], ["reason"])
 
     # Define a scenario with a specific significance level in the assertion
     scenario = ScenarioTest(
@@ -544,3 +549,134 @@ async def test_assertion_significance_level_overrides_constructor(
     mock_evaluator_class.assert_called_once()
     _, kwargs = mock_evaluator_class.call_args
     assert kwargs["significance_level"] == 0.99
+
+
+@pytest.mark.asyncio
+@patch("sigmaeval.core.framework.RatingProportionEvaluator")
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+async def test_e2e_multiple_expectations_all_pass(
+    mock_generate_rubric,
+    mock_collect_conversations,
+    mock_judge_conversations,
+    mock_evaluator_class,
+    caplog,
+) -> None:
+    """
+    Tests that a scenario with multiple expectations passes if and only if
+    all individual expectations pass.
+    """
+    # 1. Setup
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_collect_conversations.return_value = [ConversationRecord()]
+    mock_judge_conversations.return_value = ([8.0, 9.0], ["reason", "reason"])
+
+    # Mock the evaluator's result directly to control pass/fail status
+    mock_evaluator_instance = Mock()
+    mock_evaluator_instance.evaluate.side_effect = [
+        {"passed": True, "Expectation 1: Passed": True},
+        {"passed": True, "Expectation 2: Passed": True},
+    ]
+    mock_evaluator_class.return_value = mock_evaluator_instance
+
+    # 2. Define Scenario with two expectations
+    scenario = ScenarioTest(
+        title="Multi-Expectation Test (All Pass)",
+        given="A user",
+        when="An action",
+        sample_size=2,
+        then=[
+            BehavioralExpectation(
+                label="Expectation 1",
+                expected_behavior="Criteria 1",
+                criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
+            ),
+            BehavioralExpectation(
+                label="Expectation 2",
+                expected_behavior="Criteria 2",
+                criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.8),
+            ),
+        ],
+    )
+
+    # 3. Run evaluation
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
+    results = await sigma_eval.evaluate(scenario, AsyncMock())
+
+    # 4. Assertions
+    assert results.passed is True
+    assert mock_collect_conversations.call_count == 1
+    assert mock_generate_rubric.call_count == 2
+    assert mock_evaluator_instance.evaluate.call_count == 2
+    # Check that results from both evaluations are merged
+    assert "passed" in results.results
+    assert "Expectation 1: Passed" in results.results
+    assert "Expectation 2: Passed" in results.results
+    assert "Starting statistical analysis for 'Multi-Expectation Test (All Pass)' (Expectation: Expectation 1)" in caplog.text
+    assert "Starting statistical analysis for 'Multi-Expectation Test (All Pass)' (Expectation: Expectation 2)" in caplog.text
+
+
+@pytest.mark.asyncio
+@patch("sigmaeval.core.framework.RatingProportionEvaluator")
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+async def test_e2e_multiple_expectations_one_fails(
+    mock_generate_rubric,
+    mock_collect_conversations,
+    mock_judge_conversations,
+    mock_evaluator_class,
+    caplog,
+) -> None:
+    """
+    Tests that a scenario with multiple expectations fails if any one of the
+    individual expectations fails.
+    """
+    # 1. Setup
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_collect_conversations.return_value = [ConversationRecord()]
+    mock_judge_conversations.return_value = ([8.0, 9.0], ["reason", "reason"])
+
+    # Mock the evaluator's result directly to control pass/fail status
+    mock_evaluator_instance = Mock()
+    mock_evaluator_instance.evaluate.side_effect = [
+        {"passed": True, "Expectation 1: Passed": True},
+        {"passed": False, "Expectation 2: Passed": False},
+    ]
+    mock_evaluator_class.return_value = mock_evaluator_instance
+
+    # 2. Define Scenario with two expectations
+    scenario = ScenarioTest(
+        title="Multi-Expectation Test (One Fail)",
+        given="A user",
+        when="An action",
+        sample_size=2,
+        then=[
+            BehavioralExpectation(
+                label="Expectation 1",
+                expected_behavior="Criteria 1",
+                criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
+            ),
+            BehavioralExpectation(
+                label="Expectation 2",
+                expected_behavior="Criteria 2",
+                criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.8),
+            ),
+        ],
+    )
+
+    # 3. Run evaluation
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
+    results = await sigma_eval.evaluate(scenario, AsyncMock())
+
+    # 4. Assertions
+    assert results.passed is False
+    assert mock_collect_conversations.call_count == 1
+    assert mock_generate_rubric.call_count == 2
+    assert mock_evaluator_instance.evaluate.call_count == 2
+    assert "passed" in results.results
+    assert "Expectation 1: Passed" in results.results
+    assert "Expectation 2: Passed" in results.results  # This key is still present
+    assert "Starting statistical analysis for 'Multi-Expectation Test (One Fail)' (Expectation: Expectation 1)" in caplog.text
+    assert "Starting statistical analysis for 'Multi-Expectation Test (One Fail)' (Expectation: Expectation 2)" in caplog.text

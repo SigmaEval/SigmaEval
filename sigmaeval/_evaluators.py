@@ -109,6 +109,16 @@ class RatingAverageEvaluator(BaseModel):
             f"{log_prefix} results: passed={bool(passed)}, p_value={p_value:.4f}, observed_median={np.median(scores):.2f}, significance_level={self.significance_level}"
         )
         logger.debug(f"Full {log_prefix} results: {results}")
+        if label:
+            results = {
+                f"{label}: {k.replace('_', ' ').title()}": v for k, v in results.items()
+            }
+            # Also include the raw "passed" key for the framework's final status check
+            results["passed"] = passed
+
+        logger.info(
+            f"{log_prefix} results: passed={bool(passed)}, p_value={p_value:.4f}, observed_median={np.median(scores):.2f}, significance_level={self.significance_level}"
+        )
         return results
 
 
@@ -192,5 +202,15 @@ class RatingProportionEvaluator(BaseModel):
             f"{log_prefix} results: passed={bool(passed)}, p_value={p_value:.4f}, observed_proportion={successes / sample_size:.2f}, significance_level={self.significance_level}"
         )
         logger.debug(f"Full {log_prefix} results: {results}")
+        if label:
+            results = {
+                f"{label}: {k.replace('_', ' ').title()}": v for k, v in results.items()
+            }
+            # Also include the raw "passed" key for the framework's final status check
+            results["passed"] = passed
+
+        logger.info(
+            f"{log_prefix} results: passed={bool(passed)}, p_value={p_value:.4f}, observed_proportion={successes / sample_size:.2f}, significance_level={self.significance_level}"
+        )
         return results
 

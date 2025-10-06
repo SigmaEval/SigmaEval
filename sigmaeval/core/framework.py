@@ -6,9 +6,9 @@ import logging
 import asyncio
 from typing import Callable, Awaitable, Any, Dict, List
 
-from .models import AppResponse, ScenarioTest, EvaluationResult, WritingStyleConfig
+from .models import AppResponse, ScenarioTest, EvaluationResult, WritingStyleConfig, BehavioralExpectation
 from .rubric_generator import _generate_rubric
-from .data_collection import collect_evaluation_data
+from .data_collection import _collect_conversations, _judge_conversations
 from .models import RetryConfig
 
 from ..assertions import MedianGTE, ProportionGTE
@@ -109,79 +109,126 @@ class SigmaEval:
                 or judging) fails or returns an invalid/malformed response.
         """
         self.logger.info(f"--- Starting evaluation for ScenarioTest: {scenario.title} ---")
-        
-        # Phase 1: Test Setup
-        # 1. Generate rubric from expected_behavior
-        self.logger.debug("Generating rubric...")
-        rubric = await _generate_rubric(scenario, self.judge_model, self.retry_config)
-        self.logger.debug(f"Generated rubric: {rubric}")
-        
-        # Phase 2: Data Collection (repeated sample_size times)
-        #   3. Simulate user with User Simulator LLM
-        #   4. Initiate and record interaction with system under test via app_handler
-        #   5. Judge expected behavior with Judge LLM using rubric
-        self.logger.info(f"Collecting {scenario.sample_size} samples for '{scenario.title}'...")
-        
-        scores, reasoning_list, conversations = await collect_evaluation_data(
+
+        # Phase 2 (first half): Data Collection via Simulation
+        # This is done only once per ScenarioTest, regardless of how many
+        # expectations are in the `then` clause.
+        self.logger.info(f"Simulating {scenario.sample_size} conversations for '{scenario.title}'...")
+        conversations = await _collect_conversations(
             scenario=scenario,
             app_handler=app_handler,
-            rubric=rubric,
-            judge_model=self.judge_model,
             user_simulator_model=self.user_simulator_model,
-            retry_config=self.retry_config,
             sample_size=scenario.sample_size,
             concurrency=concurrency,
             max_turns=scenario.max_turns,
+            retry_config=self.retry_config,
             writing_style_config=self.writing_style_config,
         )
-        
-        # Phase 3: Statistical Analysis
-        #   6. Pass scores to evaluator for statistical testing
-        self.logger.debug(f"Collected scores for '{scenario.title}': {scores}")
-        self.logger.info(f"Starting statistical analysis for '{scenario.title}'...")
-        
-        criteria = scenario.then.criteria
-        
-        evaluator = None
-        significance_level = criteria.significance_level or self.significance_level
-        if isinstance(criteria, ProportionGTE):
-            evaluator = RatingProportionEvaluator(
-                significance_level=significance_level,
-                min_rating=criteria.min_score,
-                min_proportion=criteria.proportion,
-            )
-        elif isinstance(criteria, MedianGTE):
-            evaluator = RatingAverageEvaluator(
-                significance_level=significance_level,
-                min_median_rating=criteria.threshold,
-            )
-        else:
-            raise TypeError(f"Unsupported criteria type: {type(criteria)}")
 
-        results = evaluator.evaluate(scores, label=scenario.then.label)
+        all_results = []
+        all_scores = []
+        all_reasoning = []
+        all_rubrics = []
+        
+        # A ScenarioTest can have multiple `then` clauses (BehavioralExpectations)
+        # Each one is evaluated independently against the same set of conversations.
+        # The test passes only if all expectations pass.
+        for expectation in scenario.then:
+            expectation: BehavioralExpectation
+            
+            # Phase 1: Test Setup
+            # Generate a rubric for this specific expectation
+            self.logger.debug(f"Generating rubric for expectation: {expectation.label or expectation.expected_behavior[:50]}")
+            rubric = await _generate_rubric(
+                scenario=scenario, 
+                expectation=expectation, 
+                model=self.judge_model, 
+                retry_config=self.retry_config
+            )
+            self.logger.debug(f"Generated rubric: {rubric}")
+            all_rubrics.append(rubric)
+            
+            # Phase 2 (second half): Judging
+            # The collected conversations are now judged against the new rubric.
+            scores, reasoning_list = await _judge_conversations(
+                scenario=scenario,
+                expectation=expectation,
+                conversations=conversations,
+                rubric=rubric,
+                judge_model=self.judge_model,
+                concurrency=concurrency,
+                retry_config=self.retry_config,
+            )
+            all_scores.append(scores)
+            all_reasoning.append(reasoning_list)
+            
+            # Phase 3: Statistical Analysis
+            self.logger.debug(f"Collected scores for '{scenario.title}': {scores}")
+            
+            log_msg = f"Starting statistical analysis for '{scenario.title}'"
+            if expectation.label:
+                log_msg += f" (Expectation: {expectation.label})"
+            self.logger.info(log_msg)
+            
+            criteria = expectation.criteria
+            
+            evaluator = None
+            significance_level = criteria.significance_level or self.significance_level
+            if isinstance(criteria, ProportionGTE):
+                evaluator = RatingProportionEvaluator(
+                    significance_level=significance_level,
+                    min_rating=criteria.min_score,
+                    min_proportion=criteria.proportion,
+                )
+            elif isinstance(criteria, MedianGTE):
+                evaluator = RatingAverageEvaluator(
+                    significance_level=significance_level,
+                    min_median_rating=criteria.threshold,
+                )
+            else:
+                raise TypeError(f"Unsupported criteria type: {type(criteria)}")
+
+            results = evaluator.evaluate(scores, label=expectation.label)
+            all_results.append(results)
         
         self.logger.info(f"--- Evaluation complete for: {scenario.title} ---")
         
+        # If there are multiple expectations, the test passes only if all of them pass
+        final_passed_status = all(
+            res.get(f"{exp.label}: Passed", False) if exp.label else res.get("passed", False)
+            for res, exp in zip(all_results, scenario.then)
+        )
+
+        # Merge all results into a single dictionary for the final EvaluationResult
+        merged_results = {}
+        for res in all_results:
+            merged_results.update(res)
+        merged_results["passed"] = final_passed_status
+
         test_config = {
             "title": scenario.title,
             "given": scenario.given,
             "when": scenario.when,
-            "then": scenario.then.model_dump(),
+            "then": [exp.model_dump() for exp in scenario.then],
             "sample_size": scenario.sample_size,
         }
         
+        # Flatten the lists of scores and reasoning from all expectations
+        flat_scores = [score for sublist in all_scores for score in sublist]
+        flat_reasoning = [reason for sublist in all_reasoning for reason in sublist]
+
         return EvaluationResult(
-            significance_level=significance_level,
+            significance_level=significance_level, # type: ignore
             judge_model=self.judge_model,
             user_simulator_model=self.user_simulator_model,
             test_config=test_config,
             retry_config=self.retry_config,
-            rubric=rubric,
-            scores=scores,
-            reasoning=reasoning_list,
+            rubric="\\n\\n---\\n\\n".join(all_rubrics),
+            scores=flat_scores,
+            reasoning=flat_reasoning,
             conversations=conversations,
             num_conversations=len(conversations),
-            results=results,
+            results=merged_results,
         )
 
     async def evaluate(

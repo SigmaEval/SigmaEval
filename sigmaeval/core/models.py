@@ -3,7 +3,7 @@ Data models for the SigmaEval core package.
 """
 
 import numpy as np
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
@@ -116,9 +116,17 @@ class ScenarioTest(BaseModel):
     title: str
     given: str
     when: str
-    then: "BehavioralExpectation"
+    then: Union["BehavioralExpectation", List["BehavioralExpectation"]]
     sample_size: int
     max_turns: int = 10
+
+    @field_validator("then")
+    def validate_then(cls, v):
+        if isinstance(v, list):
+            if not v:
+                raise ValueError("'then' clause cannot be an empty list")
+            return v
+        return [v]
 
     @field_validator("sample_size")
     def validate_sample_size(cls, v):

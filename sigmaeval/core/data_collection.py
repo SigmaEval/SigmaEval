@@ -34,6 +34,7 @@ from .exceptions import LLMCommunicationError
 from .writing_styles import _generate_writing_style
 from .models import WritingStyleConfig
 from .utils import _extract_json_from_response
+from .models import BehavioralExpectation
 
 logger = logging.getLogger("sigmaeval")
 
@@ -216,6 +217,7 @@ async def _run_single_interaction(
 
 async def _judge_interaction(
     scenario: ScenarioTest,
+    expectation: BehavioralExpectation,
     conversation: ConversationRecord,
     rubric: str,
     judge_model: str,
@@ -241,7 +243,7 @@ async def _judge_interaction(
         - score: Score from 1-10 based on the rubric
         - reasoning: Judge's explanation for the score
     """
-    prompt = _build_judge_prompt(scenario, conversation.turns, rubric)
+    prompt = _build_judge_prompt(scenario, expectation, conversation.turns, rubric)
     log_prefix = f"[{eval_id}] " if eval_id else ""
     logger.debug(f"{log_prefix}Judge prompt: {prompt}")
     
@@ -302,133 +304,119 @@ async def _judge_interaction(
     raise LLMCommunicationError("Exhausted all retries for judge.")
 
 
-async def _run_single_evaluation(
+async def _collect_conversations(
     scenario: ScenarioTest,
     app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
-    rubric: str,
-    judge_model: str,
-    user_simulator_model: str,
-    max_turns: int = 10,
-    eval_id: str = "",
-    retry_config: RetryConfig | None = None,
-    writing_style_config: WritingStyleConfig | None = None,
-) -> tuple[float, str, ConversationRecord]:
-    """
-    Run a complete single evaluation: simulate, interact, and judge.
-    
-    Args:
-        scenario: The behavioral test case
-        app_handler: Async callback to interact with the app under test
-        rubric: The scoring rubric
-        judge_model: The LLM model identifier for the judge
-        user_simulator_model: The LLM model identifier for the user simulator
-        max_turns: Maximum conversation turns
-        eval_id: Unique identifier for the evaluation run
-        writing_style_config: Configuration for writing style variations.
-        
-    Returns:
-        Tuple of (score, reasoning, conversation_record)
-        - score: Judge's score (1-10)
-        - reasoning: Judge's explanation for the score
-        - conversation_record: Full conversation transcript
-    """
-    # Steps 3-4: Simulate and record
-    config = writing_style_config or WritingStyleConfig()
-    writing_style = (
-        _generate_writing_style(axes=config.axes) if config.enabled else None
-    )
-
-    log_prefix = f"[{eval_id}] " if eval_id else ""
-    if writing_style:
-        style_str = "\n".join(f"  - {k.capitalize()}: {v}" for k, v in writing_style.items())
-        logger.debug(f"{log_prefix}Using writing style:\n{style_str}")
-
-    conversation = await _run_single_interaction(
-        scenario,
-        app_handler,
-        user_simulator_model,
-        max_turns,
-        eval_id,
-        retry_config,
-        writing_style,
-    )
-    
-    # Step 5: Judge
-    score, reasoning = await _judge_interaction(
-        scenario,
-        conversation,
-        rubric,
-        judge_model,
-        eval_id,
-        retry_config,
-    )
-    
-    return score, reasoning, conversation
-
-
-async def collect_evaluation_data(
-    scenario: ScenarioTest,
-    app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
-    rubric: str,
-    judge_model: str,
     user_simulator_model: str,
     sample_size: int,
     concurrency: int = 10,
     max_turns: int = 10,
     retry_config: RetryConfig | None = None,
     writing_style_config: WritingStyleConfig | None = None,
-) -> tuple[List[float], List[str], List[ConversationRecord]]:
+) -> List[ConversationRecord]:
     """
-    Collect evaluation data by running multiple interactions with controlled concurrency.
-    
-    This orchestrates Phase 2 of the evaluation process, running steps 3-5
-    multiple times (sample_size) using a semaphore to maintain constant concurrency.
-    
+    Simulate and collect conversation data with controlled concurrency.
+
+    This function runs the user simulation `sample_size` times to generate
+    a dataset of conversations based on the scenario's `given` and `when`
+    clauses. It does not perform any judging.
+
     Args:
-        scenario: The behavioral test case
-        app_handler: Async callback to interact with the app under test
-        rubric: The scoring rubric from Phase 1
-        judge_model: The LLM model for the judge
-        user_simulator_model: The LLM model for the user simulator
-        sample_size: Total number of evaluations to run
-        concurrency: Maximum number of evaluations to run concurrently
-        max_turns: Maximum conversation turns per interaction
+        scenario: The behavioral test case.
+        app_handler: Async callback to interact with the app under test.
+        user_simulator_model: The LLM model for the user simulator.
+        sample_size: Total number of conversations to simulate.
+        concurrency: Maximum number of simulations to run concurrently.
+        max_turns: Maximum conversation turns per interaction.
+        retry_config: Configuration for retrying LLM calls.
         writing_style_config: Configuration for writing style variations.
-        
+
     Returns:
-        Tuple of (scores, reasoning_list, conversations)
-        - scores: List of scores (1-10) from Judge LLM
-        - reasoning_list: List of judge's explanations for each score
-        - conversations: List of ConversationRecord objects
+        A list of `ConversationRecord` objects.
     """
     semaphore = asyncio.Semaphore(concurrency)
-    
-    async def _run_with_semaphore() -> tuple[float, str, ConversationRecord]:
-        """Run a single evaluation with semaphore control."""
+
+    async def _run_with_semaphore() -> ConversationRecord:
+        """Run a single interaction with semaphore control."""
         eval_id = secrets.token_hex(9)  # 18-character random hex string
+
+        # Generate a random writing style for this specific interaction
+        config = writing_style_config or WritingStyleConfig()
+        writing_style = (
+            _generate_writing_style(axes=config.axes) if config.enabled else None
+        )
+
         async with semaphore:
-            return await _run_single_evaluation(
+            return await _run_single_interaction(
                 scenario,
                 app_handler,
-                rubric,
-                judge_model,
                 user_simulator_model,
                 max_turns,
                 eval_id=eval_id,
                 retry_config=retry_config,
-                writing_style_config=writing_style_config,
+                writing_style=writing_style,
             )
-    
+
     # Create all tasks at once, semaphore controls concurrency
     tasks = [_run_with_semaphore() for _ in range(sample_size)]
-    
+
     # Wait for all tasks to complete with progress bar
-    results = await tqdm.gather(*tasks, desc="Running evaluations")
+    results = await tqdm.gather(*tasks, desc="Simulating user conversations")
+
+    return results
+
+
+async def _judge_conversations(
+    scenario: ScenarioTest,
+    expectation: BehavioralExpectation,
+    conversations: List[ConversationRecord],
+    rubric: str,
+    judge_model: str,
+    concurrency: int = 10,
+    retry_config: RetryConfig | None = None,
+) -> tuple[List[float], List[str]]:
+    """
+    Judge a list of conversations against a rubric with controlled concurrency.
+
+    This function takes a list of conversations and evaluates each one against
+    the provided rubric and behavioral expectation.
+
+    Args:
+        scenario: The behavioral test case.
+        expectation: The specific behavioral expectation to judge against.
+        conversations: The list of `ConversationRecord` objects to judge.
+        rubric: The scoring rubric from Phase 1.
+        judge_model: The LLM model for the judge.
+        concurrency: Maximum number of judgments to run concurrently.
+        retry_config: Configuration for retrying LLM calls.
+
+    Returns:
+        A tuple of (scores, reasoning_list).
+    """
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def _judge_with_semaphore(
+        conversation: ConversationRecord,
+    ) -> tuple[float, str]:
+        """Run a single judgment with semaphore control."""
+        eval_id = secrets.token_hex(9)
+        async with semaphore:
+            return await _judge_interaction(
+                scenario=scenario,
+                expectation=expectation,
+                conversation=conversation,
+                rubric=rubric,
+                judge_model=judge_model,
+                eval_id=eval_id,
+                retry_config=retry_config,
+            )
+
+    tasks = [_judge_with_semaphore(conv) for conv in conversations]
     
-    # Separate scores, reasoning, and conversations
-    scores = [score for score, _, _ in results]
-    reasoning_list = [reasoning for _, reasoning, _ in results]
-    conversations = [conversation for _, _, conversation in results]
+    desc = f"Judging conversations for expectation '{expectation.label}'" if expectation.label else "Judging conversations"
+    results = await tqdm.gather(*tasks, desc=desc)
     
-    return scores, reasoning_list, conversations
+    scores = [score for score, _ in results]
+    reasoning_list = [reasoning for _, reasoning in results]
+    return scores, reasoning_list
 

@@ -259,6 +259,33 @@ for result in all_results:
     print(result)
 ```
 
+### Evaluating Multiple Conditions
+
+You can also specify multiple `BehavioralExpectation` objects in the `then` clause of a `ScenarioTest`. The test will only pass if all expectations are met. Each expectation is evaluated independently with its own rubric and statistical analysis, but they all share the same `sample_size`. This is useful for testing complex behaviors that have multiple success criteria.
+
+For efficiency, the user simulation is run only once to generate a single set of conversations. This same set of conversations is then judged against each `BehavioralExpectation`, making this approach ideal for evaluating multiple facets of a single interaction.
+
+```python
+multi_condition_scenario = ScenarioTest(
+    title="Bot handles a complex multi-part request",
+    given="A user needs to both track a package and ask a question about a different product",
+    when="The user asks to track their package and then asks a follow-up question about a product's warranty",
+    sample_size=30,
+    then=[
+        BehavioralExpectation(
+            label="Tracks Package",
+            expected_behavior="Bot successfully provides the tracking status for the user's package.",
+            criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90)
+        ),
+        BehavioralExpectation(
+            label="Answers Warranty Question",
+            expected_behavior="Bot accurately answers the user's question about the product warranty.",
+            criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90)
+        )
+    ]
+)
+```
+
 ### Appendix A: Example Rubric
 
 For the `ScenarioTest` defined in the Python snippet:

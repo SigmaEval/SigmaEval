@@ -12,7 +12,7 @@ from tenacity import (
     before_sleep_log,
 )
 
-from .models import ScenarioTest, RetryConfig
+from .models import ScenarioTest, RetryConfig, BehavioralExpectation
 from .prompts import _build_rubric_generation_prompt, RUBRIC_GENERATOR_SYSTEM_PROMPT
 from .exceptions import LLMCommunicationError
 
@@ -21,6 +21,7 @@ logger = logging.getLogger("sigmaeval")
 
 async def _generate_rubric(
     scenario: ScenarioTest,
+    expectation: BehavioralExpectation,
     model: str,
     retry_config: RetryConfig | None = None,
 ) -> str:
@@ -49,7 +50,7 @@ async def _generate_rubric(
         10: Bot names all required functions clearly, concisely, in order, 
             and with natural, helpful phrasing.
     """
-    prompt = _build_rubric_generation_prompt(scenario)
+    prompt = _build_rubric_generation_prompt(scenario, expectation)
     logger.debug(f"Rubric generation prompt: {prompt}")
     
     cfg = retry_config or RetryConfig()

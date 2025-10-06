@@ -8,10 +8,13 @@ This module contains all prompt templates used for:
 """
 
 from typing import List, Dict
-from .models import ScenarioTest, ConversationTurn
+from .models import ScenarioTest, ConversationTurn, BehavioralExpectation
 
 
-def _build_rubric_generation_prompt(scenario: ScenarioTest) -> str:
+def _build_rubric_generation_prompt(
+    scenario: ScenarioTest,
+    expectation: BehavioralExpectation,
+) -> str:
     """
     Build the prompt for generating a rubric from a ScenarioTest.
     
@@ -31,7 +34,7 @@ Given the following test scenario:
 
 **Scenario (When):** {scenario.when}
 
-**Expected Behavior (Then):** {scenario.then.expected_behavior}
+**Expected Behavior (Then):** {expectation.expected_behavior}
 
 Create a detailed 1-10 scoring rubric that will be used to evaluate whether the AI system's behavior meets the expected outcome. The rubric should:
 
@@ -148,6 +151,7 @@ Set "continue" to false when:
 
 def _build_judge_prompt(
     scenario: ScenarioTest,
+    expectation: BehavioralExpectation,
     conversation_history: list[ConversationTurn],
     rubric: str,
 ) -> str:
@@ -181,7 +185,7 @@ def _build_judge_prompt(
 
 **Action/Trigger (When):** {scenario.when}
 
-**Expected Behavior (Then):** {scenario.then.expected_behavior}
+**Expected Behavior (Then):** {expectation.expected_behavior}
 
 **Scoring Rubric:**
 {rubric}
