@@ -1,14 +1,13 @@
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from sigmaeval import (
-    SigmaEval,
     ScenarioTest,
     BehavioralExpectation,
     assertions,
     AppResponse,
 )
-from sigmaeval.assertions import ProportionGTE, MedianGTE
+from sigmaeval.assertions import ProportionAssertion, MedianAssertion
 
 
 @pytest.fixture
@@ -23,7 +22,7 @@ def basic_scenario():
             expected_behavior="The app should respond appropriately",
             criteria=assertions.scores.proportion_gte(
                 min_score=8, proportion=0.9
-            ),  # Will be replaced in each test
+            ),
         ),
     )
 
@@ -41,9 +40,10 @@ def test_proportion_gte_returns_correct_dataclass():
     crit = assertions.scores.proportion_gte(
         min_score=8, proportion=0.9, significance_level=0.01
     )
-    assert isinstance(crit, ProportionGTE)
-    assert crit.min_score == 8
+    assert isinstance(crit, ProportionAssertion)
+    assert crit.threshold == 8
     assert crit.proportion == 0.9
+    assert crit.comparison == "gte"
     assert crit.significance_level == 0.01
 
 
@@ -52,116 +52,57 @@ def test_median_gte_returns_correct_dataclass():
     Tests that assertions.scores.median_gte creates the correct dataclass.
     """
     crit = assertions.scores.median_gte(threshold=7.5, significance_level=0.05)
-    assert isinstance(crit, MedianGTE)
+    assert isinstance(crit, MedianAssertion)
     assert crit.threshold == 7.5
+    assert crit.comparison == "gte"
     assert crit.significance_level == 0.05
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "invalid_criteria, error_match",
+    "invalid_params, error_match",
     [
+        ({"min_score": 8, "proportion": -0.1}, "proportion must be between 0 and 1"),
+        ({"min_score": 8, "proportion": 1.1}, "proportion must be between 0 and 1"),
+        ({"min_score": 0, "proportion": 0.9}, "min_score must be between 1 and 10"),
+        ({"min_score": 11, "proportion": 0.9}, "min_score must be between 1 and 10"),
         (
-            assertions.scores.proportion_gte(min_score=8, proportion=-0.1),
-            "min_proportion must be between 0 and 1",
-        ),
-        (
-            assertions.scores.proportion_gte(min_score=8, proportion=1.1),
-            "min_proportion must be between 0 and 1",
-        ),
-        (
-            assertions.scores.proportion_gte(min_score=0, proportion=0.9),
-            "min_rating must be between 1 and 10",
-        ),
-        (
-            assertions.scores.proportion_gte(min_score=11, proportion=0.9),
-            "min_rating must be between 1 and 10",
-        ),
-        (
-            assertions.scores.proportion_gte(
-                min_score=8, proportion=0.9, significance_level=-0.1
-            ),
+            {"min_score": 8, "proportion": 0.9, "significance_level": -0.1},
             "significance_level must be between 0 and 1",
         ),
         (
-            assertions.scores.proportion_gte(
-                min_score=8, proportion=0.9, significance_level=1.1
-            ),
+            {"min_score": 8, "proportion": 0.9, "significance_level": 1.1},
             "significance_level must be between 0 and 1",
         ),
     ],
 )
-@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
-@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
-@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
-async def test_proportion_gte_invalid_params_raise_in_evaluate(
-    mock_generate_rubric,
-    mock_collect_conversations,
-    mock_judge_conversations,
-    invalid_criteria,
-    error_match,
-    basic_scenario,
-    mock_app_handler,
-):
+def test_proportion_gte_invalid_params_raise(invalid_params, error_match):
     """
-    Tests that using an assertion with invalid parameters raises a ValueError
-    during the evaluation process.
+    Tests that creating a proportion_gte assertion with invalid parameters
+    raises a ValueError.
     """
-    mock_generate_rubric.return_value = "Mocked rubric"
-    mock_collect_conversations.return_value = []  # Mock conversations
-    mock_judge_conversations.return_value = ([10.0], ["reason"])  # Need non-empty scores
-
-    basic_scenario.then[0].criteria = invalid_criteria
-    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
-
     with pytest.raises(ValueError, match=error_match):
-        await sigma_eval.evaluate(basic_scenario, mock_app_handler)
+        assertions.scores.proportion_gte(**invalid_params)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "invalid_criteria, error_match",
+    "invalid_params, error_match",
     [
+        ({"threshold": 0.5}, "threshold must be between 1 and 10"),
+        ({"threshold": 11.5}, "threshold must be between 1 and 10"),
         (
-            assertions.scores.median_gte(threshold=0.5),
-            "min_median_rating must be between 1 and 10",
-        ),
-        (
-            assertions.scores.median_gte(threshold=11.5),
-            "min_median_rating must be between 1 and 10",
-        ),
-        (
-            assertions.scores.median_gte(threshold=8.0, significance_level=-0.05),
+            {"threshold": 8.0, "significance_level": -0.05},
             "significance_level must be between 0 and 1",
         ),
         (
-            assertions.scores.median_gte(threshold=8.0, significance_level=1.05),
+            {"threshold": 8.0, "significance_level": 1.05},
             "significance_level must be between 0 and 1",
         ),
     ],
 )
-@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
-@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
-@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
-async def test_median_gte_invalid_params_raise_in_evaluate(
-    mock_generate_rubric,
-    mock_collect_conversations,
-    mock_judge_conversations,
-    invalid_criteria,
-    error_match,
-    basic_scenario,
-    mock_app_handler,
-):
+def test_median_gte_invalid_params_raise(invalid_params, error_match):
     """
-    Tests that using a median_gte assertion with invalid parameters raises a
-    ValueError during the evaluation process.
+    Tests that creating a median_gte assertion with invalid parameters raises
+    a ValueError.
     """
-    mock_generate_rubric.return_value = "Mocked rubric"
-    mock_collect_conversations.return_value = []  # Mock conversations
-    mock_judge_conversations.return_value = ([10.0], ["reason"])  # Need non-empty scores
-
-    basic_scenario.then[0].criteria = invalid_criteria
-    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
-
     with pytest.raises(ValueError, match=error_match):
-        await sigma_eval.evaluate(basic_scenario, mock_app_handler)
+        assertions.scores.median_gte(**invalid_params)

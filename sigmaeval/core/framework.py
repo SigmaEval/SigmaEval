@@ -11,12 +11,10 @@ from .rubric_generator import _generate_rubric
 from .data_collection import _collect_conversations, _judge_conversations
 from .models import RetryConfig
 
-from ..assertions import MedianGTE, ProportionGTE, MedianLT, ProportionLT
+from ..assertions import MedianAssertion, ProportionAssertion
 from .._evaluators import (
-    RatingMedianEvaluator,
-    RatingProportionEvaluator,
-    MetricMedianEvaluator,
-    MetricProportionEvaluator,
+    MedianEvaluator,
+    ProportionEvaluator,
 )
 
 
@@ -175,16 +173,18 @@ class SigmaEval:
                 for criteria in criteria_list:
                     evaluator = None
                     significance_level = criteria.significance_level or self.significance_level
-                    if isinstance(criteria, ProportionGTE):
-                        evaluator = RatingProportionEvaluator(
+                    if isinstance(criteria, ProportionAssertion):
+                        evaluator = ProportionEvaluator(
                             significance_level=significance_level,
-                            min_rating=criteria.min_score,
-                            min_proportion=criteria.proportion,
+                            threshold=criteria.threshold,
+                            proportion=criteria.proportion,
+                            comparison=criteria.comparison,
                         )
-                    elif isinstance(criteria, MedianGTE):
-                        evaluator = RatingMedianEvaluator(
+                    elif isinstance(criteria, MedianAssertion):
+                        evaluator = MedianEvaluator(
                             significance_level=significance_level,
-                            min_median_rating=criteria.threshold,
+                            threshold=criteria.threshold,
+                            comparison=criteria.comparison,
                         )
                     else:
                         raise TypeError(f"Unsupported criteria type: {type(criteria)}")
@@ -203,16 +203,18 @@ class SigmaEval:
                 for criteria in criteria_list:
                     evaluator = None
                     significance_level = criteria.significance_level or self.significance_level
-                    if isinstance(criteria, ProportionLT):
-                        evaluator = MetricProportionEvaluator(
+                    if isinstance(criteria, ProportionAssertion):
+                        evaluator = ProportionEvaluator(
                             significance_level=significance_level,
                             threshold=criteria.threshold,
                             proportion=criteria.proportion,
+                            comparison=criteria.comparison,
                         )
-                    elif isinstance(criteria, MedianLT):
-                        evaluator = MetricMedianEvaluator(
+                    elif isinstance(criteria, MedianAssertion):
+                        evaluator = MedianEvaluator(
                             significance_level=significance_level,
                             threshold=criteria.threshold,
+                            comparison=criteria.comparison,
                         )
                     else:
                         raise TypeError(f"Unsupported criteria type for MetricExpectation: {type(criteria)}")

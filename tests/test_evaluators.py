@@ -1,15 +1,14 @@
 import pytest
 import numpy as np
 from sigmaeval._evaluators import (
-    RatingMedianEvaluator,
-    RatingProportionEvaluator,
+    MedianEvaluator,
+    ProportionEvaluator,
 )
 
 
 @pytest.mark.parametrize(
-    "scores, min_rating, min_proportion, expected_pass, description",
+    "scores, threshold, proportion, expected_pass, description",
     [
-        # --- Original RatingProportionEvaluator tests ---
         (
             [9] * 35 + [7] * 5,
             8,
@@ -38,7 +37,6 @@ from sigmaeval._evaluators import (
             "2/2 successes (rating > 9) at 90% -> not enough evidence",
         ),
         ([10, 8], 9, 0.9, False, "1/2 successes (rating > 9) at 90% -> fail"),
-        # --- Ported from SuccessRateEvaluator tests (min_rating=6) ---
         (
             [10] * 29 + [5] * 1,
             6,
@@ -70,14 +68,15 @@ from sigmaeval._evaluators import (
         ([10, 5], 6, 0.9, False, "1/2 successes at 90% -> fail"),
     ],
 )
-def test_rating_proportion_evaluator(
-    scores, min_rating, min_proportion, expected_pass, description
+def test_proportion_evaluator_gte(
+    scores, threshold, proportion, expected_pass, description
 ):
-    """Tests the RatingProportionEvaluator with various scenarios."""
-    evaluator = RatingProportionEvaluator(
+    """Tests the ProportionEvaluator with gte comparison."""
+    evaluator = ProportionEvaluator(
         significance_level=0.05,
-        min_rating=min_rating,
-        min_proportion=min_proportion,
+        threshold=threshold,
+        proportion=proportion,
+        comparison="gte",
     )
     results = evaluator.evaluate(scores)
     assert results["passed"] is expected_pass, f"Failed on: {description}"
@@ -88,45 +87,7 @@ def test_rating_proportion_evaluator(
 
 
 @pytest.mark.parametrize(
-    "params, error_match",
-    [
-        (
-            {"significance_level": -0.1, "min_rating": 8, "min_proportion": 0.9},
-            "significance_level must be between 0 and 1",
-        ),
-        (
-            {"significance_level": 1.1, "min_rating": 8, "min_proportion": 0.9},
-            "significance_level must be between 0 and 1",
-        ),
-        (
-            {"significance_level": 0.05, "min_rating": 0, "min_proportion": 0.9},
-            "min_rating must be between 1 and 10",
-        ),
-        (
-            {"significance_level": 0.05, "min_rating": 11, "min_proportion": 0.9},
-            "min_rating must be between 1 and 10",
-        ),
-        (
-            {"significance_level": 0.05, "min_rating": 8, "min_proportion": -0.1},
-            "min_proportion must be between 0 and 1",
-        ),
-        (
-            {"significance_level": 0.05, "min_rating": 8, "min_proportion": 1.1},
-            "min_proportion must be between 0 and 1",
-        ),
-    ],
-)
-def test_rating_proportion_evaluator_invalid_init(params, error_match):
-    """Tests that RatingProportionEvaluator raises ValueError on invalid init."""
-    with pytest.raises(ValueError, match=error_match):
-        RatingProportionEvaluator(**params)
-
-
-# --- Tests for the new Bootstrap-based RatingAverageEvaluator ---
-
-
-@pytest.mark.parametrize(
-    "scores, min_median_rating, expected_pass, description",
+    "scores, threshold, expected_pass, description",
     [
         ([8, 9, 8, 10, 9, 9, 10, 8], 7.0, True, "Scores clearly above threshold"),
         ([1, 2, 1, 3, 2, 2, 1, 3], 4.0, False, "Scores clearly below threshold"),
@@ -139,39 +100,13 @@ def test_rating_proportion_evaluator_invalid_init(params, error_match):
         ([8], 8.0, False, "Single sample, should fail (equal to threshold)"),
     ],
 )
-def test_rating_median_evaluator(scores, min_median_rating, expected_pass, description):
-    """Tests the RatingMedianEvaluator with various deterministic scenarios."""
-    evaluator = RatingMedianEvaluator(
+def test_median_evaluator_gte(scores, threshold, expected_pass, description):
+    """Tests the MedianEvaluator with gte comparison."""
+    evaluator = MedianEvaluator(
         significance_level=0.05,
-        min_median_rating=min_median_rating,
-        bootstrap_resamples=1000,  # Lower for faster tests
+        threshold=threshold,
+        comparison="gte",
+        bootstrap_resamples=1000,
     )
     results = evaluator.evaluate(scores)
     assert results["passed"] is expected_pass, f"Failed on: {description}"
-
-
-@pytest.mark.parametrize(
-    "params, error_match",
-    [
-        (
-            {"significance_level": -0.1, "min_median_rating": 8.0},
-            "significance_level must be between 0 and 1",
-        ),
-        (
-            {"significance_level": 1.1, "min_median_rating": 8.0},
-            "significance_level must be between 0 and 1",
-        ),
-        (
-            {"significance_level": 0.05, "min_median_rating": 0.9},
-            "min_median_rating must be between 1 and 10",
-        ),
-        (
-            {"significance_level": 0.05, "min_median_rating": 10.1},
-            "min_median_rating must be between 1 and 10",
-        ),
-    ],
-)
-def test_rating_median_evaluator_invalid_init(params, error_match):
-    """Tests that RatingMedianEvaluator raises ValueError on invalid init."""
-    with pytest.raises(ValueError, match=error_match):
-        RatingMedianEvaluator(**params)

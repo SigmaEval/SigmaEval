@@ -533,7 +533,7 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
 @patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
-@patch("sigmaeval.core.framework.RatingProportionEvaluator")
+@patch("sigmaeval.core.framework.ProportionEvaluator")
 async def test_assertion_significance_level_overrides_constructor(
     mock_evaluator_class,
     mock_generate_rubric,
@@ -582,7 +582,7 @@ async def test_assertion_significance_level_overrides_constructor(
 
 
 @pytest.mark.asyncio
-@patch("sigmaeval.core.framework.RatingProportionEvaluator")
+@patch("sigmaeval.core.framework.ProportionEvaluator")
 @patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
@@ -648,7 +648,7 @@ async def test_e2e_multiple_expectations_all_pass(
 
 
 @pytest.mark.asyncio
-@patch("sigmaeval.core.framework.RatingProportionEvaluator")
+@patch("sigmaeval.core.framework.ProportionEvaluator")
 @patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
@@ -713,7 +713,7 @@ async def test_e2e_multiple_expectations_one_fails(
 
 
 @pytest.mark.asyncio
-@patch("sigmaeval.core.framework.RatingProportionEvaluator")
+@patch("sigmaeval.core.framework.ProportionEvaluator")
 @patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
