@@ -74,7 +74,7 @@ Each scenario is defined using a `ScenarioTest` object with three main parts:
 
 *   **`Given`**: This section establishes the prerequisite state and context for the **User Simulator LLM**. This can include the persona of the user (e.g., a new user, an expert user), the context of the conversation (e.g., a customer's order number), or any other background information.
 *   **`When`**: This describes the specific goal or action the **User Simulator LLM** will try to achieve. SigmaEval uses this to guide the simulation.
-*   **`Then`**: This section specifies the expected outcome. It is an `Expectation` object containing an `expected_behavior` description (which is passed to the **Judge LLM**) and an `evaluator` to perform the statistical analysis.
+*   **`Then`**: This section specifies the expected outcome. It is an `BehavioralExpectation` object containing an `expected_behavior` description (which is passed to the **Judge LLM**) and an `evaluator` to perform the statistical analysis.
 
 This approach allows for a robust, automated evaluation of the AI's behavior against clear, human-readable standards.
 
@@ -82,7 +82,7 @@ This approach allows for a robust, automated evaluation of the AI's behavior aga
 from sigmaeval import (
     SigmaEval, 
     ScenarioTest, 
-    Expectation, 
+    BehavioralExpectation, 
     SuccessRateEvaluator, 
     AppResponse,
     EvaluationResult,
@@ -96,7 +96,7 @@ scenario = ScenarioTest(
     given="A new user who has not interacted with the bot before",
     when="The user asks a general question about the bot's capabilities",
     sample_size=30,
-    then=Expectation(
+    then=BehavioralExpectation(
         expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         evaluator=SuccessRateEvaluator(
             significance_level=0.05,
@@ -176,7 +176,7 @@ The bootstrap method works by resampling the collected scores thousands of times
 ```python
 from sigmaeval import RatingAverageEvaluator
 
-# This would be used inside an `Expectation` object
+# This would be used inside an `BehavioralExpectation` object
 median_rating_evaluator = RatingAverageEvaluator(
     significance_level=0.05,
     min_median_rating=8.0, # The minimum median rating to test against
@@ -189,7 +189,7 @@ For subjective qualities like helpfulness or tone, this evaluator tests if the t
 ```python
 from sigmaeval import RatingProportionEvaluator
 
-# This would be used inside an `Expectation` object, just like SuccessRateEvaluator
+# This would be used inside an `BehavioralExpectation` object, just like SuccessRateEvaluator
 rating_evaluator = RatingProportionEvaluator(
     significance_level=0.05,
     min_rating=8, # The minimum acceptable rating on a 1-10 scale
@@ -313,7 +313,7 @@ scenario = ScenarioTest(
     given="A new user who has not interacted with the bot before",
     when="The user asks a general question about the bot's capabilities",
     sample_size=30,
-    then=Expectation(
+    then=BehavioralExpectation(
         expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         # ... evaluator details
     )

@@ -13,7 +13,7 @@ import pytest
 from sigmaeval import (
     SigmaEval,
     ScenarioTest,
-    Expectation,
+    BehavioralExpectation,
     AppResponse,
     SuccessRateEvaluator,
     EvaluationResult,
@@ -83,7 +83,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         given="A user wants to return a recently purchased pair of shoes.",
         when="The user asks how to start a return.",
         sample_size=sample_size,
-        then=Expectation(
+        then=BehavioralExpectation(
             expected_behavior=(
                 "The bot should acknowledge the user's request, ask for an order "
                 "number, and explain the next steps in the return process clearly."
@@ -253,7 +253,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         given="A user wants to return a recently purchased pair of shoes.",
         when="The user asks how to start a return.",
         sample_size=sample_size,
-        then=Expectation(
+        then=BehavioralExpectation(
             expected_behavior=(
                 "The bot should acknowledge the user's request, ask for an order "
                 "number, and explain the next steps in the return process clearly."
@@ -337,7 +337,7 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
         given="A user starts a conversation.",
         when="The user says 'hello'.",
         sample_size=sample_size,
-        then=Expectation(
+        then=BehavioralExpectation(
             expected_behavior="The bot should respond with a friendly greeting.",
             evaluator=SuccessRateEvaluator(
                 significance_level=0.05,
@@ -407,7 +407,7 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         given="A user",
         when="The user says hi",
         sample_size=sample_size,
-        then=Expectation(
+        then=BehavioralExpectation(
             expected_behavior="The bot says hi back.",
             evaluator=SuccessRateEvaluator(
                 min_proportion=0.1, significance_level=0.05
@@ -420,7 +420,7 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         given="A user",
         when="The user says bye",
         sample_size=sample_size,
-        then=Expectation(
+        then=BehavioralExpectation(
             expected_behavior="The bot says bye back.",
             evaluator=SuccessRateEvaluator(
                 min_proportion=0.1, significance_level=0.05

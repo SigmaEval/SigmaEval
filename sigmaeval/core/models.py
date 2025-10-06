@@ -85,9 +85,9 @@ class AppResponse(BaseModel):
     state: Dict[str, Any]
 
 
-class Expectation(BaseModel):
+class BehavioralExpectation(BaseModel):
     """
-    Defines the expected outcome and evaluation method for a behavioral test case.
+    Defines the expected outcome and evaluation method for a scenario test case.
     
     Attributes:
         expected_behavior: Description of the expected behavior (passed to Judge LLM)
@@ -105,7 +105,7 @@ class ScenarioTest(BaseModel):
     title: str
     given: str
     when: str
-    then: "Expectation"
+    then: "BehavioralExpectation"
     sample_size: int
     max_turns: int = 10
 

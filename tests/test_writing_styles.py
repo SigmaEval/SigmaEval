@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 from sigmaeval.core.models import (
     AppResponse,
     ScenarioTest,
-    Expectation,
+    BehavioralExpectation,
     WritingStyleConfig,
     WritingStyleAxes,
 )
@@ -30,7 +30,7 @@ def basic_scenario():
         given="A test user",
         when="The user does something",
         sample_size=2,
-        then=Expectation(
+        then=BehavioralExpectation(
             expected_behavior="The app should respond appropriately",
             evaluator=SuccessRateEvaluator(
                 significance_level=0.05, min_proportion=0.8
