@@ -1,8 +1,10 @@
 import pytest
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 from sigmaeval.core.rubric_generator import _generate_rubric
-from sigmaeval.core.models import RetryConfig
+from sigmaeval.core.data_collection import _run_single_interaction, _judge_conversations
+from sigmaeval.core.models import RetryConfig, AppResponse
 from sigmaeval.core.exceptions import LLMCommunicationError
 
 
@@ -27,7 +29,8 @@ def mock_scenario():
     return SimpleNamespace(
         given="given",
         when="when",
-        then=SimpleNamespace(expected_behavior="expected"),
+        then=[SimpleNamespace(expected_behavior="expected", label=None)],
+        max_turns=1,
     )
 
 
@@ -53,7 +56,10 @@ async def test_retry_succeeds_after_failures(monkeypatch, mock_scenario):
         max_backoff_seconds=0.0,
     )
     rubric = await _generate_rubric(
-        scenario=mock_scenario, expectation=mock_scenario.then, model="dummy", retry_config=cfg
+        scenario=mock_scenario,
+        expectation=mock_scenario.then[0],
+        model="dummy",
+        retry_config=cfg,
     )
 
     assert rubric == "ok rubric"
@@ -84,7 +90,10 @@ async def test_retry_on_empty_response(monkeypatch, mock_scenario):
         max_backoff_seconds=0.0,
     )
     rubric = await _generate_rubric(
-        scenario=mock_scenario, expectation=mock_scenario.then, model="dummy", retry_config=cfg
+        scenario=mock_scenario,
+        expectation=mock_scenario.then[0],
+        model="dummy",
+        retry_config=cfg,
     )
 
     assert rubric == "ok rubric"
@@ -106,7 +115,10 @@ async def test_retry_disabled_no_retry(monkeypatch, mock_scenario):
     cfg = RetryConfig(enabled=False, max_attempts=5)
     with pytest.raises(LLMCommunicationError):
         await _generate_rubric(
-            scenario=mock_scenario, expectation=mock_scenario.then, model="dummy", retry_config=cfg
+            scenario=mock_scenario,
+            expectation=mock_scenario.then[0],
+            model="dummy",
+            retry_config=cfg,
         )
 
     # Only one attempt should be made when retries are disabled
@@ -131,10 +143,86 @@ async def test_retry_exhausts_attempts(monkeypatch, mock_scenario):
     )
     with pytest.raises(LLMCommunicationError):
         await _generate_rubric(
-            scenario=mock_scenario, expectation=mock_scenario.then, model="dummy", retry_config=cfg
+            scenario=mock_scenario,
+            expectation=mock_scenario.then[0],
+            model="dummy",
+            retry_config=cfg,
         )
 
     # Should have attempted exactly max_attempts times
+    assert call_counter["n"] == 3
+
+
+@pytest.mark.asyncio
+async def test_retry_succeeds_for_user_simulation(monkeypatch, mock_scenario):
+    """Test that retry logic succeeds for user simulation after failures."""
+    call_counter = {"n": 0}
+
+    async def fake_acompletion(**kwargs):
+        call_counter["n"] += 1
+        if call_counter["n"] <= 2:
+            raise RuntimeError("transient error")
+        # A valid JSON response for the user simulator
+        return _FakeResponse('{"message": "Test message", "continue": false}')
+
+    monkeypatch.setattr(
+        "sigmaeval.core.data_collection._litellm_acompletion", fake_acompletion
+    )
+
+    cfg = RetryConfig(
+        enabled=True,
+        max_attempts=5,
+        backoff_multiplier=0.0,
+        max_backoff_seconds=0.0,
+    )
+    # This is a simplified call, focusing only on the retry aspect
+    result = await _run_single_interaction(
+        scenario=mock_scenario,
+        app_handler=AsyncMock(return_value=AppResponse(response="ok", state={})),
+        user_simulator_model="dummy",
+        retry_config=cfg,
+    )
+
+    assert result is not None
+    assert "Test message" in result.turns[0].content
+    assert call_counter["n"] == 3
+
+
+@pytest.mark.asyncio
+async def test_retry_succeeds_for_judging(monkeypatch, mock_scenario):
+    """Test that retry logic succeeds for judging after failures."""
+    call_counter = {"n": 0}
+
+    async def fake_acompletion(**kwargs):
+        call_counter["n"] += 1
+        if call_counter["n"] <= 2:
+            raise RuntimeError("transient error")
+        # A valid JSON response for the judge
+        return _FakeResponse('{"score": 8, "reasoning": "Good response"}')
+
+    monkeypatch.setattr(
+        "sigmaeval.core.data_collection._litellm_acompletion", fake_acompletion
+    )
+
+    cfg = RetryConfig(
+        enabled=True,
+        max_attempts=5,
+        backoff_multiplier=0.0,
+        max_backoff_seconds=0.0,
+    )
+    # Provide minimal mock data needed for the function to run
+    mock_conversation = SimpleNamespace(turns=[])
+    scores, reasoning = await _judge_conversations(
+        scenario=mock_scenario,
+        expectation=mock_scenario.then[0],
+        conversations=[mock_conversation],
+        rubric="Test Rubric",
+        judge_model="dummy",
+        retry_config=cfg,
+    )
+
+    assert scores == [8]
+    assert reasoning == ["Good response"]
     assert call_counter["n"] == 3
 
 
