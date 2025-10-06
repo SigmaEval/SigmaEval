@@ -58,10 +58,13 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
                     "The bot should acknowledge the user's request, ask for an order "
                     "number, and explain the next steps in the return process clearly."
                 ),
-                criteria=assertions.scores.proportion_gte(
-                    min_score=6,
-                    proportion=0.7,
-                ),
+                criteria=[
+                    assertions.scores.proportion_gte(
+                        min_score=6,
+                        proportion=0.7,
+                    ),
+                    assertions.scores.median_gte(threshold=6.0),
+                ],
             ),
             MetricExpectation(
                 label="Responsiveness",
@@ -110,6 +113,11 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     assert len(results.expectation_results) == 2
     assert results.expectation_results[0].passed is True
     assert results.expectation_results[1].passed is True
+
+    # Check that the behavioral expectation has two passing assertion results
+    assert len(results.expectation_results[0].assertion_results) == 2
+    assert results.expectation_results[0].assertion_results[0].passed is True
+    assert results.expectation_results[0].assertion_results[1].passed is True
 
     # Check that at least 70% of scores are above 5 (indicating good performance)
     scores = results.expectation_results[0].scores
@@ -386,3 +394,4 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
     # Check that individual test logs are also present
     assert "--- Starting evaluation for ScenarioTest: Minimal Test 1 ---" in caplog.text
     assert "--- Evaluation complete for: Minimal Test 1 ---" in caplog.text
+
