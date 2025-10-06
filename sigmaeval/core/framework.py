@@ -169,34 +169,33 @@ class SigmaEval:
             if expectation.label:
                 log_msg += f" (Expectation: {expectation.label})"
             self.logger.info(log_msg)
-            
-            criteria = expectation.criteria
-            
-            evaluator = None
-            significance_level = criteria.significance_level or self.significance_level
-            if isinstance(criteria, ProportionGTE):
-                evaluator = RatingProportionEvaluator(
-                    significance_level=significance_level,
-                    min_rating=criteria.min_score,
-                    min_proportion=criteria.proportion,
-                )
-            elif isinstance(criteria, MedianGTE):
-                evaluator = RatingAverageEvaluator(
-                    significance_level=significance_level,
-                    min_median_rating=criteria.threshold,
-                )
-            else:
-                raise TypeError(f"Unsupported criteria type: {type(criteria)}")
 
-            results = evaluator.evaluate(scores, label=expectation.label)
-            all_results.append(results)
+            criteria_list = expectation.criteria if isinstance(expectation.criteria, list) else [expectation.criteria]
+            for criteria in criteria_list:
+                evaluator = None
+                significance_level = criteria.significance_level or self.significance_level
+                if isinstance(criteria, ProportionGTE):
+                    evaluator = RatingProportionEvaluator(
+                        significance_level=significance_level,
+                        min_rating=criteria.min_score,
+                        min_proportion=criteria.proportion,
+                    )
+                elif isinstance(criteria, MedianGTE):
+                    evaluator = RatingAverageEvaluator(
+                        significance_level=significance_level,
+                        min_median_rating=criteria.threshold,
+                    )
+                else:
+                    raise TypeError(f"Unsupported criteria type: {type(criteria)}")
+
+                results = evaluator.evaluate(scores, label=expectation.label)
+                all_results.append(results)
         
         self.logger.info(f"--- Evaluation complete for: {scenario.title} ---")
         
         # If there are multiple expectations, the test passes only if all of them pass
         final_passed_status = all(
-            res.get(f"{exp.label}: Passed", False) if exp.label else res.get("passed", False)
-            for res, exp in zip(all_results, scenario.then)
+            res.get("passed", False) for res in all_results
         )
 
         # Merge all results into a single dictionary for the final EvaluationResult

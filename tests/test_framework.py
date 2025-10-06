@@ -680,3 +680,64 @@ async def test_e2e_multiple_expectations_one_fails(
     assert "Expectation 2: Passed" in results.results  # This key is still present
     assert "Starting statistical analysis for 'Multi-Expectation Test (One Fail)' (Expectation: Expectation 1)" in caplog.text
     assert "Starting statistical analysis for 'Multi-Expectation Test (One Fail)' (Expectation: Expectation 2)" in caplog.text
+
+
+@pytest.mark.asyncio
+@patch("sigmaeval.core.framework.RatingProportionEvaluator")
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+async def test_e2e_multiple_assertions_all_pass(
+    mock_generate_rubric,
+    mock_collect_conversations,
+    mock_judge_conversations,
+    mock_evaluator_class,
+    caplog,
+) -> None:
+    """
+    Tests that a scenario with multiple assertions passes if and only if
+    all individual assertions pass.
+    """
+    # 1. Setup
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_collect_conversations.return_value = [ConversationRecord()]
+    mock_judge_conversations.return_value = ([8.0, 9.0], ["reason", "reason"])
+
+    # Mock the evaluator's result directly to control pass/fail status
+    mock_evaluator_instance = Mock()
+    mock_evaluator_instance.evaluate.side_effect = [
+        {"passed": True, "Assertion 1: Passed": True},
+        {"passed": True, "Assertion 2: Passed": True},
+    ]
+    mock_evaluator_class.return_value = mock_evaluator_instance
+
+    # 2. Define Scenario with two assertions
+    scenario = ScenarioTest(
+        title="Multi-Assertion Test (All Pass)",
+        given="A user",
+        when="An action",
+        sample_size=2,
+        then=BehavioralExpectation(
+            label="Expectation with multiple assertions",
+            expected_behavior="Criteria 1",
+            criteria=[
+                assertions.scores.proportion_gte(min_score=7, proportion=0.8),
+                assertions.scores.proportion_gte(min_score=8, proportion=0.8),
+            ],
+        ),
+    )
+
+    # 3. Run evaluation
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
+    results = await sigma_eval.evaluate(scenario, AsyncMock())
+
+    # 4. Assertions
+    assert results.passed is True
+    assert mock_collect_conversations.call_count == 1
+    assert mock_generate_rubric.call_count == 1
+    assert mock_evaluator_instance.evaluate.call_count == 2
+    # Check that results from both evaluations are merged
+    assert "passed" in results.results
+    assert "Assertion 1: Passed" in results.results
+    assert "Assertion 2: Passed" in results.results
+    assert "Starting statistical analysis for 'Multi-Assertion Test (All Pass)' (Expectation: Expectation with multiple assertions)" in caplog.text

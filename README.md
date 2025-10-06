@@ -259,9 +259,13 @@ for result in all_results:
     print(result)
 ```
 
-### Evaluating Multiple Conditions
+### Evaluating Multiple Conditions and Assertions
 
-You can also specify multiple `BehavioralExpectation` objects in the `then` clause of a `ScenarioTest`. The test will only pass if all expectations are met. Each expectation is evaluated independently with its own rubric and statistical analysis, but they all share the same `sample_size`. This is useful for testing complex behaviors that have multiple success criteria.
+For more comprehensive validation, SigmaEval supports testing multiple conditions and assertions within a single `ScenarioTest`. This allows you to check for complex behaviors and verify multiple statistical properties in an efficient manner.
+
+#### Multiple Conditions
+
+You can specify multiple `BehavioralExpectation` objects in the `then` clause of a `ScenarioTest`. The test will only pass if all expectations are met. Each expectation is evaluated independently with its own rubric and statistical analysis, but they all share the same `sample_size`. This is useful for testing complex behaviors that have multiple success criteria.
 
 For efficiency, the user simulation is run only once to generate a single set of conversations. This same set of conversations is then judged against each `BehavioralExpectation`, making this approach ideal for evaluating multiple facets of a single interaction.
 
@@ -283,6 +287,28 @@ multi_condition_scenario = ScenarioTest(
             criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90)
         )
     ]
+)
+```
+
+#### Multiple Assertions
+
+You can also specify a list of `criteria` in a `BehavioralExpectation`. The test will only pass if all assertions are met. This is useful for checking multiple statistical properties of the same set of scores.
+
+For efficiency, the user simulation and judging are run only once to generate a single set of scores. This same set of scores is then evaluated against each criterion.
+
+```python
+multi_assertion_scenario = ScenarioTest(
+    title="Bot gives a comprehensive and helpful answer",
+    given="A user is asking about the return policy for electronics.",
+    when="The user asks if they can return a laptop after 30 days.",
+    sample_size=50,
+    then=BehavioralExpectation(
+        expected_behavior="The bot correctly states that laptops must be returned within 30 days, but also helpfully suggests checking the manufacturer's warranty.",
+        criteria=[
+            assertions.scores.proportion_gte(min_score=7, proportion=0.90),
+            assertions.scores.median_gte(threshold=8)
+        ]
+    )
 )
 ```
 

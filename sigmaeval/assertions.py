@@ -1,16 +1,19 @@
-from dataclasses import dataclass
 from typing import Optional
+from pydantic import BaseModel
 
 
-@dataclass
-class ProportionGTE:
+class Assertion(BaseModel):
+    """Base class for all assertion criteria."""
+    pass
+
+
+class ProportionGTE(Assertion):
     min_score: int
     proportion: float
     significance_level: Optional[float] = None
 
 
-@dataclass
-class MedianGTE:
+class MedianGTE(Assertion):
     threshold: float
     significance_level: Optional[float] = None
 

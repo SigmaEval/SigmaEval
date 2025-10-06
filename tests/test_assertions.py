@@ -21,7 +21,9 @@ def basic_scenario():
         sample_size=2,
         then=BehavioralExpectation(
             expected_behavior="The app should respond appropriately",
-            criteria="DUMMY",  # Will be replaced in each test
+            criteria=assertions.scores.proportion_gte(
+                min_score=8, proportion=0.9
+            ),  # Will be replaced in each test
         ),
     )
 

@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Union
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
+from ..assertions import Assertion
+
 
 class ConversationTurn(BaseModel):
     """A single turn in a conversation, with timestamps."""
@@ -104,8 +106,16 @@ class BehavioralExpectation(BaseModel):
         label: An optional short name for the expectation, which will be displayed in logs and the evaluation results summary.
     """
     expected_behavior: str = Field(..., description="Expected behavior description")
-    criteria: Any = Field(..., description="Criteria for statistical analysis")
+    criteria: Union[Assertion, List[Assertion]] = Field(..., description="Criteria for statistical analysis")
     label: str | None = Field(None, description="Optional short name for the expectation, which will be displayed in logs and the evaluation results summary.")
+
+    @field_validator("criteria")
+    def validate_criteria(cls, v):
+        if isinstance(v, list):
+            if not v:
+                raise ValueError("'criteria' cannot be an empty list")
+            return v
+        return [v]
 
 
 class ScenarioTest(BaseModel):
