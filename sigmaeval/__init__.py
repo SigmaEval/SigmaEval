@@ -13,11 +13,7 @@ from sigmaeval.core import (
     WritingStyleConfig,
     WritingStyleAxes,
 )
-from sigmaeval.evaluators import (
-    SuccessRateEvaluator,
-    RatingAverageEvaluator,
-    RatingProportionEvaluator,
-)
+from .assertions import assertions
 
 __version__ = "0.1.0"
 __author__ = "Itura AI"
@@ -33,8 +29,6 @@ __all__ = [
     "RetryConfig",
     "WritingStyleConfig",
     "WritingStyleAxes",
-    "SuccessRateEvaluator",
-    "RatingAverageEvaluator",
-    "RatingProportionEvaluator",
+    "assertions",
 ]
 

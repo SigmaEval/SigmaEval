@@ -83,9 +83,9 @@ from sigmaeval import (
     SigmaEval, 
     ScenarioTest, 
     BehavioralExpectation, 
-    SuccessRateEvaluator, 
     AppResponse,
     EvaluationResult,
+    assertions,
 )
 import asyncio
 from typing import Dict, Any
@@ -98,9 +98,9 @@ scenario = ScenarioTest(
     sample_size=30,
     then=BehavioralExpectation(
         expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
-        evaluator=SuccessRateEvaluator(
-            significance_level=0.05,
-            min_proportion=0.90,
+        criteria=assertions.scores.proportion_gte(
+            min_score=6,
+            proportion=0.90,
         )
     )
 )
@@ -132,7 +132,7 @@ async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
 
 # Initialize SigmaEval and run the evaluation
 async def main():
-    sigma_eval = SigmaEval(judge_model="openai/gpt-5-nano")
+    sigma_eval = SigmaEval(judge_model="openai/gpt-5-nano", significance_level=0.05)
     results: EvaluationResult = await sigma_eval.evaluate(scenario, app_handler)
 
     # Print the results
@@ -152,67 +152,22 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Available Evaluators
+### Available Criteria
 
-SigmaEval provides different methods to evaluate your AI's performance. You can choose the one that best fits your scenario.
+SigmaEval provides different statistical criteria to evaluate your AI's performance based on the 1-10 scores from the Judge LLM. You can choose the one that best fits your scenario. All criteria are available under the `assertions.scores` object.
 
-#### SuccessRateEvaluator
-This evaluator performs a one-sided hypothesis test to determine if the true proportion of successful outcomes for the entire user population is greater than a specified minimum. For each run, the Judge LLM provides a rating on a 1-10 scale based on the rubric. A rating of 6 or higher is considered a "success," and a rating of 5 or lower is considered a "failure." The test passes if the observed success rate is high enough to reject the null hypothesis, providing statistical evidence that the system's performance exceeds the `min_proportion` at the specified `significance_level`.
+All statistical tests are performed at the `significance_level` (alpha) passed to the `SigmaEval` constructor. This value, typically set to 0.05, represents the probability of rejecting the null hypothesis when it is actually true (a Type I error). You can override this on a per-assertion basis.
 
-```python
-from sigmaeval import SuccessRateEvaluator
+#### `proportion_gte(min_score, proportion, significance_level=None)`
+This criterion performs a one-sided hypothesis test to determine if the true proportion of high-quality outcomes for the entire user population is greater than a specified minimum. A score at or above `min_score` is considered a "high-quality" outcome. The test passes if there is statistical evidence that the system's performance exceeds the `min_proportion`.
 
-binary_evaluator = SuccessRateEvaluator(
-    significance_level=0.05,
-    min_proportion=0.90,
-)
-```
-
-#### RatingAverageEvaluator
-This evaluator is particularly useful for subjective qualities like helpfulness or tone. The Judge LLM provides a rating on a 1-10 scale based on the rubric, and the evaluator performs a one-sided **bootstrap hypothesis test**. This is a modern, non-parametric method that is robust to the underlying distribution of the data, making it a reliable choice for scores that might be skewed (e.g., clustered at the high end with a few low outliers).
-
-The bootstrap method works by resampling the collected scores thousands of times to build an empirical distribution of the median. From this distribution, a confidence interval is calculated to determine if the true median rating for a response across the entire user population is statistically higher than a specified baseline, without making strong assumptions about the data's shape (like normality or symmetry).
-
-```python
-from sigmaeval import RatingAverageEvaluator
-
-# This would be used inside an `BehavioralExpectation` object
-median_rating_evaluator = RatingAverageEvaluator(
-    significance_level=0.05,
-    min_median_rating=8.0, # The minimum median rating to test against
-)
-```
-
-#### RatingProportionEvaluator
-For subjective qualities like helpfulness or tone, this evaluator tests if the true proportion of users who would rate a a response at or above a certain level exceeds a specified minimum. The Judge LLM grades each response on the 1-10 numerical scale from the rubric, and the evaluator then performs a one-sided hypothesis test, similar to the `SuccessRateEvaluator`, to make an inference about the entire user population.
-
-```python
-from sigmaeval import RatingProportionEvaluator
-
-# This would be used inside an `BehavioralExpectation` object, just like SuccessRateEvaluator
-rating_evaluator = RatingProportionEvaluator(
-    significance_level=0.05,
-    min_rating=8, # The minimum acceptable rating on a 1-10 scale
-    min_proportion=0.75, # We want at least 75% of responses to have a rating of 8 or higher
-)
-```
-
-### Key Differences: `RatingAverageEvaluator` vs. `RatingProportionEvaluator`
-
-While both evaluators measure subjective quality, they answer different questions:
-
-*   **`RatingAverageEvaluator`** asks: "Is the *typical* quality of the responses high enough?" By testing the **median**, it ensures that at least 50% of responses meet a certain quality bar. It is robust to outliers, meaning that a few very low scores won't drag down the result if the majority of scores are high. For example, if your `min_median_rating` is 8, you would only pass if there is statistical evidence that the true median is greater than 8. This prevents a scenario where a high *mean* score masks a significant number of poor user experiences.
-*   **`RatingProportionEvaluator`** asks: "Do *enough* of our responses meet a specific quality bar?" This is better when you have a clear minimum standard that every response should ideally meet. It ensures a consistent user experience by minimizing the number of poor-quality responses, even if the average is high. For example, you can ensure that at least 75% of users rate the response an 8 or higher.
-
-Choosing between them depends on your specific quality goals. Are you aiming for a high typical performance, or do you need to guarantee a consistent minimum level of quality for a specific supermajority of users?
+This is useful when you have a clear minimum standard that a certain percentage of responses should meet. For example, `assertions.scores.proportion_gte(min_score=8, proportion=0.75)` checks if at least 75% of responses have a score of 8 or higher.
 
 
-### A Note on `SuccessRateEvaluator`
+#### `median_gte(threshold, significance_level=None)`
+This criterion is particularly useful for subjective qualities like helpfulness or tone. It performs a one-sided **bootstrap hypothesis test** to determine if the true median rating for a response across the entire user population is statistically higher than the specified `threshold`.
 
-You may have noticed that the functionality of `SuccessRateEvaluator` is a specific use case of `RatingProportionEvaluator`. That is correct. `SuccessRateEvaluator` is provided as a convenience API for the common scenario where any score of 6 or higher on a 1-10 scale is considered a "success."
-
-Internally, `SuccessRateEvaluator(...)` is equivalent to `RatingProportionEvaluator(min_rating=6, ...)`. It simplifies test definition when you only need a simple pass/fail judgment based on a fixed threshold.
-
+The bootstrap method is a modern, non-parametric method that is robust to the underlying distribution of the data. By testing the **median**, it ensures that at least 50% of responses meet a certain quality bar. For example, `assertions.scores.median_gte(threshold=8.0)` checks if there is statistical evidence that the median score is greater than 8.
 
 ### A Note on Sample Size and Statistical Significance
 
@@ -250,6 +205,7 @@ custom_retry_config = RetryConfig(
 
 sigma_eval = SigmaEval(
     judge_model="openai/gpt-5-nano",
+    significance_level=0.05,
     retry_config=custom_retry_config
 )
 ```
@@ -283,10 +239,10 @@ custom_style_config = WritingStyleConfig(axes=custom_axes)
 
 sigma_eval = SigmaEval(
     judge_model="openai/gpt-5-nano",
+    significance_level=0.05,
     writing_style_config=custom_style_config
 )
 ```
-
 This system ensures that the `Given` (persona) and `When` (goal) clauses of your `ScenarioTest` are always prioritized. The writing style adds a layer of realistic, stylistic variation without overriding the core of the test scenario.
 
 ### Evaluating a Test Suite
@@ -370,3 +326,4 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+

@@ -4,6 +4,7 @@ from typing import Any, Dict
 import os
 from dotenv import load_dotenv
 import logging
+from unittest.mock import patch, Mock, AsyncMock
 
 # Suppress excessive logging from LiteLLM during tests
 os.environ["LITELLM_LOG"] = "ERROR"
@@ -15,12 +16,12 @@ from sigmaeval import (
     ScenarioTest,
     BehavioralExpectation,
     AppResponse,
-    SuccessRateEvaluator,
     EvaluationResult,
     RetryConfig,
     WritingStyleConfig,
     WritingStyleAxes,
     ConversationRecord,
+    assertions,
 )
 from tests.example_apps.simple_chat_app import SimpleChatApp
 
@@ -34,14 +35,16 @@ from tests.example_apps.simple_chat_app import SimpleChatApp
     ],
 )
 def test_sigmaeval_init_stores_model(valid_model: str) -> None:
-    se = SigmaEval(judge_model=valid_model)
+    se = SigmaEval(judge_model=valid_model, significance_level=0.05)
     assert se.judge_model == valid_model
     assert se.user_simulator_model == valid_model
 
 
 def test_sigmaeval_init_stores_separate_models() -> None:
     se = SigmaEval(
-        judge_model="openai/gpt-4o", user_simulator_model="openai/gpt-3.5-turbo"
+        judge_model="openai/gpt-4o",
+        user_simulator_model="openai/gpt-3.5-turbo",
+        significance_level=0.05,
     )
     assert se.judge_model == "openai/gpt-4o"
     assert se.user_simulator_model == "openai/gpt-3.5-turbo"
@@ -50,12 +53,12 @@ def test_sigmaeval_init_stores_separate_models() -> None:
 @pytest.mark.parametrize("invalid_model", ["", "   "])
 def test_sigmaeval_init_invalid_model_raises(invalid_model: str) -> None:
     with pytest.raises(ValueError):
-        SigmaEval(judge_model=invalid_model)
+        SigmaEval(judge_model=invalid_model, significance_level=0.05)
 
 
 def test_sigmaeval_init_non_string_raises() -> None:
     with pytest.raises(ValueError):
-        SigmaEval(judge_model=None)  # type: ignore[arg-type]
+        SigmaEval(judge_model=None, significance_level=0.05)  # type: ignore[arg-type]
 
 
 @pytest.mark.integration
@@ -88,9 +91,10 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
                 "The bot should acknowledge the user's request, ask for an order "
                 "number, and explain the next steps in the return process clearly."
             ),
-            evaluator=SuccessRateEvaluator(
+            criteria=assertions.scores.proportion_gte(
+                min_score=6,
+                proportion=0.7,
                 significance_level=0.05,
-                min_proportion=0.7,
             ),
         ),
         max_turns=5,
@@ -116,6 +120,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         judge_model=eval_model,
         log_level=logging.INFO,
         retry_config=RetryConfig(enabled=False),
+        significance_level=0.05,
     )
     with caplog.at_level(logging.INFO):
         results = await sigma_eval.evaluate(scenario, app_handler)
@@ -258,9 +263,10 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
                 "The bot should acknowledge the user's request, ask for an order "
                 "number, and explain the next steps in the return process clearly."
             ),
-            evaluator=SuccessRateEvaluator(
+            criteria=assertions.scores.proportion_gte(
+                min_score=6,
+                proportion=0.7,
                 significance_level=0.05,
-                min_proportion=0.7,
             ),
         ),
         max_turns=5,
@@ -281,6 +287,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         log_level=logging.DEBUG,
         retry_config=RetryConfig(enabled=False),
         writing_style_config=WritingStyleConfig(enabled=False),
+        significance_level=0.05,
     )
     with caplog.at_level(logging.DEBUG):
         results = await sigma_eval.evaluate(scenario, app_handler)
@@ -339,9 +346,10 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
         sample_size=sample_size,
         then=BehavioralExpectation(
             expected_behavior="The bot should respond with a friendly greeting.",
-            evaluator=SuccessRateEvaluator(
+            criteria=assertions.scores.proportion_gte(
+                min_score=6,
+                proportion=0.6,
                 significance_level=0.05,
-                min_proportion=0.6,  # Easy to pass
             ),
         ),
         max_turns=2,
@@ -370,6 +378,7 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
         judge_model=eval_model,
         log_level=logging.INFO,
         writing_style_config=custom_style_config,
+        significance_level=0.05,
     )
     results = await sigma_eval.evaluate(scenario, app_handler)
 
@@ -409,8 +418,10 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         sample_size=sample_size,
         then=BehavioralExpectation(
             expected_behavior="The bot says hi back.",
-            evaluator=SuccessRateEvaluator(
-                min_proportion=0.1, significance_level=0.05
+            criteria=assertions.scores.proportion_gte(
+                min_score=6,
+                proportion=0.1,
+                significance_level=0.05,
             ),
         ),
         max_turns=2,
@@ -422,8 +433,10 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         sample_size=sample_size,
         then=BehavioralExpectation(
             expected_behavior="The bot says bye back.",
-            evaluator=SuccessRateEvaluator(
-                min_proportion=0.1, significance_level=0.05
+            criteria=assertions.scores.proportion_gte(
+                min_score=6,
+                proportion=0.1,
+                significance_level=0.05,
             ),
         ),
         max_turns=2,
@@ -439,6 +452,7 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         judge_model=eval_model,
         log_level=logging.INFO,
         writing_style_config=WritingStyleConfig(enabled=False),
+        significance_level=0.05,
     )
     with caplog.at_level(logging.INFO):
         all_results = await sigma_eval.evaluate(test_suite, app_handler)
@@ -456,3 +470,50 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
     # Check that individual test logs are also present
     assert "--- Starting evaluation for ScenarioTest: Minimal Test 1 ---" in caplog.text
     assert "--- Evaluation complete for: Minimal Test 1 ---" in caplog.text
+
+
+@pytest.mark.asyncio
+@patch("sigmaeval.core.framework.collect_evaluation_data")
+@patch("sigmaeval.core.framework._generate_rubric")
+@patch("sigmaeval.core.framework.RatingProportionEvaluator")
+async def test_assertion_significance_level_overrides_constructor(
+    mock_evaluator_class, mock_generate_rubric, mock_collect_evaluation_data
+) -> None:
+    """
+    Tests that the significance_level provided in an assertion overrides the
+    default value provided in the SigmaEval constructor.
+    """
+    # Mock setup
+    mock_evaluator_instance = Mock()
+    mock_evaluator_instance.evaluate.return_value = {"passed": True}
+    mock_evaluator_class.return_value = mock_evaluator_instance
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_collect_evaluation_data.return_value = ([10.0], ["reason"], [])
+
+    # Define a scenario with a specific significance level in the assertion
+    scenario = ScenarioTest(
+        title="Test Override",
+        given="A user",
+        when="An action",
+        sample_size=1,
+        then=BehavioralExpectation(
+            expected_behavior="Something happens",
+            criteria=assertions.scores.proportion_gte(
+                min_score=8,
+                proportion=0.9,
+                significance_level=0.99,  # This should override the constructor value
+            ),
+        ),
+    )
+
+    # Initialize SigmaEval with a different significance level
+    sigma_eval = SigmaEval(
+        judge_model="test/model",
+        significance_level=0.05,  # This should be overridden
+    )
+    await sigma_eval.evaluate(scenario, AsyncMock())
+
+    # Assert that the evaluator was called with the correct, overridden significance level
+    mock_evaluator_class.assert_called_once()
+    _, kwargs = mock_evaluator_class.call_args
+    assert kwargs["significance_level"] == 0.99

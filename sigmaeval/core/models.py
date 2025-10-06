@@ -91,10 +91,10 @@ class BehavioralExpectation(BaseModel):
     
     Attributes:
         expected_behavior: Description of the expected behavior (passed to Judge LLM)
-        evaluator: Statistical evaluator to assess the results
+        criteria: Statistical criteria to assess the results
     """
     expected_behavior: str = Field(..., description="Expected behavior description")
-    evaluator: Any = Field(..., description="Evaluator instance for statistical analysis")
+    criteria: Any = Field(..., description="Criteria for statistical analysis")
 
 
 class ScenarioTest(BaseModel):

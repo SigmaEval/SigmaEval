@@ -12,8 +12,7 @@ from sigmaeval.core.models import (
     WritingStyleConfig,
     WritingStyleAxes,
 )
-from sigmaeval.evaluators import SuccessRateEvaluator
-from sigmaeval import SigmaEval
+from sigmaeval import SigmaEval, assertions
 
 
 @pytest.fixture
@@ -32,8 +31,8 @@ def basic_scenario():
         sample_size=2,
         then=BehavioralExpectation(
             expected_behavior="The app should respond appropriately",
-            evaluator=SuccessRateEvaluator(
-                significance_level=0.05, min_proportion=0.8
+            criteria=assertions.scores.proportion_gte(
+                min_score=6, proportion=0.8, significance_level=0.05
             ),
         ),
     )
@@ -51,7 +50,7 @@ async def test_writing_styles_enabled_by_default(
     mock_generate_rubric.return_value = "Test Rubric"
     mock_collect_data.return_value = ([8.0, 9.0], ["reason", "reason"], [])
 
-    sigma_eval = SigmaEval(judge_model="test/model")
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
     await sigma_eval.evaluate(basic_scenario, mock_app_handler)
 
     mock_collect_data.assert_called_once()
@@ -75,7 +74,11 @@ async def test_writing_styles_can_be_disabled(
     mock_collect_data.return_value = ([8.0, 9.0], ["reason", "reason"], [])
 
     config = WritingStyleConfig(enabled=False)
-    sigma_eval = SigmaEval(judge_model="test/model", writing_style_config=config)
+    sigma_eval = SigmaEval(
+        judge_model="test/model",
+        writing_style_config=config,
+        significance_level=0.05,
+    )
     await sigma_eval.evaluate(basic_scenario, mock_app_handler)
 
     mock_collect_data.assert_called_once()
@@ -123,7 +126,11 @@ async def test_custom_writing_style_axes_are_used(
     )
     config = WritingStyleConfig(axes=custom_axes)
 
-    sigma_eval = SigmaEval(judge_model="test/model", writing_style_config=config)
+    sigma_eval = SigmaEval(
+        judge_model="test/model",
+        writing_style_config=config,
+        significance_level=0.05,
+    )
     await sigma_eval.evaluate(basic_scenario, mock_app_handler)
 
     assert mock_generate_style.call_count == basic_scenario.sample_size
@@ -164,8 +171,12 @@ async def test_writing_style_is_in_prompt(
     }
     mock_generate_style.return_value = style_dict
 
-    config = WritingStyleConfig() # Use default axes, but mock the output
-    sigma_eval = SigmaEval(judge_model="test/model", writing_style_config=config)
+    config = WritingStyleConfig()  # Use default axes, but mock the output
+    sigma_eval = SigmaEval(
+        judge_model="test/model",
+        writing_style_config=config,
+        significance_level=0.05,
+    )
 
     await sigma_eval.evaluate(basic_scenario, mock_app_handler)
 

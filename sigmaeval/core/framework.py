@@ -11,6 +11,12 @@ from .rubric_generator import _generate_rubric
 from .data_collection import collect_evaluation_data
 from .models import RetryConfig
 
+from ..assertions import MedianGTE, ProportionGTE
+from .._evaluators import (
+    RatingAverageEvaluator,
+    RatingProportionEvaluator,
+)
+
 
 class SigmaEval:
     """
@@ -23,6 +29,7 @@ class SigmaEval:
     def __init__(
         self,
         judge_model: str,
+        significance_level: float,
         user_simulator_model: str | None = None,
         log_level: int = logging.INFO,
         retry_config: RetryConfig | None = None,
@@ -35,6 +42,11 @@ class SigmaEval:
             judge_model: Fully-qualified model identifier used for the Judge LLM
                 and rubric generation, e.g., "openai/gpt-4o". The application under
                 test may use any model; this parameter configures the judge model.
+            significance_level: The significance level (alpha) for statistical
+                tests, representing the probability of detecting an effect that is
+                not actually present (a "false positive"). A lower value means a
+                stricter test. The standard value is 0.05. This can be overridden
+                on a per-assertion basis.
             user_simulator_model: Optional model identifier for the User Simulator
                 LLM. If None, the `judge_model` will be used for all roles.
             log_level: The logging level for the 'sigmaeval' logger.
@@ -60,6 +72,7 @@ class SigmaEval:
         self.user_simulator_model: str = user_simulator_model or judge_model
         self.logger = logging.getLogger("sigmaeval")
         self.retry_config = retry_config or RetryConfig()
+        self.significance_level = significance_level
         self.writing_style_config = writing_style_config or WritingStyleConfig()
         
         if not self.logger.handlers:
@@ -126,7 +139,24 @@ class SigmaEval:
         #   6. Pass scores to evaluator for statistical testing
         self.logger.debug(f"Collected scores for '{scenario.title}': {scores}")
         self.logger.info(f"Starting statistical analysis for '{scenario.title}'...")
-        evaluator = scenario.then.evaluator
+        
+        criteria = scenario.then.criteria
+        
+        evaluator = None
+        if isinstance(criteria, ProportionGTE):
+            evaluator = RatingProportionEvaluator(
+                significance_level=criteria.significance_level or self.significance_level,
+                min_rating=criteria.min_score,
+                min_proportion=criteria.proportion,
+            )
+        elif isinstance(criteria, MedianGTE):
+            evaluator = RatingAverageEvaluator(
+                significance_level=criteria.significance_level or self.significance_level,
+                min_median_rating=criteria.threshold,
+            )
+        else:
+            raise TypeError(f"Unsupported criteria type: {type(criteria)}")
+
         results = evaluator.evaluate(scores)
         
         self.logger.info(f"--- Evaluation complete for: {scenario.title} ---")
@@ -136,7 +166,7 @@ class SigmaEval:
             "given": scenario.given,
             "when": scenario.when,
             "expected_behavior": scenario.then.expected_behavior,
-            "evaluator": scenario.then.evaluator,
+            "criteria": scenario.then.criteria,
             "sample_size": scenario.sample_size,
         }
         
