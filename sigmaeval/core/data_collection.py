@@ -11,6 +11,7 @@ import asyncio
 import logging
 import secrets
 from typing import Callable, Awaitable, Any, Dict, List
+from datetime import datetime, timezone
 import json
 from litellm import acompletion as _litellm_acompletion
 from tqdm.asyncio import tqdm
@@ -45,7 +46,7 @@ async def _simulate_user_turn(
     eval_id: str = "",
     retry_config: RetryConfig | None = None,
     writing_style: dict[str, str] | None = None,
-) -> tuple[str, bool]:
+) -> tuple[str, bool, datetime | None, datetime | None]:
     """
     Simulate a single user turn using the User Simulator LLM. This function
     includes retries for LLM communication and response parsing errors.
@@ -60,9 +61,11 @@ async def _simulate_user_turn(
         writing_style: Optional writing style instruction dictionary
         
     Returns:
-        Tuple of (user_message, should_continue)
+        Tuple of (user_message, should_continue, request_timestamp, response_timestamp)
         - user_message: The simulated user's message
         - should_continue: Whether the conversation should continue
+        - request_timestamp: Timestamp when the LLM request was sent
+        - response_timestamp: Timestamp when the LLM response was received
     """
     prompt = _build_user_simulator_prompt(
         scenario, conversation_history, writing_style=writing_style
@@ -79,7 +82,7 @@ async def _simulate_user_turn(
     turn_count = len([m for m in conversation_history if m["role"] == "user"])
     if turn_count >= max_turns:
         logger.debug(f"{log_prefix}Max turns reached, ending conversation.")
-        return "[Conversation ended - max turns reached]", False
+        return "[Conversation ended - max turns reached]", False, None, None
     
     cfg = retry_config or RetryConfig()
     retrying = AsyncRetrying(
@@ -94,6 +97,7 @@ async def _simulate_user_turn(
     async for attempt in retrying:
         with attempt:
             try:
+                request_timestamp = datetime.now(timezone.utc)
                 response = await _litellm_acompletion(
                     model=model,
                     messages=messages,
@@ -101,6 +105,7 @@ async def _simulate_user_turn(
                     response_format={"type": "json_object"},
                     drop_params=True,
                 )
+                response_timestamp = datetime.now(timezone.utc)
             except Exception as e:
                 raise LLMCommunicationError("User simulator LLM call failed") from e
             
@@ -113,7 +118,7 @@ async def _simulate_user_turn(
                 if parsed:
                     user_message = parsed.get("message", "")
                     should_continue = parsed.get("continue", False)
-                    return user_message, should_continue
+                    return user_message, should_continue, request_timestamp, response_timestamp
 
                 # If parsing fails, raise an error to trigger a retry
                 raise LLMCommunicationError(
@@ -164,7 +169,7 @@ async def _run_single_interaction(
     
     while should_continue:
         # Simulate user message based on current conversation history
-        user_message, should_continue = await _simulate_user_turn(
+        user_message, should_continue, sim_req_ts, sim_resp_ts = await _simulate_user_turn(
             scenario,
             simulator_conversation_history,
             user_simulator_model,
@@ -179,13 +184,24 @@ async def _run_single_interaction(
             break
         
         # Record user message
-        conversation.add_user_message(user_message)
+        if sim_req_ts and sim_resp_ts:
+            conversation.add_user_message(
+                user_message,
+                request_timestamp=sim_req_ts,
+                response_timestamp=sim_resp_ts,
+            )
         
         # Get app response for this user message
+        app_req_ts = datetime.now(timezone.utc)
         app_response = await app_handler(user_message, app_state)
+        app_resp_ts = datetime.now(timezone.utc)
         
         # Record app response
-        conversation.add_assistant_message(app_response.response)
+        conversation.add_assistant_message(
+            app_response.response,
+            request_timestamp=app_req_ts,
+            response_timestamp=app_resp_ts
+        )
         
         # Update histories for next iteration
         # The simulator needs to see: what it said (user), what app replied (assistant)

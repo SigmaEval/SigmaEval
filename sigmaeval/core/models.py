@@ -5,6 +5,15 @@ Data models for the SigmaEval core package.
 import numpy as np
 from typing import Any, Dict, List
 from pydantic import BaseModel, Field, field_validator
+from datetime import datetime
+
+
+class ConversationTurn(BaseModel):
+    """A single turn in a conversation, with timestamps."""
+    role: str
+    content: str
+    request_timestamp: datetime
+    response_timestamp: datetime
 
 
 class WritingStyleAxes(BaseModel):
@@ -149,19 +158,39 @@ class ConversationRecord(BaseModel):
     and the application under test.
     
     Attributes:
-        turns: List of conversation turns, each a dict with 'role' and 'content'
+        turns: List of conversation turns.
         writing_style: The writing style used for this conversation, if any.
     """
-    turns: list[Dict[str, str]] = Field(default_factory=list)
+    turns: list[ConversationTurn] = Field(default_factory=list)
     writing_style: Dict[str, str] | None = None
 
-    def add_user_message(self, message: str):
+    def add_user_message(
+        self,
+        message: str,
+        request_timestamp: datetime,
+        response_timestamp: datetime
+    ):
         """Add a user message to the conversation."""
-        self.turns.append({"role": "user", "content": message})
+        self.turns.append(ConversationTurn(
+            role="user",
+            content=message,
+            request_timestamp=request_timestamp,
+            response_timestamp=response_timestamp,
+        ))
     
-    def add_assistant_message(self, message: str):
+    def add_assistant_message(
+        self,
+        message: str,
+        request_timestamp: datetime,
+        response_timestamp: datetime
+    ):
         """Add an assistant message to the conversation."""
-        self.turns.append({"role": "assistant", "content": message})
+        self.turns.append(ConversationTurn(
+            role="assistant",
+            content=message,
+            request_timestamp=request_timestamp,
+            response_timestamp=response_timestamp,
+        ))
     
     def to_formatted_string(self) -> str:
         """
@@ -172,11 +201,25 @@ class ConversationRecord(BaseModel):
         """
         lines = []
         for turn in self.turns:
-            if turn["role"] == "user":
-                lines.append(f"User: {turn['content']}")
+            if turn.role == "user":
+                lines.append(f"User: {turn.content}")
             else:
-                lines.append(f"Assistant: {turn['content']}")
+                lines.append(f"Assistant: {turn.content}")
         return "\n\n".join(lines)
+
+    def to_detailed_string(self) -> str:
+        """
+        Format the conversation as a detailed, human-readable string with timestamps
+        and turn durations.
+        """
+        lines = []
+        for turn in self.turns:
+            duration = (turn.response_timestamp - turn.request_timestamp).total_seconds()
+            lines.append(
+                f"[{turn.request_timestamp.isoformat()}]"
+                f"({duration:.2f}s) {turn.role.capitalize()}: {turn.content}"
+            )
+        return "\n".join(lines)
 
 
 class EvaluationResult(BaseModel):

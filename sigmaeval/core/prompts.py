@@ -8,7 +8,7 @@ This module contains all prompt templates used for:
 """
 
 from typing import List, Dict
-from .models import ScenarioTest
+from .models import ScenarioTest, ConversationTurn
 
 
 def _build_rubric_generation_prompt(scenario: ScenarioTest) -> str:
@@ -148,7 +148,7 @@ Set "continue" to false when:
 
 def _build_judge_prompt(
     scenario: ScenarioTest,
-    conversation_history: List[Dict[str, str]],
+    conversation_history: list[ConversationTurn],
     rubric: str,
 ) -> str:
     """
@@ -170,8 +170,8 @@ def _build_judge_prompt(
         conversation_header = "The conversation to evaluate is provided in the <conversation_history> XML block. Each <turn> tag represents a single turn of the conversation, with the speaker attribute indicating whether it was the 'user' or the 'assistant'."
         conversation_text = "\n<conversation_history>\n"
         for turn in conversation_history:
-            speaker = turn["role"]
-            content = turn["content"]
+            speaker = turn.role
+            content = turn.content
             conversation_text += f'<turn speaker="{speaker}">\n{content}\n</turn>\n'
         conversation_text += "</conversation_history>"
 

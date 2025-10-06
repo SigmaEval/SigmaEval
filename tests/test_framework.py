@@ -22,6 +22,7 @@ from sigmaeval import (
     WritingStyleAxes,
     ConversationRecord,
     assertions,
+    ConversationTurn,
 )
 from tests.example_apps.simple_chat_app import SimpleChatApp
 
@@ -148,8 +149,8 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     # Check that a multi-turn conversation was recorded
     first_conversation = results.conversations[0]
     assert len(first_conversation.turns) > 1
-    assert first_conversation.turns[0]["role"] == "user"
-    assert first_conversation.turns[1]["role"] == "assistant"
+    assert first_conversation.turns[0].role == "user"
+    assert first_conversation.turns[1].role == "assistant"
     assert first_conversation.writing_style is not None
 
     # 6. Assert logging output
@@ -165,12 +166,17 @@ def test_evaluation_result_properties_and_methods():
     """
     scores = [1.0, 5.0, 7.5, 8.0, 9.5]
     reasoning = ["r1", "r2", "r3", "r4", "r5"]
+    
+    # Create mock ConversationRecord objects with valid ConversationTurn objects
+    # including dummy timestamps, as they are now required fields.
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
     conversations = [
-        ConversationRecord(turns=[{"role": "user", "content": "hello"}]),
-        ConversationRecord(turns=[{"role": "user", "content": "world"}]),
-        ConversationRecord(turns=[{"role": "user", "content": "foo"}]),
-        ConversationRecord(turns=[{"role": "user", "content": "bar"}]),
-        ConversationRecord(turns=[{"role": "user", "content": "baz"}]),
+        ConversationRecord(turns=[ConversationTurn(role="user", content="hello", request_timestamp=now, response_timestamp=now)]),
+        ConversationRecord(turns=[ConversationTurn(role="user", content="world", request_timestamp=now, response_timestamp=now)]),
+        ConversationRecord(turns=[ConversationTurn(role="user", content="foo", request_timestamp=now, response_timestamp=now)]),
+        ConversationRecord(turns=[ConversationTurn(role="user", content="bar", request_timestamp=now, response_timestamp=now)]),
+        ConversationRecord(turns=[ConversationTurn(role="user", content="baz", request_timestamp=now, response_timestamp=now)]),
     ]
 
     results_pass = EvaluationResult(
@@ -310,8 +316,8 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     # Check that a multi-turn conversation was recorded
     first_conversation = results.conversations[0]
     assert len(first_conversation.turns) > 1
-    assert first_conversation.turns[0]["role"] == "user"
-    assert first_conversation.turns[1]["role"] == "assistant"
+    assert first_conversation.turns[0].role == "user"
+    assert first_conversation.turns[1].role == "assistant"
     assert first_conversation.writing_style is None
 
     # 6. Assert logging output

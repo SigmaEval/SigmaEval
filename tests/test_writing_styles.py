@@ -11,6 +11,8 @@ from sigmaeval.core.models import (
     BehavioralExpectation,
     WritingStyleConfig,
     WritingStyleAxes,
+    ConversationRecord,
+    ConversationTurn,
 )
 from sigmaeval import SigmaEval, assertions
 
@@ -48,7 +50,15 @@ async def test_writing_styles_enabled_by_default(
     Verify that writing style variations are enabled by default.
     """
     mock_generate_rubric.return_value = "Test Rubric"
-    mock_collect_data.return_value = ([8.0, 9.0], ["reason", "reason"], [])
+    
+    # Mock the return value to include valid ConversationRecord objects
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    mock_conversations = [
+        ConversationRecord(turns=[ConversationTurn(role="user", content="Test", request_timestamp=now, response_timestamp=now)]),
+        ConversationRecord(turns=[ConversationTurn(role="user", content="Test", request_timestamp=now, response_timestamp=now)]),
+    ]
+    mock_collect_data.return_value = ([8.0, 9.0], ["reason", "reason"], mock_conversations)
 
     sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
     await sigma_eval.evaluate(basic_scenario, mock_app_handler)
@@ -71,7 +81,15 @@ async def test_writing_styles_can_be_disabled(
     Verify that writing style variations can be disabled.
     """
     mock_generate_rubric.return_value = "Test Rubric"
-    mock_collect_data.return_value = ([8.0, 9.0], ["reason", "reason"], [])
+    
+    # Mock the return value to include valid ConversationRecord objects
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    mock_conversations = [
+        ConversationRecord(turns=[ConversationTurn(role="user", content="Test", request_timestamp=now, response_timestamp=now)]),
+        ConversationRecord(turns=[ConversationTurn(role="user", content="Test", request_timestamp=now, response_timestamp=now)]),
+    ]
+    mock_collect_data.return_value = ([8.0, 9.0], ["reason", "reason"], mock_conversations)
 
     config = WritingStyleConfig(enabled=False)
     sigma_eval = SigmaEval(
