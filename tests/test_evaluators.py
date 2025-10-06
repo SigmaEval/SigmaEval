@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from sigmaeval._evaluators import (
-    RatingAverageEvaluator,
+    RatingMedianEvaluator,
     RatingProportionEvaluator,
 )
 
@@ -139,9 +139,9 @@ def test_rating_proportion_evaluator_invalid_init(params, error_match):
         ([8], 8.0, False, "Single sample, should fail (equal to threshold)"),
     ],
 )
-def test_rating_average_evaluator(scores, min_median_rating, expected_pass, description):
-    """Tests the RatingAverageEvaluator with various deterministic scenarios."""
-    evaluator = RatingAverageEvaluator(
+def test_rating_median_evaluator(scores, min_median_rating, expected_pass, description):
+    """Tests the RatingMedianEvaluator with various deterministic scenarios."""
+    evaluator = RatingMedianEvaluator(
         significance_level=0.05,
         min_median_rating=min_median_rating,
         bootstrap_resamples=1000,  # Lower for faster tests
@@ -171,7 +171,7 @@ def test_rating_average_evaluator(scores, min_median_rating, expected_pass, desc
         ),
     ],
 )
-def test_rating_average_evaluator_invalid_init(params, error_match):
-    """Tests that RatingAverageEvaluator raises ValueError on invalid init."""
+def test_rating_median_evaluator_invalid_init(params, error_match):
+    """Tests that RatingMedianEvaluator raises ValueError on invalid init."""
     with pytest.raises(ValueError, match=error_match):
-        RatingAverageEvaluator(**params)
+        RatingMedianEvaluator(**params)

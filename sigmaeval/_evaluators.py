@@ -10,7 +10,104 @@ from scipy.stats import binomtest
 logger = logging.getLogger("sigmaeval")
 
 
-class RatingAverageEvaluator(BaseModel):
+class MetricProportionEvaluator(BaseModel):
+    """
+    Tests if the proportion of measured metric values is below a threshold.
+    """
+    significance_level: float
+    threshold: float
+    proportion: float
+
+    def evaluate(self, values: List[float], label: str | None = None) -> dict:
+        """
+        Evaluate if the proportion of values meeting the threshold is sufficient.
+        """
+        # Success is defined as a value LESS THAN the threshold
+        successes = sum(1 for v in values if v < self.threshold)
+        sample_size = len(values)
+        
+        # H0: p <= proportion (the true proportion of successes is less than or equal to the desired proportion)
+        # H1: p > proportion (the true proportion of successes is greater than the desired proportion)
+        result = binomtest(
+            k=successes, n=sample_size, p=self.proportion, alternative="greater"
+        )
+        p_value = result.pvalue
+        passed = p_value < self.significance_level
+
+        results = {
+            "passed": bool(passed),
+            "p_value": float(p_value),
+            "observed_proportion": successes / sample_size,
+        }
+
+        if label:
+            results = {
+                f"{label}: {k.replace('_', ' ').title()}": v for k, v in results.items()
+            }
+            results["passed"] = passed
+        
+        return results
+
+
+class MetricMedianEvaluator(BaseModel):
+    """
+    Performs a one-sided bootstrap hypothesis test for the median of a metric.
+
+    This is a non-parametric test that is robust to the underlying data
+    distribution and is not sensitive to outliers. It is recommended for
+    metrics like latency or turn count that may be skewed.
+
+    Attributes:
+        significance_level: Significance level for hypothesis test (e.g., 0.05)
+        threshold: The value that the median should be less than.
+        bootstrap_resamples: Number of bootstrap resamples to perform (default: 10000).
+    """
+
+    significance_level: float
+    threshold: float
+    bootstrap_resamples: int = 10000
+
+    def evaluate(self, values: List[float], label: str | None = None) -> dict:
+        """
+        Evaluate if the median of the values is statistically less than the threshold.
+        """
+        sample_size = len(values)
+        if sample_size == 0:
+            return {"passed": False, "error": "Cannot evaluate empty list of values."}
+
+        # H0: median >= threshold
+        # H1: median < threshold
+
+        bootstrap_medians = np.array(
+            [
+                np.median(np.random.choice(values, size=sample_size, replace=True))
+                for _ in range(self.bootstrap_resamples)
+            ]
+        )
+
+        # The p-value is the proportion of bootstrap medians that are more
+        # extreme than the null hypothesis (i.e., >= threshold).
+        p_value = np.mean(bootstrap_medians >= self.threshold)
+
+        passed = p_value < self.significance_level
+
+        results = {
+            "passed": bool(passed),
+            "p_value": float(p_value),
+            "observed_median": float(np.median(values)),
+            "observed_mean": float(np.mean(values)),
+        }
+
+        if label:
+            results = {
+                f"{label}: {k.replace('_', ' ').title()}": v for k, v in results.items()
+            }
+            results["passed"] = passed
+
+        return results
+
+
+class RatingMedianEvaluator(BaseModel):
     """
     Performs a one-sided bootstrap hypothesis test for the median rating.
 
@@ -65,7 +162,7 @@ class RatingAverageEvaluator(BaseModel):
         Returns:
             Dictionary with evaluation results including pass/fail and statistics
         """
-        log_prefix = f"RatingAverageEvaluator ('{label}')" if label else "RatingAverageEvaluator"
+        log_prefix = f"RatingMedianEvaluator ('{label}')" if label else "RatingMedianEvaluator"
         logger.debug(f"{log_prefix} received scores: {scores}")
         sample_size = len(scores)
 

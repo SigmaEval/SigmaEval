@@ -3,11 +3,23 @@ Data models for the SigmaEval core package.
 """
 
 import numpy as np
-from typing import Any, Dict, List, Union
-from pydantic import BaseModel, Field, field_validator
+from typing import Any, Dict, List, Union, Optional, Callable
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from datetime import datetime
 
 from ..assertions import Assertion
+
+
+class Metric(BaseModel):
+    name: str
+    scope: str  # "per_turn" or "per_conversation"
+    # The calculator function will take a conversation and return a list of values
+    calculator: Callable[["ConversationRecord"], List[float]]
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def __call__(self, conversation: "ConversationRecord") -> List[float]:
+        return self.calculator(conversation)
 
 
 class ConversationTurn(BaseModel):
@@ -118,6 +130,28 @@ class BehavioralExpectation(BaseModel):
         return [v]
 
 
+class MetricExpectation(BaseModel):
+    """
+    Defines an objective, quantitative test for an AI application.
+    
+    Attributes:
+        metric: The metric to be measured (e.g., response_latency).
+        criteria: Statistical criteria to assess the measured values.
+        label: An optional short name for the expectation.
+    """
+    metric: Metric = Field(..., description="The metric to be measured.")
+    criteria: Union[Assertion, List[Assertion]] = Field(..., description="Criteria for statistical analysis")
+    label: str | None = Field(None, description="Optional short name for the expectation.")
+
+    @field_validator("criteria")
+    def validate_criteria(cls, v):
+        if isinstance(v, list):
+            if not v:
+                raise ValueError("'criteria' cannot be an empty list")
+            return v
+        return [v]
+
+
 class ScenarioTest(BaseModel):
     """
     Defines a test case for a specific behavior of an AI application.
@@ -126,7 +160,7 @@ class ScenarioTest(BaseModel):
     title: str
     given: str
     when: str
-    then: Union["BehavioralExpectation", List["BehavioralExpectation"]]
+    then: Union["BehavioralExpectation", "MetricExpectation", List[Union["BehavioralExpectation", "MetricExpectation"]]]
     sample_size: int
     max_turns: int = 10
 
@@ -267,18 +301,12 @@ class EvaluationResult(BaseModel):
     user_simulator_model: str
     test_config: Dict[str, Any]
     retry_config: "RetryConfig"
-    rubric: str
-    scores: list[float]
-    reasoning: list[str]
+    rubric: Optional[str] = None
+    scores: list[float] = Field(default_factory=list)
+    reasoning: list[str] = Field(default_factory=list)
     conversations: list[ConversationRecord]
     num_conversations: int
     results: Dict[str, Any]
-
-    @field_validator("scores")
-    def scores_must_not_be_empty(cls, v):
-        if not v:
-            raise ValueError("scores cannot be an empty list")
-        return v
 
     @property
     def passed(self) -> bool:

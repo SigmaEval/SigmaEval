@@ -15,6 +15,7 @@ from sigmaeval import (
     SigmaEval,
     ScenarioTest,
     BehavioralExpectation,
+    MetricExpectation,
     AppResponse,
     EvaluationResult,
     RetryConfig,
@@ -22,6 +23,7 @@ from sigmaeval import (
     WritingStyleAxes,
     ConversationRecord,
     assertions,
+    metrics,
     ConversationTurn,
 )
 from tests.example_apps.simple_chat_app import SimpleChatApp
@@ -87,18 +89,25 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         given="A user wants to return a recently purchased pair of shoes.",
         when="The user asks how to start a return.",
         sample_size=sample_size,
-        then=BehavioralExpectation(
-            expected_behavior=(
-                "The bot should acknowledge the user's request, ask for an order "
-                "number, and explain the next steps in the return process clearly."
+        then=[
+            BehavioralExpectation(
+                label="Correctness",
+                expected_behavior=(
+                    "The bot should acknowledge the user's request, ask for an order "
+                    "number, and explain the next steps in the return process clearly."
+                ),
+                criteria=assertions.scores.proportion_gte(
+                    min_score=6,
+                    proportion=0.7,
+                ),
             ),
-            criteria=assertions.scores.proportion_gte(
-                min_score=6,
-                proportion=0.7,
-                significance_level=0.05,
+            MetricExpectation(
+                label="Responsiveness",
+                metric=metrics.per_turn.response_latency,
+                criteria=assertions.metrics.median_lt(threshold=10.0),
             ),
-        ),
-        max_turns=5,
+        ],
+        max_turns=3,
     )
 
     # 3. Create the app handler to bridge SigmaEval and the target app
@@ -145,6 +154,10 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     scores_below_5 = [score for score in scores if score <= 5]
     if scores_below_5:
         print(f"WARNING: {len(scores_below_5)} out of {len(scores)} scores are below 5: {scores_below_5}")
+    
+    # Check that the overall test passed, which means both behavioral and
+    # metric expectations were met.
+    assert results.passed is True
 
     # Check that a multi-turn conversation was recorded
     first_conversation = results.conversations[0]
@@ -285,18 +298,25 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         given="A user wants to return a recently purchased pair of shoes.",
         when="The user asks how to start a return.",
         sample_size=sample_size,
-        then=BehavioralExpectation(
-            expected_behavior=(
-                "The bot should acknowledge the user's request, ask for an order "
-                "number, and explain the next steps in the return process clearly."
+        then=[
+            BehavioralExpectation(
+                label="Correctness",
+                expected_behavior=(
+                    "The bot should acknowledge the user's request, ask for an order "
+                    "number, and explain the next steps in the return process clearly."
+                ),
+                criteria=assertions.scores.proportion_gte(
+                    min_score=6,
+                    proportion=0.9,
+                ),
             ),
-            criteria=assertions.scores.proportion_gte(
-                min_score=6,
-                proportion=0.7,
-                significance_level=0.05,
+            MetricExpectation(
+                label="Responsiveness",
+                metric=metrics.per_turn.response_latency,
+                criteria=assertions.metrics.median_lt(threshold=0.1),
             ),
-        ),
-        max_turns=5,
+        ],
+        max_turns=3,
     )
 
     # 3. Create a bad app handler that returns gibberish and does NOT call SimpleChatApp
@@ -333,6 +353,16 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     assert (
         proportion_above_2 <= 0.3
     ), f"Too many high scores for a bad app: {proportion_above_2:.1%} above 2 (expected <= 30%)."
+    
+    # The overall test should FAIL because the behavioral expectation is not met.
+    assert results.passed is False
+
+    # However, we can assert that the individual expectations behaved as predicted:
+    # - The "Correctness" check should fail because the app is bad.
+    # - The "Responsiveness" check should pass because the app is fast.
+    # Note: The keys in the `results` dict are prefixed with the label.
+    assert results.results["Correctness: Passed"] is False
+    assert results.results["Responsiveness: Passed"] is True
 
     # Check that a multi-turn conversation was recorded
     first_conversation = results.conversations[0]

@@ -83,9 +83,11 @@ from sigmaeval import (
     SigmaEval, 
     ScenarioTest, 
     BehavioralExpectation, 
+    MetricExpectation,
     AppResponse,
     EvaluationResult,
     assertions,
+    metrics,
 )
 import asyncio
 from typing import Dict, Any
@@ -96,13 +98,22 @@ scenario = ScenarioTest(
     given="A new user who has not interacted with the bot before",
     when="The user asks a general question about the bot's capabilities",
     sample_size=30,
-    then=BehavioralExpectation(
-        expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
-        criteria=assertions.scores.proportion_gte(
-            min_score=6,
-            proportion=0.90,
+    then=[
+        BehavioralExpectation(
+            expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
+            criteria=assertions.scores.proportion_gte(
+                min_score=6,
+                proportion=0.90,
+            )
+        ),
+        MetricExpectation(
+            metric=metrics.per_turn.response_latency,
+            criteria=assertions.metrics.proportion_lt(
+                threshold=1.0,
+                proportion=0.95
+            )
         )
-    )
+    ]
 )
 
 # Define the callback to connect SigmaEval to your app
@@ -158,16 +169,26 @@ SigmaEval provides different statistical criteria to evaluate your AI's performa
 
 All statistical tests are performed at the `significance_level` (alpha) passed to the `SigmaEval` constructor. This value, typically set to 0.05, represents the probability of rejecting the null hypothesis when it is actually true (a Type I error). You can override this on a per-assertion basis.
 
-#### `proportion_gte(min_score, proportion, significance_level=None)`
+#### `assertions.scores.proportion_gte(min_score, proportion, significance_level=None)`
 This criterion performs a one-sided hypothesis test to determine if the true proportion of high-quality outcomes for the entire user population is greater than a specified minimum. A score at or above `min_score` is considered a "high-quality" outcome. The test passes if there is statistical evidence that the system's performance exceeds the `min_proportion`.
 
 This is useful when you have a clear minimum standard that a certain percentage of responses should meet. For example, `assertions.scores.proportion_gte(min_score=8, proportion=0.75)` checks if at least 75% of responses have a score of 8 or higher.
 
 
-#### `median_gte(threshold, significance_level=None)`
+#### `assertions.scores.median_gte(threshold, significance_level=None)`
 This criterion is particularly useful for subjective qualities like helpfulness or tone. It performs a one-sided **bootstrap hypothesis test** to determine if the true median rating for a response across the entire user population is statistically higher than the specified `threshold`.
 
 The bootstrap method is a modern, non-parametric method that is robust to the underlying distribution of the data. By testing the **median**, it ensures that at least 50% of responses meet a certain quality bar. For example, `assertions.scores.median_gte(threshold=8.0)` checks if there is statistical evidence that the median score is greater than 8.
+
+#### `assertions.metrics.proportion_lt(threshold, proportion, significance_level=None)`
+This criterion performs a one-sided hypothesis test to determine if the true proportion of metric values below a certain `threshold` is statistically significant. It checks if the proportion of observations under the threshold is less than the expected `proportion`.
+
+This is useful for metrics like latency, where a lower value is better. For example, `assertions.metrics.proportion_lt(threshold=1.5, proportion=0.99)` checks if it is statistically likely that 99% of responses have a latency of less than 1.5 seconds.
+
+#### `assertions.metrics.median_lt(threshold, significance_level=None)`
+This criterion performs a one-sided bootstrap hypothesis test to determine if the true median of a metric is statistically lower than a specified `threshold`. This non-parametric test is robust to outliers and does not assume the data is normally distributed, making it ideal for skewed metrics like latency or turn count.
+
+This is useful for evaluating the typical performance of a system. For example, `assertions.metrics.median_lt(threshold=2.0)` could be used to test if the median number of turns in a conversation is less than 2.
 
 ### A Note on Sample Size and Statistical Significance
 

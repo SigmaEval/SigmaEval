@@ -1,20 +1,22 @@
 """
-SigmaEval: A Python library for evaluating Generative AI agents and apps.
+The sigmaeval package.
 """
 
-from sigmaeval.core import (
-    SigmaEval,
-    ScenarioTest,
-    BehavioralExpectation,
+from .core.framework import SigmaEval
+from .core.models import (
     AppResponse,
-    ConversationRecord,
-    ConversationTurn,
+    BehavioralExpectation,
     EvaluationResult,
+    ScenarioTest,
     RetryConfig,
     WritingStyleConfig,
     WritingStyleAxes,
+    MetricExpectation,
+    ConversationRecord,
+    ConversationTurn,
 )
 from .assertions import assertions
+from .metrics import metrics
 
 __version__ = "0.1.0"
 __author__ = "Itura AI"
@@ -22,15 +24,17 @@ __license__ = "Apache-2.0"
 
 __all__ = [
     "SigmaEval",
+    "AppResponse",
     "ScenarioTest",
     "BehavioralExpectation",
-    "AppResponse",
-    "ConversationRecord",
-    "ConversationTurn",
     "EvaluationResult",
+    "assertions",
     "RetryConfig",
     "WritingStyleConfig",
     "WritingStyleAxes",
-    "assertions",
+    "MetricExpectation",
+    "metrics",
+    "ConversationRecord",
+    "ConversationTurn",
 ]
 

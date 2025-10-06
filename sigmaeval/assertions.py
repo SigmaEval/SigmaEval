@@ -18,6 +18,17 @@ class MedianGTE(Assertion):
     significance_level: Optional[float] = None
 
 
+class ProportionLT(Assertion):
+    threshold: float
+    proportion: float
+    significance_level: Optional[float] = None
+
+
+class MedianLT(Assertion):
+    threshold: float
+    significance_level: Optional[float] = None
+
+
 class Scores:
     def proportion_gte(
         self,
@@ -37,9 +48,29 @@ class Scores:
         return MedianGTE(threshold=threshold, significance_level=significance_level)
 
 
+class Metrics:
+    def proportion_lt(
+        self,
+        threshold: float,
+        proportion: float,
+        significance_level: Optional[float] = None,
+    ) -> ProportionLT:
+        return ProportionLT(
+            threshold=threshold,
+            proportion=proportion,
+            significance_level=significance_level,
+        )
+
+    def median_lt(
+        self, threshold: float, significance_level: Optional[float] = None
+    ) -> MedianLT:
+        return MedianLT(threshold=threshold, significance_level=significance_level)
+
+
 class Assertions:
     def __init__(self):
         self.scores = Scores()
+        self.metrics = Metrics()
 
 
 assertions = Assertions()

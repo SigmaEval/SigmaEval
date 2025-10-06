@@ -6,15 +6,17 @@ import logging
 import asyncio
 from typing import Callable, Awaitable, Any, Dict, List
 
-from .models import AppResponse, ScenarioTest, EvaluationResult, WritingStyleConfig, BehavioralExpectation
+from .models import AppResponse, ScenarioTest, EvaluationResult, WritingStyleConfig, BehavioralExpectation, MetricExpectation
 from .rubric_generator import _generate_rubric
 from .data_collection import _collect_conversations, _judge_conversations
 from .models import RetryConfig
 
-from ..assertions import MedianGTE, ProportionGTE
+from ..assertions import MedianGTE, ProportionGTE, MedianLT, ProportionLT
 from .._evaluators import (
-    RatingAverageEvaluator,
+    RatingMedianEvaluator,
     RatingProportionEvaluator,
+    MetricMedianEvaluator,
+    MetricProportionEvaluator,
 )
 
 
@@ -134,63 +136,90 @@ class SigmaEval:
         # Each one is evaluated independently against the same set of conversations.
         # The test passes only if all expectations pass.
         for expectation in scenario.then:
-            expectation: BehavioralExpectation
-            
-            # Phase 1: Test Setup
-            # Generate a rubric for this specific expectation
-            self.logger.debug(f"Generating rubric for expectation: {expectation.label or expectation.expected_behavior[:50]}")
-            rubric = await _generate_rubric(
-                scenario=scenario, 
-                expectation=expectation, 
-                model=self.judge_model, 
-                retry_config=self.retry_config
-            )
-            self.logger.debug(f"Generated rubric: {rubric}")
-            all_rubrics.append(rubric)
-            
-            # Phase 2 (second half): Judging
-            # The collected conversations are now judged against the new rubric.
-            scores, reasoning_list = await _judge_conversations(
-                scenario=scenario,
-                expectation=expectation,
-                conversations=conversations,
-                rubric=rubric,
-                judge_model=self.judge_model,
-                concurrency=concurrency,
-                retry_config=self.retry_config,
-            )
-            all_scores.append(scores)
-            all_reasoning.append(reasoning_list)
-            
-            # Phase 3: Statistical Analysis
-            self.logger.debug(f"Collected scores for '{scenario.title}': {scores}")
-            
-            log_msg = f"Starting statistical analysis for '{scenario.title}'"
-            if expectation.label:
-                log_msg += f" (Expectation: {expectation.label})"
-            self.logger.info(log_msg)
+            if isinstance(expectation, BehavioralExpectation):
+                # Phase 1: Test Setup
+                # Generate a rubric for this specific expectation
+                self.logger.debug(f"Generating rubric for expectation: {expectation.label or expectation.expected_behavior[:50]}")
+                rubric = await _generate_rubric(
+                    scenario=scenario, 
+                    expectation=expectation, 
+                    model=self.judge_model, 
+                    retry_config=self.retry_config
+                )
+                self.logger.debug(f"Generated rubric: {rubric}")
+                all_rubrics.append(rubric)
+                
+                # Phase 2 (second half): Judging
+                # The collected conversations are now judged against the new rubric.
+                scores, reasoning_list = await _judge_conversations(
+                    scenario=scenario,
+                    expectation=expectation,
+                    conversations=conversations,
+                    rubric=rubric,
+                    judge_model=self.judge_model,
+                    concurrency=concurrency,
+                    retry_config=self.retry_config,
+                )
+                all_scores.append(scores)
+                all_reasoning.append(reasoning_list)
+                
+                # Phase 3: Statistical Analysis
+                self.logger.debug(f"Collected scores for '{scenario.title}': {scores}")
+                
+                log_msg = f"Starting statistical analysis for '{scenario.title}'"
+                if expectation.label:
+                    log_msg += f" (Expectation: {expectation.label})"
+                self.logger.info(log_msg)
 
-            criteria_list = expectation.criteria if isinstance(expectation.criteria, list) else [expectation.criteria]
-            for criteria in criteria_list:
-                evaluator = None
-                significance_level = criteria.significance_level or self.significance_level
-                if isinstance(criteria, ProportionGTE):
-                    evaluator = RatingProportionEvaluator(
-                        significance_level=significance_level,
-                        min_rating=criteria.min_score,
-                        min_proportion=criteria.proportion,
-                    )
-                elif isinstance(criteria, MedianGTE):
-                    evaluator = RatingAverageEvaluator(
-                        significance_level=significance_level,
-                        min_median_rating=criteria.threshold,
-                    )
-                else:
-                    raise TypeError(f"Unsupported criteria type: {type(criteria)}")
+                criteria_list = expectation.criteria if isinstance(expectation.criteria, list) else [expectation.criteria]
+                for criteria in criteria_list:
+                    evaluator = None
+                    significance_level = criteria.significance_level or self.significance_level
+                    if isinstance(criteria, ProportionGTE):
+                        evaluator = RatingProportionEvaluator(
+                            significance_level=significance_level,
+                            min_rating=criteria.min_score,
+                            min_proportion=criteria.proportion,
+                        )
+                    elif isinstance(criteria, MedianGTE):
+                        evaluator = RatingMedianEvaluator(
+                            significance_level=significance_level,
+                            min_median_rating=criteria.threshold,
+                        )
+                    else:
+                        raise TypeError(f"Unsupported criteria type: {type(criteria)}")
 
-                results = evaluator.evaluate(scores, label=expectation.label)
-                all_results.append(results)
-        
+                    results = evaluator.evaluate(scores, label=expectation.label)
+                    all_results.append(results)
+            
+            elif isinstance(expectation, MetricExpectation):
+                metric = expectation.metric
+                # Calculate metric values for all conversations
+                all_metric_values = []
+                for conv in conversations:
+                    all_metric_values.extend(metric(conv))
+                
+                criteria_list = expectation.criteria if isinstance(expectation.criteria, list) else [expectation.criteria]
+                for criteria in criteria_list:
+                    evaluator = None
+                    significance_level = criteria.significance_level or self.significance_level
+                    if isinstance(criteria, ProportionLT):
+                        evaluator = MetricProportionEvaluator(
+                            significance_level=significance_level,
+                            threshold=criteria.threshold,
+                            proportion=criteria.proportion,
+                        )
+                    elif isinstance(criteria, MedianLT):
+                        evaluator = MetricMedianEvaluator(
+                            significance_level=significance_level,
+                            threshold=criteria.threshold,
+                        )
+                    else:
+                        raise TypeError(f"Unsupported criteria type for MetricExpectation: {type(criteria)}")
+                    
+                    results = evaluator.evaluate(all_metric_values, label=expectation.label)
+                    all_results.append(results)
+
         self.logger.info(f"--- Evaluation complete for: {scenario.title} ---")
         
         # If there are multiple expectations, the test passes only if all of them pass
@@ -217,12 +246,12 @@ class SigmaEval:
         flat_reasoning = [reason for sublist in all_reasoning for reason in sublist]
 
         return EvaluationResult(
-            significance_level=significance_level, # type: ignore
+            significance_level=self.significance_level,
             judge_model=self.judge_model,
             user_simulator_model=self.user_simulator_model,
             test_config=test_config,
             retry_config=self.retry_config,
-            rubric="\\n\\n---\\n\\n".join(all_rubrics),
+            rubric="\\n\\n---\\n\\n".join(all_rubrics) if all_rubrics else None,
             scores=flat_scores,
             reasoning=flat_reasoning,
             conversations=conversations,
