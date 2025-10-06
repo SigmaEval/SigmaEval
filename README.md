@@ -110,7 +110,7 @@ scenario = ScenarioTest(
             metric=metrics.per_turn.response_latency,
             criteria=assertions.metrics.proportion_lt(
                 threshold=1.0,
-                proportion=0.95
+                proportion=0.90
             )
         )
     ]
@@ -183,7 +183,7 @@ The bootstrap method is a modern, non-parametric method that is robust to the un
 #### `assertions.metrics.proportion_lt(threshold, proportion, significance_level=None)`
 This criterion performs a one-sided hypothesis test to determine if the true proportion of metric values below a certain `threshold` is statistically significant. It checks if the proportion of observations under the threshold is less than the expected `proportion`.
 
-This is useful for metrics like latency, where a lower value is better. For example, `assertions.metrics.proportion_lt(threshold=1.5, proportion=0.99)` checks if it is statistically likely that 99% of responses have a latency of less than 1.5 seconds.
+This is useful for metrics like latency, where a lower value is better. For example, `assertions.metrics.proportion_lt(threshold=1.5, proportion=0.95)` checks if it is statistically likely that 95% of responses have a latency of less than 1.5 seconds.
 
 #### `assertions.metrics.median_lt(threshold, significance_level=None)`
 This criterion performs a one-sided bootstrap hypothesis test to determine if the true median of a metric is statistically lower than a specified `threshold`. This non-parametric test is robust to outliers and does not assume the data is normally distributed, making it ideal for skewed metrics like latency or turn count.
@@ -200,7 +200,12 @@ SigmaEval provides several built-in metrics to measure objective, quantitative a
 #### `metrics.per_turn.response_latency`
 *   **Description**: Measures the time (in seconds) between the application receiving a user's message and sending its response.
 *   **Scope**: Per-Turn
-*   **Use Case**: Ensuring the application feels responsive and meets performance requirements (e.g., "99% of responses should be under 1.5 seconds").
+*   **Use Case**: Ensuring the application feels responsive and meets performance requirements (e.g., "95% of responses should be under 1.5 seconds").
+
+#### `metrics.per_turn.response_length_chars`
+*   **Description**: The number of characters in the assistant's response.
+*   **Scope**: Per-Turn
+*   **Use Case**: Enforcing conciseness in individual responses to prevent overly long messages (e.g., "90% of responses must be under 1000 characters").
 
 #### `metrics.per_conversation.turn_count`
 *   **Description**: The total number of assistant responses in a conversation.
@@ -211,6 +216,11 @@ SigmaEval provides several built-in metrics to measure objective, quantitative a
 *   **Description**: The total time (in seconds) the assistant spent processing responses for the entire conversation. This is the sum of all response latencies.
 *   **Scope**: Per-Conversation
 *   **Use Case**: Evaluating the total computational effort of the assistant over a conversation, useful for monitoring cost and overall performance.
+
+#### `metrics.per_conversation.total_assistant_response_chars`
+*   **Description**: The total number of characters in all of the assistant's responses in a conversation.
+*   **Scope**: Per-Conversation
+*   **Use Case**: Measuring the overall verbosity of the assistant. This is useful for ensuring that the total amount of text a user has to read is not excessive.
 
 ### A Note on Sample Size and Statistical Significance
 

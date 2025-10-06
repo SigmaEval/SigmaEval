@@ -15,6 +15,15 @@ def _calculate_response_latency(conversation: ConversationRecord) -> List[float]
     return latencies
 
 
+def _calculate_response_length_chars(conversation: ConversationRecord) -> List[float]:
+    """Calculates the length of each assistant response in characters."""
+    return [
+        float(len(turn.content))
+        for turn in conversation.turns
+        if turn.role == "assistant"
+    ]
+
+
 def _calculate_turn_count(conversation: ConversationRecord) -> List[float]:
     """Calculates the total number of assistant turns in a conversation."""
     # Returns the count of assistant responses, which is a better reflection of "turns"
@@ -33,12 +42,29 @@ def _calculate_total_assistant_response_time(
     return [total_time]
 
 
+def _calculate_total_assistant_response_chars(
+    conversation: ConversationRecord,
+) -> List[float]:
+    """Calculates the total characters in all assistant responses."""
+    total_chars = sum(
+        len(turn.content)
+        for turn in conversation.turns
+        if turn.role == "assistant"
+    )
+    return [float(total_chars)]
+
+
 class PerTurn:
     def __init__(self):
         self.response_latency = Metric(
             name="response_latency",
             scope="per_turn",
             calculator=_calculate_response_latency,
+        )
+        self.response_length_chars = Metric(
+            name="response_length_chars",
+            scope="per_turn",
+            calculator=_calculate_response_length_chars,
         )
 
 
@@ -53,6 +79,11 @@ class PerConversation:
             name="total_assistant_response_time",
             scope="per_conversation",
             calculator=_calculate_total_assistant_response_time,
+        )
+        self.total_assistant_response_chars = Metric(
+            name="total_assistant_response_chars",
+            scope="per_conversation",
+            calculator=_calculate_total_assistant_response_chars,
         )
 
 

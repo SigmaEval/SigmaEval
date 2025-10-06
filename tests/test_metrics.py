@@ -127,6 +127,99 @@ async def test_metric_evaluation_total_assistant_response_time(metric_scenario):
 
 
 @pytest.mark.asyncio
+async def test_metric_evaluation_response_length_chars(metric_scenario):
+    """
+    Tests a metric evaluation with a response_length_chars metric (per_turn).
+    """
+    metric_scenario.then[0].metric = metrics.per_turn.response_length_chars
+    metric_scenario.then[0].criteria = assertions.metrics.proportion_lt(
+        threshold=15, proportion=0.95
+    )
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
+
+    # With an n of 60 (30 conversations * 2 turns), observing 100% success
+    # is enough to be statistically confident the true proportion is > 95%.
+    conversations = []
+    for _ in range(30):
+        assistant_turn_1 = ConversationTurn(
+            role="assistant",
+            content="Hello",  # 5 chars
+            request_timestamp=datetime.now(),
+            response_timestamp=datetime.now(),
+        )
+        assistant_turn_2 = ConversationTurn(
+            role="assistant",
+            content="Hello again",  # 11 chars
+            request_timestamp=datetime.now(),
+            response_timestamp=datetime.now(),
+        )
+        conversations.append(
+            ConversationRecord(turns=[assistant_turn_1, assistant_turn_2])
+        )
+
+    with patch(
+        "sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock
+    ) as mock_collect:
+        mock_collect.return_value = conversations
+
+        # The metric calculator returns a list of values. We can check the length
+        # of this list to confirm the number of observations.
+        metric_values = metric_scenario.then[0].metric.calculator(conversations[0])
+        assert len(metric_values) * len(conversations) == 60
+
+        results = await sigma_eval.evaluate(
+            metric_scenario, AsyncMock(return_value=AppResponse(response="", state={}))
+        )
+
+        assert results.passed is True
+        details = results.expectation_results[0].assertion_results[0].details
+        assert details["observed_proportion"] == 1.0
+
+
+@pytest.mark.asyncio
+async def test_metric_evaluation_total_assistant_response_chars(metric_scenario):
+    """
+    Tests a metric evaluation with a total_assistant_response_chars metric.
+    """
+    metric_scenario.then[
+        0
+    ].metric = metrics.per_conversation.total_assistant_response_chars
+    metric_scenario.then[0].criteria = assertions.metrics.median_lt(threshold=20.0)
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
+
+    conversations = []
+    for _ in range(10):
+        assistant_turn_1 = ConversationTurn(
+            role="assistant",
+            content="Hello",  # 5 chars
+            request_timestamp=datetime.now(),
+            response_timestamp=datetime.now(),
+        )
+        assistant_turn_2 = ConversationTurn(
+            role="assistant",
+            content="Hello again",  # 11 chars
+            request_timestamp=datetime.now(),
+            response_timestamp=datetime.now(),
+        )
+        conversations.append(
+            ConversationRecord(turns=[assistant_turn_1, assistant_turn_2])
+        )
+
+    with patch(
+        "sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock
+    ) as mock_collect:
+        mock_collect.return_value = conversations
+
+        results = await sigma_eval.evaluate(
+            metric_scenario, AsyncMock(return_value=AppResponse(response="", state={}))
+        )
+
+        assert results.passed is True
+        details = results.expectation_results[0].assertion_results[0].details
+        assert details["observed_median"] == 16.0  # 5 + 11
+
+
+@pytest.mark.asyncio
 async def test_metric_evaluation_median_lt(metric_scenario):
     """
     Tests a metric evaluation with a median_lt assertion.
