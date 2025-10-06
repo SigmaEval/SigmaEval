@@ -234,3 +234,20 @@ def test_scenario_test_result_str():
         "  - [✅ PASSED] Expectation 1, p-value: 0.0100"
     )
     assert str(result) == expected
+
+
+def test_metric_model():
+    """Tests the Metric model."""
+    from sigmaeval.core.models import Metric, ConversationRecord
+
+    def latency_calculator(conversation: "ConversationRecord") -> list[float]:
+        return [1.0, 2.0]
+
+    metric = Metric(
+        name="test_latency", scope="per_turn", calculator=latency_calculator
+    )
+    convo = ConversationRecord()
+
+    assert metric.name == "test_latency"
+    assert metric.scope == "per_turn"
+    assert metric(convo) == [1.0, 2.0]
