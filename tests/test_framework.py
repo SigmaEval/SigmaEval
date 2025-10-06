@@ -17,15 +17,14 @@ from sigmaeval import (
     BehavioralExpectation,
     MetricExpectation,
     AppResponse,
-    EvaluationResult,
+    ScenarioTestResult,
     RetryConfig,
     WritingStyleConfig,
     WritingStyleAxes,
-    ConversationRecord,
     assertions,
     metrics,
-    ConversationTurn,
 )
+from sigmaeval.core.models import ConversationRecord, ConversationTurn
 from tests.example_apps.simple_chat_app import SimpleChatApp
 
 
@@ -136,139 +135,39 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         results = await sigma_eval.evaluate(scenario, app_handler)
 
     # 5. Assert the results to ensure the evaluation ran correctly
-    assert isinstance(results, EvaluationResult)
-    assert results.test_config["title"] == scenario.title
+    assert isinstance(results, ScenarioTestResult)
+    assert results.title == scenario.title
     assert results.rubric and len(results.rubric) > 0
-    assert results.scores and len(results.scores) == sample_size
     assert results.conversations and len(results.conversations) == sample_size
 
-    # Check that 70% of test scores are above 5 (indicating good performance)
-    scores = results.scores
+    # Check that the overall test passed
+    assert results.passed is True
+
+    # Check individual expectation results
+    assert len(results.expectation_results) == 2
+    assert results.expectation_results[0].passed is True
+    assert results.expectation_results[1].passed is True
+
+    # Check that at least 70% of scores are above 5 (indicating good performance)
+    scores = results.expectation_results[0].scores
+    assert scores and len(scores) == sample_size
     scores_above_5 = [score for score in scores if score > 5]
     proportion_above_5 = len(scores_above_5) / len(scores)
-    
-    # Check if at least 70% of scores are above 5
-    assert proportion_above_5 >= 0.7, f"Only {proportion_above_5:.1%} of scores are above 5. Expected at least 70% of scores to be above 5."
-    
-    # Print warning if some scores are below 5 but test still passes
-    scores_below_5 = [score for score in scores if score <= 5]
-    if scores_below_5:
-        print(f"WARNING: {len(scores_below_5)} out of {len(scores)} scores are below 5: {scores_below_5}")
-    
-    # Check that the overall test passed, which means both behavioral and
-    # metric expectations were met.
-    assert results.passed is True
+    assert proportion_above_5 >= 0.7, f"Only {proportion_above_5:.1%} of scores are above 5."
+
+    # Check that reasoning is available
+    assert results.expectation_results[0].reasoning and len(results.expectation_results[0].reasoning) == sample_size
 
     # Check that a multi-turn conversation was recorded
     first_conversation = results.conversations[0]
-    assert len(first_conversation.turns) > 1
-    assert first_conversation.turns[0].role == "user"
-    assert first_conversation.turns[1].role == "assistant"
-    assert first_conversation.writing_style is not None
+    assert len(first_conversation.turns) > 0
+    assert first_conversation.details["writing_style"] is not None
 
     # 6. Assert logging output
     assert "--- Starting evaluation" in caplog.text
     assert f"Simulating {sample_size} conversations for '{scenario.title}'..." in caplog.text
     assert f"--- Evaluation complete for: {scenario.title} ---" in caplog.text
     assert "Generated rubric" not in caplog.text  # DEBUG message
-
-
-def test_evaluation_result_properties_and_methods():
-    """
-    Tests the convenience properties and methods of the EvaluationResult class.
-    """
-    scores = [1.0, 5.0, 7.5, 8.0, 9.5]
-    reasoning = ["r1", "r2", "r3", "r4", "r5"]
-    
-    # Create mock ConversationRecord objects with valid ConversationTurn objects
-    # including dummy timestamps, as they are now required fields.
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc)
-    conversations = [
-        ConversationRecord(turns=[ConversationTurn(role="user", content="hello", request_timestamp=now, response_timestamp=now)]),
-        ConversationRecord(turns=[ConversationTurn(role="user", content="world", request_timestamp=now, response_timestamp=now)]),
-        ConversationRecord(turns=[ConversationTurn(role="user", content="foo", request_timestamp=now, response_timestamp=now)]),
-        ConversationRecord(turns=[ConversationTurn(role="user", content="bar", request_timestamp=now, response_timestamp=now)]),
-        ConversationRecord(turns=[ConversationTurn(role="user", content="baz", request_timestamp=now, response_timestamp=now)]),
-    ]
-
-    results_pass = EvaluationResult(
-        significance_level=0.05,
-        judge_model="test/judge",
-        user_simulator_model="test/simulator",
-        test_config={"title": "Test Pass"},
-        retry_config=RetryConfig(),
-        rubric="Test Rubric",
-        scores=scores,
-        reasoning=reasoning,
-        conversations=conversations,
-        num_conversations=len(scores),
-        results={"passed": True, "p_value": 0.01},
-    )
-
-    # Test properties for a passing result
-    assert results_pass.passed is True
-    assert results_pass.p_value == 0.01
-    assert results_pass.average_score == 6.2
-    assert results_pass.median_score == 7.5
-    assert results_pass.min_score == 1.0
-    assert results_pass.max_score == 9.5
-    assert results_pass.std_dev_score == pytest.approx(2.977, abs=0.001)
-
-    # Test methods
-    worst_score, worst_reasoning, worst_convo = results_pass.get_worst_conversation()
-    assert worst_score == 1.0
-    assert worst_reasoning == "r1"
-    assert worst_convo == conversations[0]
-
-    best_score, best_reasoning, best_convo = results_pass.get_best_conversation()
-    assert best_score == 9.5
-    assert best_reasoning == "r5"
-    assert best_convo == conversations[4]
-
-    # Test __str__ method
-    summary_str = str(results_pass)
-    assert "--- Test Pass: ✅ PASSED ---" in summary_str
-    assert "P-value: 0.0100" in summary_str
-    assert "Average Score: 6.20" in summary_str
-    assert "Passed: True" in summary_str
-    
-    # Test a failing result
-    results_fail = EvaluationResult(
-        significance_level=0.05,
-        judge_model="test/judge",
-        user_simulator_model="test/simulator",
-        test_config={"title": "Test Fail"},
-        retry_config=RetryConfig(),
-        rubric="Test Rubric",
-        scores=scores,
-        reasoning=reasoning,
-        conversations=conversations,
-        num_conversations=len(scores),
-        results={"passed": False, "p_value": 0.88},
-    )
-    
-    assert results_fail.passed is False
-    assert "--- Test Fail: ❌ FAILED ---" in str(results_fail)
-
-    # Test with a label
-    results_with_label = EvaluationResult(
-        significance_level=0.05,
-        judge_model="test/judge",
-        user_simulator_model="test/simulator",
-        test_config={
-            "title": "Test With Label",
-            "then": {"label": "Important Check"},
-        },
-        retry_config=RetryConfig(),
-        rubric="Test Rubric",
-        scores=scores,
-        reasoning=reasoning,
-        conversations=conversations,
-        num_conversations=len(scores),
-        results={"passed": True, "p_value": 0.01},
-    )
-    assert "--- Test With Label: Important Check: ✅ PASSED ---" in str(results_with_label)
 
 
 @pytest.mark.integration
@@ -340,36 +239,34 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         results = await sigma_eval.evaluate(scenario, app_handler)
 
     # 5. Assert the results to ensure the evaluation ran and produced low scores
-    assert isinstance(results, EvaluationResult)
-    assert results.test_config["title"] == scenario.title
+    assert isinstance(results, ScenarioTestResult)
+    assert results.title == scenario.title
     assert results.rubric and len(results.rubric) > 0
-    assert results.scores and len(results.scores) == sample_size
     assert results.conversations and len(results.conversations) == sample_size
-
+    
     # Expect that at most 30% of scores are above 2 for this bad app
-    scores = results.scores
+    scores = results.expectation_results[0].scores
+    assert scores and len(scores) == sample_size
     scores_above_2 = [score for score in scores if score > 2]
     proportion_above_2 = len(scores_above_2) / len(scores)
-    assert (
-        proportion_above_2 <= 0.3
-    ), f"Too many high scores for a bad app: {proportion_above_2:.1%} above 2 (expected <= 30%)."
-    
+    assert proportion_above_2 <= 0.3, f"Too many high scores for a bad app: {proportion_above_2:.1%}."
+
+    # Check that reasoning is available
+    assert results.expectation_results[0].reasoning and len(results.expectation_results[0].reasoning) == sample_size
+
     # The overall test should FAIL because the behavioral expectation is not met.
     assert results.passed is False
 
     # However, we can assert that the individual expectations behaved as predicted:
     # - The "Correctness" check should fail because the app is bad.
     # - The "Responsiveness" check should pass because the app is fast.
-    # Note: The keys in the `results` dict are prefixed with the label.
-    assert results.results["Correctness: Passed"] is False
-    assert results.results["Responsiveness: Passed"] is True
+    assert results.expectation_results[0].passed is False
+    assert results.expectation_results[1].passed is True
 
     # Check that a multi-turn conversation was recorded
     first_conversation = results.conversations[0]
-    assert len(first_conversation.turns) > 1
-    assert first_conversation.turns[0].role == "user"
-    assert first_conversation.turns[1].role == "assistant"
-    assert first_conversation.writing_style is None
+    assert len(first_conversation.turns) > 0
+    assert first_conversation.details["writing_style"] is None
 
     # 6. Assert logging output
     assert "--- Starting evaluation" in caplog.text
@@ -440,17 +337,16 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
     results = await sigma_eval.evaluate(scenario, app_handler)
 
     # 5. Assert the results
-    assert isinstance(results, EvaluationResult)
-    assert len(results.scores) == sample_size
+    assert isinstance(results, ScenarioTestResult)
     assert len(results.conversations) == sample_size
 
     # Key assertion: check that the custom writing style was used for all conversations
     for convo in results.conversations:
-        assert convo.writing_style is not None
-        assert convo.writing_style["Proficiency"] == "TEST_PROFICIENCY"
-        assert convo.writing_style["Tone"] == "TEST_TONE"
-        assert convo.writing_style["Verbosity"] == "TEST_VERBOSITY"
-        assert convo.writing_style["Formality"] == "TEST_FORMALITY"
+        assert convo.details["writing_style"] is not None
+        assert convo.details["writing_style"]["Proficiency"] == "TEST_PROFICIENCY"
+        assert convo.details["writing_style"]["Tone"] == "TEST_TONE"
+        assert convo.details["writing_style"]["Verbosity"] == "TEST_VERBOSITY"
+        assert convo.details["writing_style"]["Formality"] == "TEST_FORMALITY"
 
 
 @pytest.mark.integration
@@ -517,9 +413,9 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
     # 5. Assert the results
     assert isinstance(all_results, list)
     assert len(all_results) == 2
-    assert isinstance(all_results[0], EvaluationResult)
-    assert all_results[0].test_config["title"] == "Minimal Test 1"
-    assert all_results[1].test_config["title"] == "Minimal Test 2"
+    assert isinstance(all_results[0], ScenarioTestResult)
+    assert all_results[0].title == "Minimal Test 1"
+    assert all_results[1].title == "Minimal Test 2"
 
     # 6. Assert logging output for test suites
     assert "--- Starting evaluation for test suite with 2 scenarios ---" in caplog.text
@@ -545,11 +441,9 @@ async def test_assertion_significance_level_overrides_constructor(
     default value provided in the SigmaEval constructor.
     """
     # Mock setup
-    mock_evaluator_instance = Mock()
-    mock_evaluator_instance.evaluate.return_value = {"passed": True}
-    mock_evaluator_class.return_value = mock_evaluator_instance
+    mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
     mock_generate_rubric.return_value = "Test Rubric"
-    mock_collect_conversations.return_value = []
+    mock_collect_conversations.return_value = [ConversationRecord()]
     mock_judge_conversations.return_value = ([10.0], ["reason"])
 
     # Define a scenario with a specific significance level in the assertion
@@ -598,16 +492,14 @@ async def test_e2e_multiple_expectations_all_pass(
     all individual expectations pass.
     """
     # 1. Setup
+    mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
     mock_generate_rubric.return_value = "Test Rubric"
     mock_collect_conversations.return_value = [ConversationRecord()]
     mock_judge_conversations.return_value = ([8.0, 9.0], ["reason", "reason"])
 
     # Mock the evaluator's result directly to control pass/fail status
     mock_evaluator_instance = Mock()
-    mock_evaluator_instance.evaluate.side_effect = [
-        {"passed": True, "Expectation 1: Passed": True},
-        {"passed": True, "Expectation 2: Passed": True},
-    ]
+    mock_evaluator_instance.evaluate.return_value = {"passed": True}
     mock_evaluator_class.return_value = mock_evaluator_instance
 
     # 2. Define Scenario with two expectations
@@ -636,13 +528,12 @@ async def test_e2e_multiple_expectations_all_pass(
 
     # 4. Assertions
     assert results.passed is True
+    assert len(results.expectation_results) == 2
+    assert results.expectation_results[0].passed is True
+    assert results.expectation_results[1].passed is True
     assert mock_collect_conversations.call_count == 1
     assert mock_generate_rubric.call_count == 2
     assert mock_evaluator_instance.evaluate.call_count == 2
-    # Check that results from both evaluations are merged
-    assert "passed" in results.results
-    assert "Expectation 1: Passed" in results.results
-    assert "Expectation 2: Passed" in results.results
     assert "Starting statistical analysis for 'Multi-Expectation Test (All Pass)' (Expectation: Expectation 1)" in caplog.text
     assert "Starting statistical analysis for 'Multi-Expectation Test (All Pass)' (Expectation: Expectation 2)" in caplog.text
 
@@ -664,6 +555,7 @@ async def test_e2e_multiple_expectations_one_fails(
     individual expectations fails.
     """
     # 1. Setup
+    mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
     mock_generate_rubric.return_value = "Test Rubric"
     mock_collect_conversations.return_value = [ConversationRecord()]
     mock_judge_conversations.return_value = ([8.0, 9.0], ["reason", "reason"])
@@ -671,8 +563,8 @@ async def test_e2e_multiple_expectations_one_fails(
     # Mock the evaluator's result directly to control pass/fail status
     mock_evaluator_instance = Mock()
     mock_evaluator_instance.evaluate.side_effect = [
-        {"passed": True, "Expectation 1: Passed": True},
-        {"passed": False, "Expectation 2: Passed": False},
+        {"passed": True},
+        {"passed": False},
     ]
     mock_evaluator_class.return_value = mock_evaluator_instance
 
@@ -702,12 +594,12 @@ async def test_e2e_multiple_expectations_one_fails(
 
     # 4. Assertions
     assert results.passed is False
+    assert len(results.expectation_results) == 2
+    assert results.expectation_results[0].passed is True
+    assert results.expectation_results[1].passed is False
     assert mock_collect_conversations.call_count == 1
     assert mock_generate_rubric.call_count == 2
     assert mock_evaluator_instance.evaluate.call_count == 2
-    assert "passed" in results.results
-    assert "Expectation 1: Passed" in results.results
-    assert "Expectation 2: Passed" in results.results  # This key is still present
     assert "Starting statistical analysis for 'Multi-Expectation Test (One Fail)' (Expectation: Expectation 1)" in caplog.text
     assert "Starting statistical analysis for 'Multi-Expectation Test (One Fail)' (Expectation: Expectation 2)" in caplog.text
 
@@ -729,16 +621,14 @@ async def test_e2e_multiple_assertions_all_pass(
     all individual assertions pass.
     """
     # 1. Setup
+    mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
     mock_generate_rubric.return_value = "Test Rubric"
     mock_collect_conversations.return_value = [ConversationRecord()]
     mock_judge_conversations.return_value = ([8.0, 9.0], ["reason", "reason"])
 
     # Mock the evaluator's result directly to control pass/fail status
     mock_evaluator_instance = Mock()
-    mock_evaluator_instance.evaluate.side_effect = [
-        {"passed": True, "Assertion 1: Passed": True},
-        {"passed": True, "Assertion 2: Passed": True},
-    ]
+    mock_evaluator_instance.evaluate.return_value = {"passed": True}
     mock_evaluator_class.return_value = mock_evaluator_instance
 
     # 2. Define Scenario with two assertions
@@ -763,11 +653,118 @@ async def test_e2e_multiple_assertions_all_pass(
 
     # 4. Assertions
     assert results.passed is True
+    assert len(results.expectation_results) == 1
+    assert len(results.expectation_results[0].assertion_results) == 2
+    assert results.expectation_results[0].passed is True
     assert mock_collect_conversations.call_count == 1
     assert mock_generate_rubric.call_count == 1
     assert mock_evaluator_instance.evaluate.call_count == 2
-    # Check that results from both evaluations are merged
-    assert "passed" in results.results
-    assert "Assertion 1: Passed" in results.results
-    assert "Assertion 2: Passed" in results.results
     assert "Starting statistical analysis for 'Multi-Assertion Test (All Pass)' (Expectation: Expectation with multiple assertions)" in caplog.text
+
+
+@pytest.mark.asyncio
+@patch("sigmaeval.core.framework.ProportionEvaluator")
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+async def test_scenario_with_only_behavioral_expectation(
+    mock_generate_rubric,
+    mock_collect_conversations,
+    mock_judge_conversations,
+    mock_evaluator_class,
+) -> None:
+    """
+    Tests that a scenario with only a BehavioralExpectation runs correctly.
+    """
+    # 1. Setup
+    mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_collect_conversations.return_value = [ConversationRecord(), ConversationRecord()]
+    mock_judge_conversations.return_value = ([8.0, 9.0], ["reason", "reason"])
+
+    # 2. Define Scenario
+    scenario = ScenarioTest(
+        title="Behavioral-Only Test",
+        given="A user",
+        when="An action",
+        sample_size=2,
+        then=BehavioralExpectation(
+            label="Behavioral Check",
+            expected_behavior="Criteria 1",
+            criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
+        ),
+    )
+
+    # 3. Run evaluation
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
+    results = await sigma_eval.evaluate(scenario, AsyncMock())
+
+    # 4. Assertions
+    assert results.passed is True
+    assert len(results.expectation_results) == 1
+    assert results.expectation_results[0].passed is True
+    assert len(results.expectation_results[0].scores) == 2
+    assert len(results.expectation_results[0].reasoning) == 2
+    assert mock_collect_conversations.call_count == 1
+    assert mock_generate_rubric.call_count == 1
+    assert mock_judge_conversations.call_count == 1
+    assert mock_evaluator_class.return_value.evaluate.call_count == 1
+
+
+@pytest.mark.asyncio
+@patch("sigmaeval.core.framework.ProportionEvaluator")
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+async def test_scenario_with_only_metric_expectation(
+    mock_generate_rubric,
+    mock_collect_conversations,
+    mock_judge_conversations,
+    mock_evaluator_class,
+) -> None:
+    """
+    Tests that a scenario with only a MetricExpectation runs correctly.
+    """
+    # 1. Setup
+    mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
+    
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    mock_collect_conversations.return_value = [
+        ConversationRecord(turns=[
+            ConversationTurn(role="user", content="hello", request_timestamp=now, response_timestamp=now + timedelta(seconds=0.1)),
+            ConversationTurn(role="assistant", content="hi", request_timestamp=now + timedelta(seconds=0.2), response_timestamp=now + timedelta(seconds=0.5)),
+        ]),
+        ConversationRecord(turns=[
+            ConversationTurn(role="user", content="bye", request_timestamp=now, response_timestamp=now + timedelta(seconds=0.1)),
+            ConversationTurn(role="assistant", content="goodbye", request_timestamp=now + timedelta(seconds=0.2), response_timestamp=now + timedelta(seconds=0.4)),
+        ]),
+    ]
+
+    # 2. Define Scenario
+    scenario = ScenarioTest(
+        title="Metric-Only Test",
+        given="A user",
+        when="An action",
+        sample_size=2,
+        then=MetricExpectation(
+            label="Metric Check",
+            metric=metrics.per_turn.response_latency,
+            criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.9),
+        ),
+    )
+
+    # 3. Run evaluation
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
+    results = await sigma_eval.evaluate(scenario, AsyncMock())
+
+    # 4. Assertions
+    assert results.passed is True
+    assert len(results.expectation_results) == 1
+    assert results.expectation_results[0].passed is True
+    assert len(results.expectation_results[0].scores) > 0
+    assert len(results.expectation_results[0].reasoning) == 0
+    assert mock_collect_conversations.call_count == 1
+    assert mock_generate_rubric.call_count == 0  # Should not be called
+    assert mock_judge_conversations.call_count == 0    # Should not be called
+    assert mock_evaluator_class.return_value.evaluate.call_count == 1

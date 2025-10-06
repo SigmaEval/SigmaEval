@@ -333,6 +333,25 @@ multi_assertion_scenario = ScenarioTest(
 )
 ```
 
+### Accessing Evaluation Results
+
+The `evaluate` method returns a `ScenarioTestResult` object (or a list of them) that contains all the information about the test run.
+
+For a quick check, you can inspect the `passed` property:
+
+```python
+if results.passed:
+    print("✅ Scenario passed!")
+```
+
+Printing the result object provides a comprehensive, human-readable summary of the outcomes, which is ideal for logs:
+
+```python
+print(results)
+```
+
+For more detailed programmatic analysis, the object gives you full access to the nested `expectation_results` (including scores and reasoning) and the complete `conversations` list.
+
 ### Appendix A: Example Rubric
 
 For the `ScenarioTest` defined in the Python snippet:

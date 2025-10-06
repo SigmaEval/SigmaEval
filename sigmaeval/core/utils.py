@@ -1,6 +1,32 @@
 import json
 import re
-from typing import Any, Dict
+from typing import Any, Dict, List
+from .models import ConversationRecord, Conversation, Turn
+
+
+def _convert_conversation_records(
+    records: List[ConversationRecord],
+) -> List[Conversation]:
+    """Converts data collection records to the final Conversation model."""
+    conversations = []
+    for record in records:
+        turns = []
+        # Group turns into pairs of (user, assistant)
+        for i in range(0, len(record.turns), 2):
+            user_turn = record.turns[i]
+            assistant_turn = record.turns[i + 1] if i + 1 < len(record.turns) else None
+            
+            if assistant_turn:
+                latency = (assistant_turn.response_timestamp - user_turn.response_timestamp).total_seconds()
+                turns.append(
+                    Turn(
+                        user_message=user_turn.content,
+                        app_response=assistant_turn.content,
+                        latency=latency,
+                    )
+                )
+        conversations.append(Conversation(turns=turns, details={"writing_style": record.writing_style}))
+    return conversations
 
 
 def _extract_json_from_response(content: str) -> Dict[str, Any] | None:

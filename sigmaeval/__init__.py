@@ -6,14 +6,14 @@ from .core.framework import SigmaEval
 from .core.models import (
     AppResponse,
     BehavioralExpectation,
-    EvaluationResult,
+    ScenarioTestResult,
     ScenarioTest,
     RetryConfig,
     WritingStyleConfig,
     WritingStyleAxes,
     MetricExpectation,
-    ConversationRecord,
-    ConversationTurn,
+    Turn,
+    Conversation,
 )
 from .assertions import assertions
 from .metrics import metrics
@@ -27,14 +27,14 @@ __all__ = [
     "AppResponse",
     "ScenarioTest",
     "BehavioralExpectation",
-    "EvaluationResult",
+    "ScenarioTestResult",
     "assertions",
     "RetryConfig",
     "WritingStyleConfig",
     "WritingStyleAxes",
     "MetricExpectation",
     "metrics",
-    "ConversationRecord",
-    "ConversationTurn",
+    "Turn",
+    "Conversation",
 ]
 

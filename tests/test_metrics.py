@@ -7,9 +7,8 @@ from sigmaeval import (
     assertions,
     metrics,
     AppResponse,
-    ConversationRecord,
-    ConversationTurn,
 )
+from sigmaeval.core.models import ConversationRecord, ConversationTurn
 from datetime import datetime, timedelta
 
 @pytest.fixture
@@ -64,8 +63,9 @@ async def test_metric_evaluation_proportion_lt(metric_scenario):
         )
 
         assert results.passed is True
-        assert "p_value" in results.results
-        assert results.results["observed_proportion"] == 0.98
+        details = results.expectation_results[0].assertion_results[0].details
+        assert "p_value" in details
+        assert details["observed_proportion"] == 0.98
 
 
 @pytest.mark.asyncio
@@ -99,5 +99,6 @@ async def test_metric_evaluation_median_lt(metric_scenario):
         )
 
         assert results.passed is True
-        assert "p_value" in results.results
-        assert results.results["observed_median"] == 0.5
+        details = results.expectation_results[0].assertion_results[0].details
+        assert "p_value" in details
+        assert details["observed_median"] == 0.5

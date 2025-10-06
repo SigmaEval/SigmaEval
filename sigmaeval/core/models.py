@@ -276,156 +276,105 @@ class ConversationRecord(BaseModel):
         return "\n".join(lines)
 
 
-class EvaluationResult(BaseModel):
-    """
-    Structured data class for the results of a single `ScenarioTest` evaluation.
+class Turn(BaseModel):
+    """Represents a single turn in a conversation."""
 
-    This class not only stores the raw data from the evaluation but also provides
-    properties and methods for easier analysis and interpretation of the results.
+    user_message: str
+    app_response: str
+    latency: float
+    details: Dict[str, Any] = Field(default_factory=dict)
 
-    Attributes:
-        significance_level: The significance level (alpha) used for the test.
-        judge_model: The model identifier used for the judge.
-        user_simulator_model: The model identifier used for the user simulator.
-        test_config: The configuration of the behavioral test.
-        retry_config: The retry configuration used for the evaluation.
-        rubric: The rubric used by the Judge LLM to score the interaction.
-        scores: A list of scores (1-10) from the Judge LLM for each interaction.
-        reasoning: A list of the Judge LLM's reasoning for each score.
-        conversations: A list of all conversation transcripts.
-        num_conversations: The total number of conversations (i.e., the sample size).
-        results: The final statistical analysis results from the evaluator.
-    """
-    significance_level: float
-    judge_model: str
-    user_simulator_model: str
-    test_config: Dict[str, Any]
-    retry_config: "RetryConfig"
-    rubric: Optional[str] = None
-    scores: list[float] = Field(default_factory=list)
-    reasoning: list[str] = Field(default_factory=list)
-    conversations: list[ConversationRecord]
-    num_conversations: int
-    results: Dict[str, Any]
+
+class Conversation(BaseModel):
+    """Represents a full conversation from a single simulation run."""
+
+    turns: List[Turn]
+    details: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AssertionResult(BaseModel):
+    """The result of a single assertion check."""
+
+    about: str
+    passed: bool
+    p_value: Optional[float] = None
+    details: Dict[str, Any] = Field(default_factory=dict)
+
+    def __str__(self) -> str:
+        status = "✅ PASSED" if self.passed else "❌ FAILED"
+        p_value_str = f", p-value: {self.p_value:.4f}" if self.p_value is not None else ""
+        return f"[{status}] {self.about}{p_value_str}"
+
+
+class ExpectationResult(BaseModel):
+    """The result of a single Expectation, which may contain multiple assertions."""
+
+    about: str
+    assertion_results: List[AssertionResult]
+    scores: List[float] = Field(default_factory=list)
+    reasoning: List[str] = Field(default_factory=list)
 
     @property
     def passed(self) -> bool:
-        """Convenience property to check if the test passed."""
-        return self.results.get("passed", False)
-
-    @property
-    def p_value(self) -> float | None:
-        """Convenience property to get the p-value, if available."""
-        return self.results.get("p_value")
-
-    @property
-    def average_score(self) -> float:
-        """The average of all collected scores."""
-        return np.mean(self.scores) if self.scores else 0
-
-    @property
-    def median_score(self) -> float:
-        """The median of all collected scores."""
-        return np.median(self.scores) if self.scores else 0
-
-    @property
-    def min_score(self) -> float:
-        """The minimum score from the evaluation."""
-        return min(self.scores) if self.scores else 0
-
-    @property
-    def max_score(self) -> float:
-        """The maximum score from the evaluation."""
-        return max(self.scores) if self.scores else 0
-
-    @property
-    def std_dev_score(self) -> float:
-        """The standard deviation of the scores."""
-        return np.std(self.scores) if self.scores else 0
-
-    def get_worst_conversation(self) -> tuple[float, str, ConversationRecord]:
-        """
-        Finds and returns the conversation with the lowest score.
-
-        If there are multiple conversations with the same lowest score, the first
-        one encountered will be returned.
-
-        Returns:
-            A tuple containing the score, the judge's reasoning, and the
-            conversation record.
-        """
-        if not self.scores:
-            raise ValueError("Cannot get worst conversation from empty scores list.")
-
-        min_score = min(self.scores)
-        min_index = self.scores.index(min_score)
-        return (
-            self.scores[min_index],
-            self.reasoning[min_index],
-            self.conversations[min_index],
-        )
-
-    def get_best_conversation(self) -> tuple[float, str, ConversationRecord]:
-        """
-        Finds and returns the conversation with the highest score.
-
-        If there are multiple conversations with the same highest score, the first
-        one encountered will be returned.
-
-        Returns:
-            A tuple containing the score, the judge's reasoning, and the
-            conversation record.
-        """
-        if not self.scores:
-            raise ValueError("Cannot get best conversation from empty scores list.")
-
-        max_score = max(self.scores)
-        max_index = self.scores.index(max_score)
-        return (
-            self.scores[max_index],
-            self.reasoning[max_index],
-            self.conversations[max_index],
-        )
+        """True only if ALL assertions for this expectation passed."""
+        return all(r.passed for r in self.assertion_results)
 
     def __str__(self) -> str:
-        """
-        Provides a human-readable summary of the evaluation results.
-        """
-        # Title and Pass/Fail status
-        title = self.test_config.get("title", "Evaluation Results")
-        
-        # Append the label to the title if it exists
-        label = self.test_config.get("then", {}).get("label")
-        if label:
-            title = f"{title}: {label}"
-
         status = "✅ PASSED" if self.passed else "❌ FAILED"
-        header = f"--- {title}: {status} ---"
+        # The 'about' for the Expectation gives high-level context
+        if len(self.assertion_results) == 1:
+            # If there's only one assertion, condense the output to a single line
+            res = self.assertion_results[0]
+            res_status = "✅ PASSED" if res.passed else "❌ FAILED"
+            p_value_str = (
+                f", p-value: {res.p_value:.4f}" if res.p_value is not None else ""
+            )
+            return f"[{res_status}] {self.about}{p_value_str}"
+        else:
+            # For multiple assertions, use a detailed breakdown
+            title_line = f"Expectation: '{self.about}' -> {status}"
+            # Each assertion result is then listed
+            results_breakdown = []
+            for res in self.assertion_results:
+                assertion_status = "✅" if res.passed else "❌"
+                p_value_str = (
+                    f", p-value: {res.p_value:.4f}" if res.p_value is not None else ""
+                )
+                results_breakdown.append(
+                    f"    - [{assertion_status}] {res.about}{p_value_str}"
+                )
 
-        # Key stats
-        p_value_str = f"P-value: {self.p_value:.4f}" if self.p_value is not None else ""
-        stats = f"""
-Summary Statistics:
-  - Average Score: {self.average_score:.2f}
-  - Median Score:  {self.median_score:.2f}
-  - Min Score:     {self.min_score:.2f}
-  - Max Score:     {self.max_score:.2f}
-  - Std Dev:       {self.std_dev_score:.2f}
-        """
+            breakdown_str = "\n".join(results_breakdown)
+            return f"{title_line}\n{breakdown_str}"
 
-        # Evaluator-specific results
-        evaluator_results = "\n".join(
-            [f"  - {key.replace('_', ' ').title()}: {value}" for key, value in self.results.items()]
+
+class ScenarioTestResult(BaseModel):
+    """The comprehensive result of a single ScenarioTest run."""
+
+    title: str
+    expectation_results: List["ExpectationResult"]
+    conversations: List["Conversation"]
+    significance_level: float
+    judge_model: str
+    user_simulator_model: str
+    retry_config: "RetryConfig"
+    rubric: Optional[str] = None
+
+    @property
+    def passed(self) -> bool:
+        """True only if ALL expectations passed."""
+        return all(r.passed for r in self.expectation_results)
+
+    def __str__(self) -> str:
+        status = "✅ PASSED" if self.passed else "❌ FAILED"
+        title_line = f"--- Result for Scenario: '{self.title}' ---"
+        status_line = f"Overall Status: {status}"
+        passed_count = sum(1 for r in self.expectation_results if r.passed)
+        total_count = len(self.expectation_results)
+        summary_line = f"Summary: {passed_count}/{total_count} expectations passed."
+        results_breakdown = "\n\n".join(f"  - {r}" for r in self.expectation_results)
+        return (
+            f"{title_line}\n{status_line}\n{summary_line}\n\nBreakdown:\n{results_breakdown}"
         )
-        
-        return f"""
-{header}
-{p_value_str}
-
-{stats.strip()}
-
-Full Evaluator Results:
-{evaluator_results}
-        """.strip()
 
 

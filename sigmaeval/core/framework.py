@@ -6,10 +6,20 @@ import logging
 import asyncio
 from typing import Callable, Awaitable, Any, Dict, List
 
-from .models import AppResponse, ScenarioTest, EvaluationResult, WritingStyleConfig, BehavioralExpectation, MetricExpectation
+from .models import (
+    AppResponse,
+    ScenarioTest,
+    ScenarioTestResult,
+    ExpectationResult,
+    AssertionResult,
+    WritingStyleConfig,
+    BehavioralExpectation,
+    MetricExpectation,
+)
 from .rubric_generator import _generate_rubric
 from .data_collection import _collect_conversations, _judge_conversations
 from .models import RetryConfig
+from .utils import _convert_conversation_records
 
 from ..assertions import MedianAssertion, ProportionAssertion
 from .._evaluators import (
@@ -88,7 +98,7 @@ class SigmaEval:
         scenario: ScenarioTest,
         app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
         concurrency: int = 10,
-    ) -> EvaluationResult:
+    ) -> ScenarioTestResult:
         """
         Run evaluation for a single behavioral test case.
         
@@ -125,15 +135,16 @@ class SigmaEval:
             writing_style_config=self.writing_style_config,
         )
 
-        all_results = []
-        all_scores = []
-        all_reasoning = []
+        expectation_results = []
         all_rubrics = []
         
         # A ScenarioTest can have multiple `then` clauses (BehavioralExpectations)
         # Each one is evaluated independently against the same set of conversations.
-        # The test passes only if all expectations pass.
         for expectation in scenario.then:
+            assertion_results = []
+            scores = []
+            reasoning = []
+            
             if isinstance(expectation, BehavioralExpectation):
                 # Phase 1: Test Setup
                 # Generate a rubric for this specific expectation
@@ -149,7 +160,7 @@ class SigmaEval:
                 
                 # Phase 2 (second half): Judging
                 # The collected conversations are now judged against the new rubric.
-                scores, reasoning_list = await _judge_conversations(
+                scores, reasoning = await _judge_conversations(
                     scenario=scenario,
                     expectation=expectation,
                     conversations=conversations,
@@ -158,8 +169,6 @@ class SigmaEval:
                     concurrency=concurrency,
                     retry_config=self.retry_config,
                 )
-                all_scores.append(scores)
-                all_reasoning.append(reasoning_list)
                 
                 # Phase 3: Statistical Analysis
                 self.logger.debug(f"Collected scores for '{scenario.title}': {scores}")
@@ -189,9 +198,23 @@ class SigmaEval:
                     else:
                         raise TypeError(f"Unsupported criteria type: {type(criteria)}")
 
-                    results = evaluator.evaluate(scores, label=expectation.label)
-                    all_results.append(results)
-            
+                    eval_result_dict = evaluator.evaluate(scores, label=expectation.label)
+                    
+                    about_str = "Unknown assertion"
+                    if isinstance(criteria, ProportionAssertion):
+                        about_str = f"proportion of scores {criteria.comparison} {criteria.proportion} (threshold: {criteria.threshold})"
+                    elif isinstance(criteria, MedianAssertion):
+                        about_str = f"median score {criteria.comparison} {criteria.threshold}"
+
+                    assertion_results.append(
+                        AssertionResult(
+                            about=about_str,
+                            passed=eval_result_dict["passed"],
+                            p_value=eval_result_dict.get("p_value"),
+                            details=eval_result_dict,
+                        )
+                    )
+
             elif isinstance(expectation, MetricExpectation):
                 metric = expectation.metric
                 # Calculate metric values for all conversations
@@ -219,46 +242,46 @@ class SigmaEval:
                     else:
                         raise TypeError(f"Unsupported criteria type for MetricExpectation: {type(criteria)}")
                     
-                    results = evaluator.evaluate(all_metric_values, label=expectation.label)
-                    all_results.append(results)
+                    eval_result_dict = evaluator.evaluate(all_metric_values, label=expectation.label)
+                    
+                    about_str = "Unknown assertion"
+                    if isinstance(criteria, ProportionAssertion):
+                        about_str = f"{metric.name} {criteria.comparison} {criteria.proportion} (threshold: {criteria.threshold})"
+                    elif isinstance(criteria, MedianAssertion):
+                        about_str = f"median {metric.name} {criteria.comparison} {criteria.threshold}"
+
+                    assertion_results.append(
+                        AssertionResult(
+                            about=about_str,
+                            passed=eval_result_dict["passed"],
+                            p_value=eval_result_dict.get("p_value"),
+                            details=eval_result_dict,
+                        )
+                    )
+
+            expectation_results.append(
+                ExpectationResult(
+                    about=expectation.label
+                    or expectation.expected_behavior[:50]
+                    if isinstance(expectation, BehavioralExpectation)
+                    else expectation.metric.name,
+                    assertion_results=assertion_results,
+                    scores=scores if isinstance(expectation, BehavioralExpectation) else all_metric_values,
+                    reasoning=reasoning if isinstance(expectation, BehavioralExpectation) else [],
+                )
+            )
 
         self.logger.info(f"--- Evaluation complete for: {scenario.title} ---")
         
-        # If there are multiple expectations, the test passes only if all of them pass
-        final_passed_status = all(
-            res.get("passed", False) for res in all_results
-        )
-
-        # Merge all results into a single dictionary for the final EvaluationResult
-        merged_results = {}
-        for res in all_results:
-            merged_results.update(res)
-        merged_results["passed"] = final_passed_status
-
-        test_config = {
-            "title": scenario.title,
-            "given": scenario.given,
-            "when": scenario.when,
-            "then": [exp.model_dump() for exp in scenario.then],
-            "sample_size": scenario.sample_size,
-        }
-        
-        # Flatten the lists of scores and reasoning from all expectations
-        flat_scores = [score for sublist in all_scores for score in sublist]
-        flat_reasoning = [reason for sublist in all_reasoning for reason in sublist]
-
-        return EvaluationResult(
+        return ScenarioTestResult(
+            title=scenario.title,
+            expectation_results=expectation_results,
+            conversations=_convert_conversation_records(conversations),
             significance_level=self.significance_level,
             judge_model=self.judge_model,
             user_simulator_model=self.user_simulator_model,
-            test_config=test_config,
             retry_config=self.retry_config,
             rubric="\\n\\n---\\n\\n".join(all_rubrics) if all_rubrics else None,
-            scores=flat_scores,
-            reasoning=flat_reasoning,
-            conversations=conversations,
-            num_conversations=len(conversations),
-            results=merged_results,
         )
 
     async def evaluate(
@@ -266,7 +289,7 @@ class SigmaEval:
         scenarios: ScenarioTest | List[ScenarioTest], 
         app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
         concurrency: int = 10,
-    ) -> EvaluationResult | List[EvaluationResult]:
+    ) -> ScenarioTestResult | List[ScenarioTestResult]:
         """
         Run evaluation for one or more behavioral test cases. When a list of tests
         is provided, they are run concurrently.

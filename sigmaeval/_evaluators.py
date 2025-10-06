@@ -52,7 +52,7 @@ class ProportionEvaluator(BaseModel):
             results = {
                 f"{label}: {k.replace('_', ' ').title()}": v for k, v in results.items()
             }
-            results["passed"] = passed
+            results["passed"] = bool(passed)
         
         return results
 
@@ -104,7 +104,7 @@ class MedianEvaluator(BaseModel):
             results = {
                 f"{label}: {k.replace('_', ' ').title()}": v for k, v in results.items()
             }
-            results["passed"] = passed
+            results["passed"] = bool(passed)
 
         return results
 
