@@ -69,6 +69,64 @@ async def test_metric_evaluation_proportion_lt(metric_scenario):
 
 
 @pytest.mark.asyncio
+async def test_metric_evaluation_total_assistant_response_time(metric_scenario):
+    """
+    Tests a metric evaluation with a total_assistant_response_time metric.
+    """
+    metric_scenario.then[
+        0
+    ].metric = metrics.per_conversation.total_assistant_response_time
+    metric_scenario.then[0].criteria = assertions.metrics.median_lt(threshold=10.0)
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
+
+    # Mock conversation data to control metric values
+    conversations = []
+    for _ in range(10):
+        t1 = datetime.now()
+        t2 = t1 + timedelta(seconds=0.5)
+        t3 = t2 + timedelta(seconds=1.0)
+        t4 = t3 + timedelta(seconds=1.5)
+        
+        user_turn_1 = ConversationTurn(
+            role="user", content="...", request_timestamp=t1, response_timestamp=t1
+        )
+        assistant_turn_1 = ConversationTurn(
+            role="assistant", content="...", request_timestamp=t1, response_timestamp=t2
+        )
+        user_turn_2 = ConversationTurn(
+            role="user", content="...", request_timestamp=t3, response_timestamp=t3
+        )
+        assistant_turn_2 = ConversationTurn(
+            role="assistant", content="...", request_timestamp=t3, response_timestamp=t4
+        )
+        conversations.append(
+            ConversationRecord(
+                turns=[
+                    user_turn_1,
+                    assistant_turn_1,
+                    user_turn_2,
+                    assistant_turn_2,
+                ]
+            )
+        )
+
+    with patch(
+        "sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock
+    ) as mock_collect:
+        mock_collect.return_value = conversations
+
+        results = await sigma_eval.evaluate(
+            metric_scenario, AsyncMock(return_value=AppResponse(response="", state={}))
+        )
+
+        assert results.passed is True
+        details = results.expectation_results[0].assertion_results[0].details
+        assert "p_value" in details
+        # 0.5s (turn 1) + 1.5s (turn 2) = 2.0s
+        assert details["observed_median"] == 2.0
+
+
+@pytest.mark.asyncio
 async def test_metric_evaluation_median_lt(metric_scenario):
     """
     Tests a metric evaluation with a median_lt assertion.

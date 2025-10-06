@@ -190,6 +190,28 @@ This criterion performs a one-sided bootstrap hypothesis test to determine if th
 
 This is useful for evaluating the typical performance of a system. For example, `assertions.metrics.median_lt(threshold=2.0)` could be used to test if the median number of turns in a conversation is less than 2.
 
+### Available Metrics
+
+SigmaEval provides several built-in metrics to measure objective, quantitative aspects of your AI's performance. All metrics are available under the `metrics` object and are namespaced by their scope: `per_turn` or `per_conversation`.
+
+*   **Per-Turn Metrics**: Collected for each assistant response within a conversation.
+*   **Per-Conversation Metrics**: Collected once for the entire conversation.
+
+#### `metrics.per_turn.response_latency`
+*   **Description**: Measures the time (in seconds) between the application receiving a user's message and sending its response.
+*   **Scope**: Per-Turn
+*   **Use Case**: Ensuring the application feels responsive and meets performance requirements (e.g., "99% of responses should be under 1.5 seconds").
+
+#### `metrics.per_conversation.turn_count`
+*   **Description**: The total number of assistant responses in a conversation.
+*   **Scope**: Per-Conversation
+*   **Use Case**: Measuring the efficiency of the AI. A lower turn count to resolve an issue is often better (e.g., "The average conversation should be less than 4 turns").
+
+#### `metrics.per_conversation.total_assistant_response_time`
+*   **Description**: The total time (in seconds) the assistant spent processing responses for the entire conversation. This is the sum of all response latencies.
+*   **Scope**: Per-Conversation
+*   **Use Case**: Evaluating the total computational effort of the assistant over a conversation, useful for monitoring cost and overall performance.
+
 ### A Note on Sample Size and Statistical Significance
 
 It is important to note that the `sample_size` plays a crucial role in the outcome of the hypothesis tests used by `SuccessRateEvaluator` and `RatingProportionEvaluator`. A larger sample size provides more statistical evidence, making it easier to detect a true effect. With very small sample sizes (e.g., less than 10), a test might fail to achieve statistical significance (i.e., pass) even if the observed success rate in the sample is 100%. This is the expected and correct behavior, as there isn't enough data to confidently conclude that the *true* success rate for the entire user population is above the minimum threshold.

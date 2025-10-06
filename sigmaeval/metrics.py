@@ -3,22 +3,34 @@ from typing import List
 
 
 def _calculate_response_latency(conversation: ConversationRecord) -> List[float]:
-    """Calculates the response latency for each turn in a conversation."""
+    """Calculates the response latency for each assistant turn in a conversation."""
     latencies = []
-    for turn in conversation.turns:
-        if turn.role == "assistant":
-            # Find the preceding user turn to calculate latency
-            user_turn_index = conversation.turns.index(turn) - 1
-            if user_turn_index >= 0:
-                user_turn = conversation.turns[user_turn_index]
-                latency = (turn.response_timestamp - user_turn.response_timestamp).total_seconds()
-                latencies.append(latency)
+    assistant_turns = [
+        turn for turn in conversation.turns if turn.role == "assistant"
+    ]
+    for turn in assistant_turns:
+        latencies.append(
+            (turn.response_timestamp - turn.request_timestamp).total_seconds()
+        )
     return latencies
 
 
 def _calculate_turn_count(conversation: ConversationRecord) -> List[float]:
-    """Calculates the total number of turns in a conversation."""
-    return [len(conversation.turns)]
+    """Calculates the total number of assistant turns in a conversation."""
+    # Returns the count of assistant responses, which is a better reflection of "turns"
+    return [sum(1 for turn in conversation.turns if turn.role == "assistant")]
+
+
+def _calculate_total_assistant_response_time(
+    conversation: ConversationRecord,
+) -> List[float]:
+    """Calculates the total time the assistant spent processing responses."""
+    total_time = sum(
+        (turn.response_timestamp - turn.request_timestamp).total_seconds()
+        for turn in conversation.turns
+        if turn.role == "assistant"
+    )
+    return [total_time]
 
 
 class PerTurn:
@@ -36,6 +48,11 @@ class PerConversation:
             name="turn_count",
             scope="per_conversation",
             calculator=_calculate_turn_count,
+        )
+        self.total_assistant_response_time = Metric(
+            name="total_assistant_response_time",
+            scope="per_conversation",
+            calculator=_calculate_total_assistant_response_time,
         )
 
 
