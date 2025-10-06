@@ -101,9 +101,11 @@ class BehavioralExpectation(BaseModel):
     Attributes:
         expected_behavior: Description of the expected behavior (passed to Judge LLM)
         criteria: Statistical criteria to assess the results
+        label: An optional short name for the expectation, which will be displayed in logs and the evaluation results summary.
     """
     expected_behavior: str = Field(..., description="Expected behavior description")
     criteria: Any = Field(..., description="Criteria for statistical analysis")
+    label: str | None = Field(None, description="Optional short name for the expectation, which will be displayed in logs and the evaluation results summary.")
 
 
 class ScenarioTest(BaseModel):
@@ -345,6 +347,12 @@ class EvaluationResult(BaseModel):
         """
         # Title and Pass/Fail status
         title = self.test_config.get("title", "Evaluation Results")
+        
+        # Append the label to the title if it exists
+        label = self.test_config.get("then", {}).get("label")
+        if label:
+            title = f"{title}: {label}"
+
         status = "✅ PASSED" if self.passed else "❌ FAILED"
         header = f"--- {title}: {status} ---"
 

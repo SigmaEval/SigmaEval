@@ -158,7 +158,7 @@ class SigmaEval:
         else:
             raise TypeError(f"Unsupported criteria type: {type(criteria)}")
 
-        results = evaluator.evaluate(scores)
+        results = evaluator.evaluate(scores, label=scenario.then.label)
         
         self.logger.info(f"--- Evaluation complete for: {scenario.title} ---")
         
@@ -166,8 +166,7 @@ class SigmaEval:
             "title": scenario.title,
             "given": scenario.given,
             "when": scenario.when,
-            "expected_behavior": scenario.then.expected_behavior,
-            "criteria": scenario.then.criteria,
+            "then": scenario.then.model_dump(),
             "sample_size": scenario.sample_size,
         }
         

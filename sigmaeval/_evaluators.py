@@ -55,7 +55,7 @@ class RatingAverageEvaluator(BaseModel):
             raise ValueError("bootstrap_resamples must be a positive integer")
         return v
 
-    def evaluate(self, scores: List[float]) -> dict:
+    def evaluate(self, scores: List[float], label: str | None = None) -> dict:
         """
         Evaluate if the median rating meets the minimum threshold using bootstrapping.
 
@@ -65,7 +65,8 @@ class RatingAverageEvaluator(BaseModel):
         Returns:
             Dictionary with evaluation results including pass/fail and statistics
         """
-        logger.debug(f"RatingAverageEvaluator received scores: {scores}")
+        log_prefix = f"RatingAverageEvaluator ('{label}')" if label else "RatingAverageEvaluator"
+        logger.debug(f"{log_prefix} received scores: {scores}")
         sample_size = len(scores)
 
         # H0: median <= min_median_rating
@@ -105,9 +106,9 @@ class RatingAverageEvaluator(BaseModel):
             "bootstrap_resamples": self.bootstrap_resamples,
         }
         logger.info(
-            f"RatingAverageEvaluator results: passed={bool(passed)}, p_value={p_value:.4f}, observed_median={np.median(scores):.2f}, significance_level={self.significance_level}"
+            f"{log_prefix} results: passed={bool(passed)}, p_value={p_value:.4f}, observed_median={np.median(scores):.2f}, significance_level={self.significance_level}"
         )
-        logger.debug(f"Full RatingAverageEvaluator results: {results}")
+        logger.debug(f"Full {log_prefix} results: {results}")
         return results
 
 
@@ -147,7 +148,7 @@ class RatingProportionEvaluator(BaseModel):
             raise ValueError("min_proportion must be between 0 and 1")
         return v
 
-    def evaluate(self, scores: List[float]) -> dict:
+    def evaluate(self, scores: List[float], label: str | None = None) -> dict:
         """
         Evaluate if the proportion of ratings meeting threshold is sufficient.
         
@@ -157,7 +158,8 @@ class RatingProportionEvaluator(BaseModel):
         Returns:
             Dictionary with evaluation results including pass/fail and statistics
         """
-        logger.debug(f"RatingProportionEvaluator received scores: {scores}")
+        log_prefix = f"RatingProportionEvaluator ('{label}')" if label else "RatingProportionEvaluator"
+        logger.debug(f"{log_prefix} received scores: {scores}")
         sample_size = len(scores)
 
         successes = sum(1 for score in scores if score >= self.min_rating)
@@ -187,8 +189,8 @@ class RatingProportionEvaluator(BaseModel):
             "sample_size": sample_size,
         }
         logger.info(
-            f"RatingProportionEvaluator results: passed={bool(passed)}, p_value={p_value:.4f}, observed_proportion={successes / sample_size:.2f}, significance_level={self.significance_level}"
+            f"{log_prefix} results: passed={bool(passed)}, p_value={p_value:.4f}, observed_proportion={successes / sample_size:.2f}, significance_level={self.significance_level}"
         )
-        logger.debug(f"Full RatingProportionEvaluator results: {results}")
+        logger.debug(f"Full {log_prefix} results: {results}")
         return results
 

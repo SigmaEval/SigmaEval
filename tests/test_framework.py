@@ -238,6 +238,25 @@ def test_evaluation_result_properties_and_methods():
     assert results_fail.passed is False
     assert "--- Test Fail: ❌ FAILED ---" in str(results_fail)
 
+    # Test with a label
+    results_with_label = EvaluationResult(
+        significance_level=0.05,
+        judge_model="test/judge",
+        user_simulator_model="test/simulator",
+        test_config={
+            "title": "Test With Label",
+            "then": {"label": "Important Check"},
+        },
+        retry_config=RetryConfig(),
+        rubric="Test Rubric",
+        scores=scores,
+        reasoning=reasoning,
+        conversations=conversations,
+        num_conversations=len(scores),
+        results={"passed": True, "p_value": 0.01},
+    )
+    assert "--- Test With Label: Important Check: ✅ PASSED ---" in str(results_with_label)
+
 
 @pytest.mark.integration
 async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
