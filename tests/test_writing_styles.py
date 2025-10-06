@@ -15,6 +15,33 @@ from sigmaeval.core.models import (
     ConversationTurn,
 )
 from sigmaeval import SigmaEval, assertions
+from sigmaeval.core.writing_styles import _generate_writing_style
+
+
+def test_generate_writing_style_with_custom_axes():
+    """
+    Tests that _generate_writing_style correctly uses custom axes.
+    """
+    custom_axes = WritingStyleAxes(
+        proficiency=["a"], tone=["b"], verbosity=["c"], formality=["d"]
+    )
+    style = _generate_writing_style(axes=custom_axes)
+    assert style["Proficiency"] == "a"
+    assert style["Tone"] == "b"
+    assert style["Verbosity"] == "c"
+    assert style["Formality"] == "d"
+
+
+def test_generate_writing_style_with_default_axes():
+    """
+    Tests that _generate_writing_style runs with default axes when none are provided.
+    """
+    style = _generate_writing_style()
+    assert isinstance(style, dict)
+    assert "Proficiency" in style
+    assert "Tone" in style
+    assert "Verbosity" in style
+    assert "Formality" in style
 
 
 @pytest.fixture
