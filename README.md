@@ -85,7 +85,7 @@ from sigmaeval import (
     BehavioralExpectation, 
     MetricExpectation,
     AppResponse,
-    EvaluationResult,
+    ScenarioTestResult,
     assertions,
     metrics,
 )
@@ -144,20 +144,19 @@ async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
 # Initialize SigmaEval and run the evaluation
 async def main():
     sigma_eval = SigmaEval(judge_model="openai/gpt-5-nano", significance_level=0.05)
-    results: EvaluationResult = await sigma_eval.evaluate(scenario, app_handler)
+    results: ScenarioTestResult = await sigma_eval.evaluate(scenario, app_handler)
 
-    # Print the results
-    print(f"--- Results for ScenarioTest: {scenario.title} ---")
-    print(f"Passed: {results.passed}")
-    print(f"P-value: {results.p_value:.4f}")
-    print(f"Average Score: {results.average_score:.2f}")
-    
-    # You can also inspect individual conversations
-    # print("--- Example Conversation ---")
-    # print(results.conversations[0])
-    
-    # Or print the full summary
+    # The result object provides a comprehensive, human-readable summary
     print(results)
+    
+    # You can also programmatically access the results
+    if results.passed:
+        print("\n✅ Scenario passed!")
+    else:
+        print("\n❌ Scenario failed.")
+    
+    # For more detailed analysis, you can inspect individual expectation results
+    # and the raw conversation data stored in the `results` object.
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -307,7 +306,7 @@ You can also run a full suite of tests by passing a list of `ScenarioTest` objec
 test_suite = [scenario_1, scenario_2]
 all_results = await sigma_eval.evaluate(test_suite, app_handler)
 
-# all_results will be a list of EvaluationResult objects
+# all_results will be a list of ScenarioTestResult objects
 for result in all_results:
     print(result)
 ```
