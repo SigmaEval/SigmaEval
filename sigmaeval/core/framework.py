@@ -143,15 +143,16 @@ class SigmaEval:
         criteria = scenario.then.criteria
         
         evaluator = None
+        significance_level = criteria.significance_level or self.significance_level
         if isinstance(criteria, ProportionGTE):
             evaluator = RatingProportionEvaluator(
-                significance_level=criteria.significance_level or self.significance_level,
+                significance_level=significance_level,
                 min_rating=criteria.min_score,
                 min_proportion=criteria.proportion,
             )
         elif isinstance(criteria, MedianGTE):
             evaluator = RatingAverageEvaluator(
-                significance_level=criteria.significance_level or self.significance_level,
+                significance_level=significance_level,
                 min_median_rating=criteria.threshold,
             )
         else:
@@ -171,6 +172,7 @@ class SigmaEval:
         }
         
         return EvaluationResult(
+            significance_level=significance_level,
             judge_model=self.judge_model,
             user_simulator_model=self.user_simulator_model,
             test_config=test_config,

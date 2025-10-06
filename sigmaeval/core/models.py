@@ -230,6 +230,7 @@ class EvaluationResult(BaseModel):
     properties and methods for easier analysis and interpretation of the results.
 
     Attributes:
+        significance_level: The significance level (alpha) used for the test.
         judge_model: The model identifier used for the judge.
         user_simulator_model: The model identifier used for the user simulator.
         test_config: The configuration of the behavioral test.
@@ -241,6 +242,7 @@ class EvaluationResult(BaseModel):
         num_conversations: The total number of conversations (i.e., the sample size).
         results: The final statistical analysis results from the evaluator.
     """
+    significance_level: float
     judge_model: str
     user_simulator_model: str
     test_config: Dict[str, Any]

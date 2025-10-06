@@ -180,6 +180,7 @@ def test_evaluation_result_properties_and_methods():
     ]
 
     results_pass = EvaluationResult(
+        significance_level=0.05,
         judge_model="test/judge",
         user_simulator_model="test/simulator",
         test_config={"title": "Test Pass"},
@@ -221,6 +222,7 @@ def test_evaluation_result_properties_and_methods():
     
     # Test a failing result
     results_fail = EvaluationResult(
+        significance_level=0.05,
         judge_model="test/judge",
         user_simulator_model="test/simulator",
         test_config={"title": "Test Fail"},

@@ -105,7 +105,7 @@ class RatingAverageEvaluator(BaseModel):
             "bootstrap_resamples": self.bootstrap_resamples,
         }
         logger.info(
-            f"RatingAverageEvaluator results: passed={bool(passed)}, p_value={p_value:.4f}, observed_median={np.median(scores):.2f}"
+            f"RatingAverageEvaluator results: passed={bool(passed)}, p_value={p_value:.4f}, observed_median={np.median(scores):.2f}, significance_level={self.significance_level}"
         )
         logger.debug(f"Full RatingAverageEvaluator results: {results}")
         return results
@@ -187,7 +187,7 @@ class RatingProportionEvaluator(BaseModel):
             "sample_size": sample_size,
         }
         logger.info(
-            f"RatingProportionEvaluator results: passed={bool(passed)}, p_value={p_value:.4f}, observed_proportion={successes / sample_size:.2f}"
+            f"RatingProportionEvaluator results: passed={bool(passed)}, p_value={p_value:.4f}, observed_proportion={successes / sample_size:.2f}, significance_level={self.significance_level}"
         )
         logger.debug(f"Full RatingProportionEvaluator results: {results}")
         return results
