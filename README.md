@@ -1,34 +1,110 @@
+<div align="center">
+
 # SigmaEval
+The Gen AI App Evaluation Framework
 
 [![PyPI version](https://badge.fury.io/py/sigmaeval-framework.svg)](https://badge.fury.io/py/sigmaeval-framework)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python versions](https://img.shields.io/pypi/pyversions/sigmaeval-framework.svg)](https://pypi.org/project/sigmaeval-framework/)
 
-**SigmaEval** is a powerful Python library for evaluating Generative AI agents and applications using a statistical, behavior-driven approach.
+</div>
 
-- [SigmaEval](#sigmaeval)
-  - [Installation](#installation)
-  - [SigmaEval: A Statistical Framework for AI App Evaluation](#sigmaeval-a-statistical-framework-for-ai-app-evaluation)
-    - [The Problem](#the-problem)
-    - [The Stakes: Why Traditional QA Fails](#the-stakes-why-traditional-qa-fails)
-    - [A New Paradigm: From Determinism to Statistical Confidence](#a-new-paradigm-from-determinism-to-statistical-confidence)
-    - [How SigmaEval Works](#how-sigmaeval-works)
-    - [Available Criteria](#available-criteria)
-    - [Available Metrics](#available-metrics)
-    - [A Note on Sample Size and Statistical Significance](#a-note-on-sample-size-and-statistical-significance)
-    - [Supported LLMs](#supported-llms)
-    - [Logging](#logging)
-    - [Retry Configuration](#retry-configuration)
-    - [User Simulation Writing Styles](#user-simulation-writing-styles)
-    - [Evaluating a Test Suite](#evaluating-a-test-suite)
-    - [Evaluating Multiple Conditions and Assertions](#evaluating-multiple-conditions-and-assertions)
-    - [Accessing Evaluation Results](#accessing-evaluation-results)
-    - [Compatibility with Testing Libraries](#compatibility-with-testing-libraries)
-    - [A Note on the Statistical Methods](#a-note-on-the-statistical-methods)
-  - [Appendix A: Example Rubric](#appendix-a-example-rubric)
-  - [Development](#development)
-  - [License](#license)
-  - [Contributing](#contributing)
+Tired of shipping Gen AI features based on gut feelings and vibes?
+
+**SigmaEval** is a Python framework for the **statistical** evaluation of Gen AI apps, agents, and bots that helps you move from "it seems to work" to making **statistically** rigorous statements about your AI's quality. It allows you to set and enforce objective quality bars by making statements like:
+
+>*"We are confident that at least 90% of user issues coming into our customer support chatbot will be resolved with a quality score of 8/10 or higher."*
+
+>*"With a high degree of confidence, the median response time of our new AI-proposal generator will be lower than our 5-second SLO."*
+
+>*"For our internal HR bot, we confirmed that it will likely succeed in answering benefits-related questions in 3 turns or less in a typical conversation."*
+
+SigmaEval works by bringing a structured, data-driven process to AI quality assurance:
+
+This process transforms subjective assessments into quantitative, data-driven conclusions, giving you a reliable framework for building high-quality AI applications.
+
+At its core, SigmaEval uses two AI agents to automate evaluation: an **AI User Simulator** that realistically tests your application, and an **AI Judge** that scores its performance. The process is as follows:
+
+1.  **Define "Good"**: You start by defining a test scenario in plain language, including the user's goal and a clear description of the successful outcome you expect. This becomes your objective quality bar.
+
+2.  **Simulate and Collect Data**: The **AI User Simulator** acts as a test user, interacting with your application based on your scenario. It runs these interactions many times to collect a robust dataset of conversations.
+
+3.  **Judge and Analyze**: The **AI Judge** scores each conversation against your definition of success. SigmaEval then applies statistical methods to these scores to determine if your quality bar has been met with a specified level of confidence.
+
+## Hello World
+
+Here is a minimal, complete example of how to use SigmaEval:
+
+```python
+from sigmaeval import SigmaEval, ScenarioTest, assertions
+import asyncio
+from typing import List, Dict, Any
+
+# 1. Define the ScenarioTest to describe the desired behavior
+scenario = (
+    ScenarioTest("Hello World Test")
+    .given("A user says hello")
+    .when("The user says 'Hello'")
+    .expect_behavior(
+        "The bot replies with 'Hello, world!'",
+        # We are confident that at least 90% of responses will score an 8/10 or higher.
+        criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.90)
+    )
+)
+
+# 2. Implement the app_handler to allow SigmaEval to communicate with your app
+async def app_handler(messages: List[Dict[str, str]], state: Any) -> str:
+    # Your app's logic goes here. 
+    # In a real test, you will pass the messages to your app and return the response back to SigmaEval.
+    # For this example, we are just returning a static response.
+    return "Hello, world!"
+
+# 3. Initialize SigmaEval and run the evaluation
+async def main():
+    # Make sure your environment is configured with an API key for your chosen model (e.g., OPENAI_API_KEY)
+    # You can use any model that LiteLLM supports: https://docs.litellm.ai/docs/providers
+    sigma_eval = SigmaEval(
+        judge_model="openai/gpt-5-nano",
+        sample_size=20,  # The number of times to run the test
+        significance_level=0.05  # The statistical confidence level
+    )
+    result = await sigma_eval.evaluate(scenario, app_handler)
+    assert result.passed
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+When you run this script, SigmaEval will:
+1.  **Generate a Rubric**: Based on the `expect_behavior`, it will create a 1-10 scoring rubric for the Judge LLM.
+2.  **Simulate Conversations**: It will call your `app_handler` 20 times (`sample_size=20`), each time simulating a user saying "Hello".
+3.  **Judge the Responses**: For each of the 20 conversations, the `judge_model` will score your app's response against the rubric.
+4.  **Perform Statistical Analysis**: SigmaEval will then run a hypothesis test to determine if it can be concluded, with 95% confidence (`significance_level=0.05`), that at least 90% of the responses scored an 8 or higher.
+5.  **Determine Pass/Fail**: The script will exit with a pass or fail status based on the final assertion.
+
+## Table of Contents
+- [Installation](#installation)
+- [SigmaEval: A Statistical Framework for AI App Evaluation](#sigmaeval-a-statistical-framework-for-ai-app-evaluation)
+  - [The Problem](#the-problem)
+  - [The Stakes: Why Traditional QA Fails](#the-stakes-why-traditional-qa-fails)
+  - [A New Paradigm: From Determinism to Statistical Confidence](#a-new-paradigm-from-determinism-to-statistical-confidence)
+  - [How SigmaEval Works](#how-sigmaeval-works)
+  - [Available Criteria](#available-criteria)
+  - [Available Metrics](#available-metrics)
+  - [A Note on Sample Size and Statistical Significance](#a-note-on-sample-size-and-statistical-significance)
+  - [Supported LLMs](#supported-llms)
+  - [Logging](#logging)
+  - [Retry Configuration](#retry-configuration)
+  - [User Simulation Writing Styles](#user-simulation-writing-styles)
+  - [Evaluating a Test Suite](#evaluating-a-test-suite)
+  - [Evaluating Multiple Conditions and Assertions](#evaluating-multiple-conditions-and-assertions)
+  - [Accessing Evaluation Results](#accessing-evaluation-results)
+  - [Compatibility with Testing Libraries](#compatibility-with-testing-libraries)
+  - [A Note on the Statistical Methods](#a-note-on-the-statistical-methods)
+- [Appendix A: Example Rubric](#appendix-a-example-rubric)
+- [Development](#development)
+- [License](#license)
+- [Contributing](#contributing)
 
 A Python library for evaluating Generative AI agents and apps.
 
@@ -407,7 +483,6 @@ For a quick check, you can inspect the `passed` property:
 if results.passed:
     print("✅ Scenario passed!")
 ```
-
 Printing the result object provides a comprehensive, human-readable summary of the outcomes, which is ideal for logs:
 
 ```python
@@ -535,4 +610,5 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
 
