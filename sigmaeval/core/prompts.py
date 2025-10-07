@@ -30,9 +30,9 @@ def _build_rubric_generation_prompt(
 
 Given the following test scenario:
 
-**Context (Given):** {scenario.given}
+**Context (Given):** {scenario.given_context}
 
-**Scenario (When):** {scenario.when}
+**Scenario (When):** {scenario.when_action}
 
 **Expected Behavior (Then):** {expectation.expected_behavior}
 
@@ -122,9 +122,9 @@ def _build_user_simulator_prompt(
 
     return f"""You are simulating a user interacting with an AI assistant.
 
-**Background information/context (Given):** {scenario.given}
+**Background information/context (Given):** {scenario.given_context}
 
-**The scenario (When):** {scenario.when}
+**The scenario (When):** {scenario.when_action}
 
 {conversation_header}
 {conversation_context}
@@ -181,9 +181,9 @@ def _build_judge_prompt(
 
     return f"""You are an expert evaluator judging an AI assistant's performance.
 
-**Context (Given):** {scenario.given}
+**Context (Given):** {scenario.given_context}
 
-**Action/Trigger (When):** {scenario.when}
+**Action/Trigger (When):** {scenario.when_action}
 
 **Expected Behavior (Then):** {expectation.expected_behavior}
 

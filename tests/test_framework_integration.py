@@ -45,33 +45,26 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     sample_size = 10 # Keep sample size low for a quick test
 
     # 2. Define the Behavioral Test
-    scenario = ScenarioTest(
-        title="Bot handles a product return request",
-        given="A user wants to return a recently purchased pair of shoes.",
-        when="The user asks how to start a return.",
-        sample_size=sample_size,
-        then=[
-            Expectation.behavior(
-                label="Correctness",
-                expected_behavior=(
-                    "The bot should acknowledge the user's request, ask for an order "
-                    "number, and explain the next steps in the return process clearly."
-                ),
-                criteria=[
-                    assertions.scores.proportion_gte(
-                        min_score=6,
-                        proportion=0.7,
-                    ),
-                    assertions.scores.median_gte(threshold=6.0),
-                ],
-            ),
-            Expectation.metric(
-                label="Responsiveness",
-                metric=metrics.per_turn.response_latency,
-                criteria=assertions.metrics.median_lt(threshold=10.0),
-            ),
-        ],
-        max_turns=3,
+    scenario = (
+        ScenarioTest("Bot handles a product return request")
+        .given("A user wants to return a recently purchased pair of shoes.")
+        .when("The user asks how to start a return.")
+        .sample(sample_size)
+        .max_turns(3)
+        .expect_behavior(
+            "The bot should acknowledge the user's request, ask for an order "
+            "number, and explain the next steps in the return process clearly.",
+            criteria=[
+                assertions.scores.proportion_gte(min_score=6, proportion=0.7),
+                assertions.scores.median_gte(threshold=6.0),
+            ],
+            label="Correctness",
+        )
+        .expect_metric(
+            metrics.per_turn.response_latency,
+            criteria=assertions.metrics.median_lt(threshold=10.0),
+            label="Responsiveness",
+        )
     )
 
     # 3. Create the app handler to bridge SigmaEval and the target app
@@ -162,30 +155,23 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     sample_size = 10  # Keep sample size low for a quick test
 
     # 2. Define the Behavioral Test (same scenario as the good app test)
-    scenario = ScenarioTest(
-        title="Bot handles a product return request",
-        given="A user wants to return a recently purchased pair of shoes.",
-        when="The user asks how to start a return.",
-        sample_size=sample_size,
-        then=[
-            Expectation.behavior(
-                label="Correctness",
-                expected_behavior=(
-                    "The bot should acknowledge the user's request, ask for an order "
-                    "number, and explain the next steps in the return process clearly."
-                ),
-                criteria=assertions.scores.proportion_gte(
-                    min_score=6,
-                    proportion=0.9,
-                ),
-            ),
-            Expectation.metric(
-                label="Responsiveness",
-                metric=metrics.per_turn.response_latency,
-                criteria=assertions.metrics.median_lt(threshold=0.1),
-            ),
-        ],
-        max_turns=3,
+    scenario = (
+        ScenarioTest("Bot handles a product return request")
+        .given("A user wants to return a recently purchased pair of shoes.")
+        .when("The user asks how to start a return.")
+        .sample(sample_size)
+        .max_turns(3)
+        .expect_behavior(
+            "The bot should acknowledge the user's request, ask for an order "
+            "number, and explain the next steps in the return process clearly.",
+            criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.9),
+            label="Correctness",
+        )
+        .expect_metric(
+            metrics.per_turn.response_latency,
+            criteria=assertions.metrics.median_lt(threshold=0.1),
+            label="Responsiveness",
+        )
     )
 
     # 3. Create a bad app handler that returns gibberish and does NOT call SimpleChatApp
@@ -263,20 +249,20 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
     sample_size = 2  # Keep sample size low for a quick test
 
     # 2. Define the Behavioral Test
-    scenario = ScenarioTest(
-        title="Bot handles a simple greeting",
-        given="A user starts a conversation.",
-        when="The user says 'hello'.",
-        sample_size=sample_size,
-        then=Expectation.behavior(
-            expected_behavior="The bot should respond with a friendly greeting.",
+    scenario = (
+        ScenarioTest("Bot handles a simple greeting")
+        .given("A user starts a conversation.")
+        .when("The user says 'hello'.")
+        .sample(sample_size)
+        .max_turns(2)
+        .expect_behavior(
+            "The bot should respond with a friendly greeting.",
             criteria=assertions.scores.proportion_gte(
                 min_score=6,
                 proportion=0.6,
                 significance_level=0.05,
             ),
-        ),
-        max_turns=2,
+        )
     )
 
     # 3. Create the app handler
@@ -334,35 +320,35 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
     sample_size = 1  # Keep sample size at 1 for a very fast test
 
     # 2. Define two minimal Behavioral Tests
-    scenario_1 = ScenarioTest(
-        title="Minimal Test 1",
-        given="A user",
-        when="The user says hi",
-        sample_size=sample_size,
-        then=Expectation.behavior(
-            expected_behavior="The bot says hi back.",
+    scenario_1 = (
+        ScenarioTest("Minimal Test 1")
+        .given("A user")
+        .when("The user says hi")
+        .sample(sample_size)
+        .max_turns(2)
+        .expect_behavior(
+            "The bot says hi back.",
             criteria=assertions.scores.proportion_gte(
                 min_score=6,
                 proportion=0.1,
                 significance_level=0.05,
             ),
-        ),
-        max_turns=2,
+        )
     )
-    scenario_2 = ScenarioTest(
-        title="Minimal Test 2",
-        given="A user",
-        when="The user says bye",
-        sample_size=sample_size,
-        then=Expectation.behavior(
-            expected_behavior="The bot says bye back.",
+    scenario_2 = (
+        ScenarioTest("Minimal Test 2")
+        .given("A user")
+        .when("The user says bye")
+        .sample(sample_size)
+        .max_turns(2)
+        .expect_behavior(
+            "The bot says bye back.",
             criteria=assertions.scores.proportion_gte(
                 min_score=6,
                 proportion=0.1,
                 significance_level=0.05,
             ),
-        ),
-        max_turns=2,
+        )
     )
     test_suite = [scenario_1, scenario_2]
 

@@ -116,6 +116,9 @@ class SigmaEval:
             LLMCommunicationError: If any LLM call (rubric generation, user simulation,
                 or judging) fails or returns an invalid/malformed response.
         """
+        # Finalize the build and trigger validation
+        scenario._finalize_build()
+        
         self.logger.info(f"--- Starting evaluation for ScenarioTest: {scenario.title} ---")
 
         # Phase 2 (first half): Data Collection via Simulation
@@ -128,7 +131,7 @@ class SigmaEval:
             user_simulator_model=self.user_simulator_model,
             sample_size=scenario.sample_size,
             concurrency=concurrency,
-            max_turns=scenario.max_turns,
+            max_turns=scenario.max_turns_value,
             retry_config=self.retry_config,
             writing_style_config=self.writing_style_config,
         )

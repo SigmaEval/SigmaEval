@@ -17,80 +17,91 @@ class MockMetricAssertion(MetricAssertion):
 
 def test_scenario_test_valid():
     """Tests that a valid ScenarioTest model can be created."""
-    scenario = ScenarioTest(
-        title="Test Scenario",
-        given="A user",
-        when="They do something",
-        then=Expectation.behavior(
-            expected_behavior="Something happens",
+    scenario = (
+        ScenarioTest("Test Scenario")
+        .given("A user")
+        .when("They do something")
+        .sample(10)
+        .expect_behavior(
+            "Something happens",
             criteria=MockScoreAssertion(),
-        ),
-        sample_size=10,
+        )
     )
     assert scenario.title == "Test Scenario"
     assert scenario.sample_size == 10
     assert isinstance(scenario.then[0], Expectation)
 
 
-def test_scenario_test_invalid_sample_size():
-    """Tests that a non-positive sample_size raises a ValidationError."""
-    with pytest.raises(ValidationError, match="sample_size must be a positive integer"):
-        ScenarioTest(
-            title="Test",
-            given="Given",
-            when="When",
-            then=Expectation.behavior(
-                expected_behavior="Then", criteria=MockScoreAssertion()
+def test_scenario_test_fluent_api_order_independent():
+    """Tests that the fluent API builder methods can be called in any order."""
+    # Call builder methods in a non-standard order
+    scenario = (
+        ScenarioTest("Order Independent Test")
+        .sample(50)
+        .expect_metric(
+            metric=MetricDefinition(
+                name="test", scope="per_turn", calculator=lambda conv: [1.0]
             ),
-            sample_size=0,
+            criteria=MockMetricAssertion(),
         )
+        .given("A user who likes non-sequential building")
+        .when("They build a test out of order")
+        .expect_behavior("It still works", criteria=MockScoreAssertion())
+    )
+
+    # Assert that all fields were set correctly
+    assert scenario.title == "Order Independent Test"
+    assert scenario.sample_size == 50
+    assert scenario.given_context == "A user who likes non-sequential building"
+    assert scenario.when_action == "They build a test out of order"
+    assert len(scenario.then) == 2
+    assert scenario.then[0].metric_definition is not None
+    assert scenario.then[1].expected_behavior == "It still works"
+
+    # Finalize the build to ensure it passes validation
+    try:
+        scenario._finalize_build()
+    except ValidationError as e:
+        pytest.fail(f"Validation failed unexpectedly for order-independent build: {e}")
+
+
+def test_scenario_test_invalid_sample_size():
+    """Tests that a non-positive sample_size raises a ValueError."""
+    with pytest.raises(ValueError, match="sample_size must be a positive integer"):
+        ScenarioTest("Test").given("Given").when("When").sample(0)
 
 
 def test_scenario_test_invalid_max_turns():
-    """Tests that a non-positive max_turns raises a ValidationError."""
-    with pytest.raises(ValidationError, match="max_turns must be a positive integer"):
-        ScenarioTest(
-            title="Test",
-            given="Given",
-            when="When",
-            then=Expectation.behavior(
-                expected_behavior="Then", criteria=MockScoreAssertion()
-            ),
-            sample_size=1,
-            max_turns=0,
-        )
+    """Tests that a non-positive max_turns raises a ValueError."""
+    with pytest.raises(ValueError, match="max_turns must be a positive integer"):
+        ScenarioTest("Test").given("Given").when("When").sample(1).max_turns(0)
 
 
-@pytest.mark.parametrize(
-    "field",
-    ["title", "given", "when"],
-)
-def test_scenario_test_empty_string_fields(field: str):
-    """Tests that empty or whitespace-only string fields raise a ValidationError."""
-    with pytest.raises(ValidationError, match="string fields must not be empty"):
-        kwargs = {
-            "title": "Test",
-            "given": "Given",
-            "when": "When",
-            "then": Expectation.behavior(
-                expected_behavior="Then", criteria=MockScoreAssertion()
-            ),
-            "sample_size": 1,
-        }
-        kwargs[field] = " "
-        ScenarioTest(**kwargs)
+def test_scenario_test_empty_title():
+    """Tests that an empty title raises a ValueError."""
+    with pytest.raises(ValueError, match="title must not be empty"):
+        ScenarioTest(" ")
 
 
-def test_scenario_test_empty_then_list():
-    """Tests that an empty list for the 'then' clause raises a ValidationError."""
-    with pytest.raises(ValidationError, match="'then' clause cannot be an empty list"):
-        ScenarioTest(
-            title="Test",
-            given="Given",
-            when="When",
-            then=[],
-            sample_size=1,
-        )
+def test_scenario_test_empty_given():
+    """Tests that an empty given raises a ValueError."""
+    with pytest.raises(ValueError, match="'given' context must not be empty"):
+        ScenarioTest("Test").given(" ")
+
+
+def test_scenario_test_empty_when():
+    """Tests that an empty when raises a ValueError."""
+    with pytest.raises(ValueError, match="'when' action must not be empty"):
+        ScenarioTest("Test").given("Given").when(" ")
+
+
+def test_scenario_test_incomplete():
+    """Tests that an incomplete ScenarioTest raises a ValidationError."""
+    with pytest.raises(ValidationError, match="ScenarioTest is incomplete"):
+        # Try to use it without adding expectations - validation happens when finalized
+        scenario = ScenarioTest("Test").given("Given").when("When").sample(1)
+        # Force validation by calling _finalize_build
+        scenario._finalize_build()
 
 
 @pytest.mark.parametrize(

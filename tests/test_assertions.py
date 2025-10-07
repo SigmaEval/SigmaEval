@@ -18,17 +18,15 @@ from sigmaeval.assertions import (
 @pytest.fixture
 def basic_scenario():
     """Fixture for a basic ScenarioTest."""
-    return ScenarioTest(
-        title="Test Scenario",
-        given="A test user",
-        when="The user does something",
-        sample_size=2,
-        then=Expectation.behavior(
-            expected_behavior="The app should respond appropriately",
-            criteria=assertions.scores.proportion_gte(
-                min_score=8, proportion=0.9
-            ),
-        ),
+    return (
+        ScenarioTest("Test Scenario")
+        .given("A test user")
+        .when("The user does something")
+        .sample(2)
+        .expect_behavior(
+            "The app should respond appropriately",
+            criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.9),
+        )
     )
 
 

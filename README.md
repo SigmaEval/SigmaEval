@@ -70,11 +70,11 @@ To gather a statistically meaningful sample, the following steps are repeated mu
 
 6.  **Drawing a Conclusion:** After all repetitions are complete, the collection of scores (the sample) is passed to the statistical evaluator you defined (`SuccessRateEvaluator`, `RatingAverageEvaluator`, etc.). This evaluator performs the appropriate statistical tests to determine if the application's performance meets your quality bar, providing a final pass/fail result with statistical confidence.
 
-Each scenario is defined using a `ScenarioTest` object with three main parts:
+Each scenario is defined using a `ScenarioTest` object with a fluent builder API. The test has three main parts that mirror the Behavior-Driven Development (BDD) pattern:
 
-*   **`Given`**: This section establishes the prerequisite state and context for the **User Simulator LLM**. This can include the persona of the user (e.g., a new user, an expert user), the context of the conversation (e.g., a customer's order number), or any other background information.
-*   **`When`**: This describes the specific goal or action the **User Simulator LLM** will try to achieve. SigmaEval uses this to guide the simulation.
-*   **`Then`**: This section specifies the expected outcome. It is an `Expectation` object created with `.behavior()` for qualitative checks or `.metric()` for quantitative checks, and contains the `criteria` to perform the statistical analysis.
+*   **`.given()`**: This method establishes the prerequisite state and context for the **User Simulator LLM**. This can include the persona of the user (e.g., a new user, an expert user), the context of the conversation (e.g., a customer's order number), or any other background information.
+*   **`.when()`**: This method describes the specific goal or action the **User Simulator LLM** will try to achieve. SigmaEval uses this to guide the simulation.
+*   **`.expect_behavior()` / `.expect_metric()`**: These methods specify the expected outcomes. Use `.expect_behavior()` for qualitative checks evaluated by an LLM judge, or `.expect_metric()` for quantitative checks on objective metrics. Both methods accept `criteria` to perform the statistical analysis.
 
 This approach allows for a robust, automated evaluation of the AI's behavior against clear, human-readable standards.
 
@@ -82,7 +82,6 @@ This approach allows for a robust, automated evaluation of the AI's behavior aga
 from sigmaeval import (
     SigmaEval, 
     ScenarioTest, 
-    Expectation, 
     AppResponse,
     ScenarioTestResult,
     assertions,
@@ -92,27 +91,19 @@ import asyncio
 from typing import Dict, Any
 
 # --- Define the ScenarioTest ---
-scenario = ScenarioTest(
-    title="Bot explains its capabilities",
-    given="A new user who has not interacted with the bot before",
-    when="The user asks a general question about the bot's capabilities",
-    sample_size=30,
-    then=[
-        Expectation.behavior(
-            expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
-            criteria=assertions.scores.proportion_gte(
-                min_score=6,
-                proportion=0.90,
-            )
-        ),
-        Expectation.metric(
-            metric=metrics.per_turn.response_latency,
-            criteria=assertions.metrics.proportion_lt(
-                threshold=1.0,
-                proportion=0.90
-            )
-        )
-    ]
+scenario = (
+    ScenarioTest("Bot explains its capabilities")
+    .given("A new user who has not interacted with the bot before")
+    .when("The user asks a general question about the bot's capabilities")
+    .sample(30)
+    .expect_behavior(
+        "Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
+        criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.90)
+    )
+    .expect_metric(
+        metrics.per_turn.response_latency,
+        criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.90)
+    )
 )
 
 # Define the callback to connect SigmaEval to your app
@@ -316,45 +307,43 @@ For more comprehensive validation, SigmaEval supports testing multiple condition
 
 #### Multiple Conditions
 
-You can specify multiple `Expectation` objects in the `then` clause of a `ScenarioTest`. The test will only pass if all expectations are met. Each expectation is evaluated independently (behavioral expectations get their own rubric), but they all share the same `sample_size`. This is useful for testing complex behaviors that have multiple success criteria.
+You can call `.expect_behavior()` or `.expect_metric()` multiple times on a `ScenarioTest` to add multiple expectations. The test will only pass if all expectations are met. Each expectation is evaluated independently (behavioral expectations get their own rubric), but they all share the same `sample_size`. This is useful for testing complex behaviors that have multiple success criteria.
 
-For efficiency, the user simulation is run only once to generate a single set of conversations. This same set of conversations is then judged against each `Expectation`, making this approach ideal for evaluating multiple facets of a single interaction.
+For efficiency, the user simulation is run only once to generate a single set of conversations. This same set of conversations is then judged against each expectation, making this approach ideal for evaluating multiple facets of a single interaction.
 
 ```python
-multi_condition_scenario = ScenarioTest(
-    title="Bot handles a complex multi-part request",
-    given="A user needs to both track a package and ask a question about a different product",
-    when="The user asks to track their package and then asks a follow-up question about a product's warranty",
-    sample_size=30,
-    then=[
-        Expectation.behavior(
-            label="Tracks Package",
-            expected_behavior="Bot successfully provides the tracking status for the user's package.",
-            criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90)
-        ),
-        Expectation.behavior(
-            label="Answers Warranty Question",
-            expected_behavior="Bot accurately answers the user's question about the product warranty.",
-            criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90)
-        )
-    ]
+multi_condition_scenario = (
+    ScenarioTest("Bot handles a complex multi-part request")
+    .given("A user needs to both track a package and ask a question about a different product")
+    .when("The user asks to track their package and then asks a follow-up question about a product's warranty")
+    .sample(30)
+    .expect_behavior(
+        "Bot successfully provides the tracking status for the user's package.",
+        criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90),
+        label="Tracks Package"
+    )
+    .expect_behavior(
+        "Bot accurately answers the user's question about the product warranty.",
+        criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90),
+        label="Answers Warranty Question"
+    )
 )
 ```
 
 #### Multiple Assertions
 
-You can also specify a list of `criteria` in an `Expectation`. The test will only pass if all assertions are met. This is useful for checking multiple statistical properties of the same set of scores or metric values.
+You can also specify a list of `criteria` in a single `.expect_behavior()` or `.expect_metric()` call. The test will only pass if all assertions are met. This is useful for checking multiple statistical properties of the same set of scores or metric values.
 
 For efficiency, the user simulation and judging are run only once to generate a single set of scores. This same set of scores is then evaluated against each criterion.
 
 ```python
-multi_assertion_scenario = ScenarioTest(
-    title="Bot gives a comprehensive and helpful answer",
-    given="A user is asking about the return policy for electronics.",
-    when="The user asks if they can return a laptop after 30 days.",
-    sample_size=50,
-    then=Expectation.behavior(
-        expected_behavior="The bot correctly states that laptops must be returned within 30 days, but also helpfully suggests checking the manufacturer's warranty.",
+multi_assertion_scenario = (
+    ScenarioTest("Bot gives a comprehensive and helpful answer")
+    .given("A user is asking about the return policy for electronics.")
+    .when("The user asks if they can return a laptop after 30 days.")
+    .sample(50)
+    .expect_behavior(
+        "The bot correctly states that laptops must be returned within 30 days, but also helpfully suggests checking the manufacturer's warranty.",
         criteria=[
             assertions.scores.proportion_gte(min_score=7, proportion=0.90),
             assertions.scores.median_gte(threshold=8)
@@ -387,14 +376,14 @@ For more detailed programmatic analysis, the object gives you full access to the
 For the `ScenarioTest` defined in the Python snippet:
 
 ```python
-scenario = ScenarioTest(
-    title="Bot explains its capabilities",
-    given="A new user who has not interacted with the bot before",
-    when="The user asks a general question about the bot's capabilities",
-    sample_size=30,
-    then=Expectation.behavior(
-        expected_behavior="Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
-        # ... evaluator details
+scenario = (
+    ScenarioTest("Bot explains its capabilities")
+    .given("A new user who has not interacted with the bot before")
+    .when("The user asks a general question about the bot's capabilities")
+    .sample(30)
+    .expect_behavior(
+        "Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
+        criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.90)
     )
 )
 ```

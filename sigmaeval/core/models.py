@@ -4,7 +4,7 @@ Data models for the SigmaEval core package.
 
 import numpy as np
 from typing import Any, Dict, List, Union, Optional, Callable
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict, ValidationError
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict, ValidationError, PrivateAttr
 from datetime import datetime
 
 from ..assertions import Assertion, ScoreAssertion, MetricAssertion
@@ -197,40 +197,210 @@ class Expectation(BaseModel):
 class ScenarioTest(BaseModel):
     """
     Defines a test case for a specific behavior of an AI application.
+    
+    This class uses a fluent builder API for improved readability and discoverability.
+    
+    Example:
+        scenario = (
+            ScenarioTest("Bot explains its capabilities")
+            .given("A new user who has not interacted with the bot before")
+            .when("The user asks a general question about the bot's capabilities")
+            .sample(30)
+            .expect_behavior(
+                "Bot lists its main functions: tracking orders, initiating returns, etc.",
+                criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.90)
+            )
+            .expect_metric(
+                metrics.per_turn.response_latency,
+                criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.90)
+            )
+        )
     """
 
     title: str
-    given: str
-    when: str
-    then: Union[Expectation, List[Expectation]]
-    sample_size: int
-    max_turns: int = 10
+    given_context: str = Field(default="", serialization_alias="given", validation_alias="given")
+    when_action: str = Field(default="", serialization_alias="when", validation_alias="when")
+    then: List[Expectation] = Field(default_factory=list)
+    sample_size: int = 0
+    max_turns_value: int = Field(default=10, serialization_alias="max_turns", validation_alias="max_turns")
+    
+    # Use Pydantic private attributes
+    _building: bool = PrivateAttr(default=True)
 
-    @field_validator("then")
-    def validate_then(cls, v):
-        if isinstance(v, list):
-            if not v:
-                raise ValueError("'then' clause cannot be an empty list")
-            return v
-        return [v]
+    model_config = ConfigDict(validate_assignment=True, populate_by_name=True)
 
-    @field_validator("sample_size")
-    def validate_sample_size(cls, v):
-        if v <= 0:
+    def __init__(self, title: str, **kwargs):
+        """
+        Initialize a ScenarioTest with a title.
+        
+        Args:
+            title: The title/name of the test scenario
+        """
+        if not title or not title.strip():
+            raise ValueError("title must not be empty")
+        super().__init__(title=title, **kwargs)
+        # Private attribute is automatically set to True by default
+    
+    def given(self, context: str) -> "ScenarioTest":
+        """
+        Set the 'Given' context for the test scenario.
+        
+        Args:
+            context: The prerequisite state and context for the user simulator
+            
+        Returns:
+            Self for method chaining
+        """
+        if not context or not context.strip():
+            raise ValueError("'given' context must not be empty")
+        self.given_context = context
+        return self
+    
+    def when(self, action: str) -> "ScenarioTest":
+        """
+        Set the 'When' action/goal for the test scenario.
+        
+        Args:
+            action: The specific goal or action the user simulator will try to achieve
+            
+        Returns:
+            Self for method chaining
+        """
+        if not action or not action.strip():
+            raise ValueError("'when' action must not be empty")
+        self.when_action = action
+        return self
+    
+    def sample(self, size: int) -> "ScenarioTest":
+        """
+        Set the sample size for the test scenario.
+        
+        Args:
+            size: The number of conversations to simulate
+            
+        Returns:
+            Self for method chaining
+        """
+        if size <= 0:
             raise ValueError("sample_size must be a positive integer")
-        return v
-
-    @field_validator("max_turns")
-    def validate_max_turns(cls, v):
-        if v <= 0:
+        self.__dict__["sample_size"] = size
+        return self
+    
+    def max_turns(self, turns: int) -> "ScenarioTest":
+        """
+        Set the maximum number of turns per conversation.
+        
+        Args:
+            turns: The maximum number of turns allowed in each conversation
+            
+        Returns:
+            Self for method chaining
+        """
+        if turns <= 0:
             raise ValueError("max_turns must be a positive integer")
-        return v
-
-    @field_validator("title", "given", "when")
-    def validate_non_empty_strings(cls, v):
-        if not v or not v.strip():
-            raise ValueError("string fields must not be empty")
-        return v
+        self.max_turns_value = turns
+        return self
+    
+    def expect_behavior(
+        self,
+        expected_behavior: str,
+        criteria: Union[ScoreAssertion, List[ScoreAssertion]],
+        label: Optional[str] = None,
+    ) -> "ScenarioTest":
+        """
+        Add a behavioral expectation to be evaluated by an LLM judge.
+        
+        Args:
+            expected_behavior: A description of the desired behavior
+            criteria: A single or list of statistical assertions to run on the judge's scores
+            label: An optional short name for this expectation
+            
+        Returns:
+            Self for method chaining
+        """
+        criteria_list = criteria if isinstance(criteria, list) else [criteria]
+        expectation = Expectation(
+            expected_behavior=expected_behavior,
+            criteria=criteria_list,
+            label=label
+        )
+        # Get the current then list and append to it
+        self.__dict__["then"].append(expectation)
+        return self
+    
+    def expect_metric(
+        self,
+        metric: MetricDefinition,
+        criteria: Union[MetricAssertion, List[MetricAssertion]],
+        label: Optional[str] = None,
+    ) -> "ScenarioTest":
+        """
+        Add a metric-based expectation to be evaluated on objective data.
+        
+        Args:
+            metric: The metric to measure
+            criteria: A single or list of statistical assertions to run on the metric data
+            label: An optional short name for this expectation
+            
+        Returns:
+            Self for method chaining
+        """
+        criteria_list = criteria if isinstance(criteria, list) else [criteria]
+        expectation = Expectation(
+            metric_definition=metric,
+            criteria=criteria_list,
+            label=label
+        )
+        # Get the current then list and append to it
+        self.__dict__["then"].append(expectation)
+        return self
+    
+    def _finalize_build(self) -> None:
+        """
+        Internal method to finalize the build and trigger validation.
+        Called by the framework before using the ScenarioTest.
+        """
+        self._building = False
+        # Now trigger validation by re-validating the model
+        self.model_validate(self)
+    
+    @model_validator(mode="after")
+    def validate_complete(self) -> "ScenarioTest":
+        """
+        Validate that all required fields are set before the test can be executed.
+        This validation is skipped during builder pattern construction.
+        """
+        # Skip validation if we're still in builder mode
+        if self._building:
+            return self
+        
+        errors = []
+        
+        # Access the fields
+        given_value = self.given_context
+        when_value = self.when_action
+        sample_size_value = self.sample_size
+        then_value = self.then
+        
+        if not given_value or not given_value.strip():
+            errors.append("'given' context must be set using .given()")
+        
+        if not when_value or not when_value.strip():
+            errors.append("'when' action must be set using .when()")
+        
+        if sample_size_value <= 0:
+            errors.append("sample_size must be set using .sample()")
+        
+        if not then_value:
+            errors.append("at least one expectation must be added using .expect_behavior() or .expect_metric()")
+        
+        if errors:
+            raise ValueError(
+                "ScenarioTest is incomplete. Missing required configuration:\n  - "
+                + "\n  - ".join(errors)
+            )
+        
+        return self
 
 
 class RetryConfig(BaseModel):

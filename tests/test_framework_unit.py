@@ -75,19 +75,19 @@ async def test_assertion_significance_level_overrides_constructor(
     mock_judge_conversations.return_value = ([10.0], ["reason"])
 
     # Define a scenario with a specific significance level in the assertion
-    scenario = ScenarioTest(
-        title="Test Override",
-        given="A user",
-        when="An action",
-        sample_size=1,
-        then=Expectation.behavior(
-            expected_behavior="Something happens",
+    scenario = (
+        ScenarioTest("Test Override")
+        .given("A user")
+        .when("An action")
+        .sample(1)
+        .expect_behavior(
+            "Something happens",
             criteria=assertions.scores.proportion_gte(
                 min_score=8,
                 proportion=0.9,
                 significance_level=0.99,  # This should override the constructor value
             ),
-        ),
+        )
     )
 
     # Initialize SigmaEval with a different significance level
@@ -131,23 +131,21 @@ async def test_mocked_multiple_expectations_all_pass(
     mock_evaluator_class.return_value = mock_evaluator_instance
 
     # 2. Define Scenario with two expectations
-    scenario = ScenarioTest(
-        title="Multi-Expectation Test (All Pass)",
-        given="A user",
-        when="An action",
-        sample_size=2,
-        then=[
-            Expectation.behavior(
-                label="Expectation 1",
-                expected_behavior="Criteria 1",
-                criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
-            ),
-            Expectation.behavior(
-                label="Expectation 2",
-                expected_behavior="Criteria 2",
-                criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.8),
-            ),
-        ],
+    scenario = (
+        ScenarioTest("Multi-Expectation Test (All Pass)")
+        .given("A user")
+        .when("An action")
+        .sample(2)
+        .expect_behavior(
+            "Criteria 1",
+            criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
+            label="Expectation 1",
+        )
+        .expect_behavior(
+            "Criteria 2",
+            criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.8),
+            label="Expectation 2",
+        )
     )
 
     # 3. Run evaluation
@@ -197,23 +195,21 @@ async def test_mocked_multiple_expectations_one_fails(
     mock_evaluator_class.return_value = mock_evaluator_instance
 
     # 2. Define Scenario with two expectations
-    scenario = ScenarioTest(
-        title="Multi-Expectation Test (One Fail)",
-        given="A user",
-        when="An action",
-        sample_size=2,
-        then=[
-            Expectation.behavior(
-                label="Expectation 1",
-                expected_behavior="Criteria 1",
-                criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
-            ),
-            Expectation.behavior(
-                label="Expectation 2",
-                expected_behavior="Criteria 2",
-                criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.8),
-            ),
-        ],
+    scenario = (
+        ScenarioTest("Multi-Expectation Test (One Fail)")
+        .given("A user")
+        .when("An action")
+        .sample(2)
+        .expect_behavior(
+            "Criteria 1",
+            criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
+            label="Expectation 1",
+        )
+        .expect_behavior(
+            "Criteria 2",
+            criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.8),
+            label="Expectation 2",
+        )
     )
 
     # 3. Run evaluation
@@ -260,19 +256,19 @@ async def test_mocked_multiple_assertions_all_pass(
     mock_evaluator_class.return_value = mock_evaluator_instance
 
     # 2. Define Scenario with two assertions
-    scenario = ScenarioTest(
-        title="Multi-Assertion Test (All Pass)",
-        given="A user",
-        when="An action",
-        sample_size=2,
-        then=Expectation.behavior(
-            label="Expectation with multiple assertions",
-            expected_behavior="Criteria 1",
+    scenario = (
+        ScenarioTest("Multi-Assertion Test (All Pass)")
+        .given("A user")
+        .when("An action")
+        .sample(2)
+        .expect_behavior(
+            "Criteria 1",
             criteria=[
                 assertions.scores.proportion_gte(min_score=7, proportion=0.8),
                 assertions.scores.proportion_gte(min_score=8, proportion=0.8),
             ],
-        ),
+            label="Expectation with multiple assertions",
+        )
     )
 
     # 3. Run evaluation
@@ -311,16 +307,16 @@ async def test_scenario_with_only_behavioral_expectation(
     mock_judge_conversations.return_value = ([8.0, 9.0], ["reason", "reason"])
 
     # 2. Define Scenario
-    scenario = ScenarioTest(
-        title="Behavioral-Only Test",
-        given="A user",
-        when="An action",
-        sample_size=2,
-        then=Expectation.behavior(
-            label="Behavioral Check",
-            expected_behavior="Criteria 1",
+    scenario = (
+        ScenarioTest("Behavioral-Only Test")
+        .given("A user")
+        .when("An action")
+        .sample(2)
+        .expect_behavior(
+            "Criteria 1",
             criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
-        ),
+            label="Behavioral Check",
+        )
     )
 
     # 3. Run evaluation
@@ -370,16 +366,16 @@ async def test_scenario_with_only_metric_expectation(
     ]
 
     # 2. Define Scenario
-    scenario = ScenarioTest(
-        title="Metric-Only Test",
-        given="A user",
-        when="An action",
-        sample_size=2,
-        then=Expectation.metric(
-            label="Metric Check",
-            metric=metrics.per_turn.response_latency,
+    scenario = (
+        ScenarioTest("Metric-Only Test")
+        .given("A user")
+        .when("An action")
+        .sample(2)
+        .expect_metric(
+            metrics.per_turn.response_latency,
             criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.9),
-        ),
+            label="Metric Check",
+        )
     )
 
     # 3. Run evaluation

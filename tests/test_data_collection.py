@@ -16,15 +16,15 @@ from sigmaeval import assertions
 
 
 # A simple scenario for testing data collection
-test_scenario = ScenarioTest(
-    title="Test Timestamp Recording",
-    given="A user wants to check timestamps",
-    when="An interaction occurs",
-    sample_size=1,
-    then=Expectation.behavior(
-        expected_behavior="Timestamps are recorded for each turn",
+test_scenario = (
+    ScenarioTest("Test Timestamp Recording")
+    .given("A user wants to check timestamps")
+    .when("An interaction occurs")
+    .sample(1)
+    .expect_behavior(
+        "Timestamps are recorded for each turn",
         criteria=assertions.scores.proportion_gte(min_score=1, proportion=1.0),
-    ),
+    )
 )
 
 

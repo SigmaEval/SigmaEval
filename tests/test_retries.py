@@ -27,10 +27,10 @@ class _FakeResponse:
 def mock_scenario():
     """Provides a mock scenario object for tests."""
     return SimpleNamespace(
-        given="given",
-        when="when",
+        given_context="given",
+        when_action="when",
         then=[SimpleNamespace(expected_behavior="expected", label=None)],
-        max_turns=1,
+        max_turns_value=1,
     )
 
 

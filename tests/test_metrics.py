@@ -14,17 +14,15 @@ from datetime import datetime, timedelta
 @pytest.fixture
 def metric_scenario():
     """Fixture for a ScenarioTest with a MetricExpectation."""
-    return ScenarioTest(
-        title="Test Metric Scenario",
-        given="A test user",
-        when="The user does something",
-        sample_size=10,
-        then=Expectation.metric(
-            metric=metrics.per_turn.response_latency,
-            criteria=assertions.metrics.proportion_lt(
-                threshold=1.0, proportion=0.9
-            ),
-        ),
+    return (
+        ScenarioTest("Test Metric Scenario")
+        .given("A test user")
+        .when("The user does something")
+        .sample(10)
+        .expect_metric(
+            metrics.per_turn.response_latency,
+            criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.9),
+        )
     )
 
 @pytest.mark.asyncio
