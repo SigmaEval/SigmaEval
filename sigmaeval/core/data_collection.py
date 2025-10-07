@@ -34,7 +34,7 @@ from .exceptions import LLMCommunicationError
 from .writing_styles import _generate_writing_style
 from .models import WritingStyleConfig
 from .utils import _extract_json_from_response
-from .models import BehavioralExpectation
+from .models import Expectation
 
 logger = logging.getLogger("sigmaeval")
 
@@ -217,7 +217,7 @@ async def _run_single_interaction(
 
 async def _judge_interaction(
     scenario: ScenarioTest,
-    expectation: BehavioralExpectation,
+    expectation: Expectation,
     conversation: ConversationRecord,
     rubric: str,
     judge_model: str,
@@ -368,7 +368,7 @@ async def _collect_conversations(
 
 async def _judge_conversations(
     scenario: ScenarioTest,
-    expectation: BehavioralExpectation,
+    expectation: Expectation,
     conversations: List[ConversationRecord],
     rubric: str,
     judge_model: str,

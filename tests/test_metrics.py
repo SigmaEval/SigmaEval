@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 from sigmaeval import (
     SigmaEval,
     ScenarioTest,
-    MetricExpectation,
+    Expectation,
     assertions,
     metrics,
     AppResponse,
@@ -19,7 +19,7 @@ def metric_scenario():
         given="A test user",
         when="The user does something",
         sample_size=10,
-        then=MetricExpectation(
+        then=Expectation.metric(
             metric=metrics.per_turn.response_latency,
             criteria=assertions.metrics.proportion_lt(
                 threshold=1.0, proportion=0.9
@@ -75,7 +75,7 @@ async def test_metric_evaluation_total_assistant_response_time(metric_scenario):
     """
     metric_scenario.then[
         0
-    ].metric = metrics.per_conversation.total_assistant_response_time
+    ].metric_definition = metrics.per_conversation.total_assistant_response_time
     metric_scenario.then[0].criteria = assertions.metrics.median_lt(threshold=10.0)
     sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
 
@@ -131,7 +131,7 @@ async def test_metric_evaluation_response_length_chars(metric_scenario):
     """
     Tests a metric evaluation with a response_length_chars metric (per_turn).
     """
-    metric_scenario.then[0].metric = metrics.per_turn.response_length_chars
+    metric_scenario.then[0].metric_definition = metrics.per_turn.response_length_chars
     metric_scenario.then[0].criteria = assertions.metrics.proportion_lt(
         threshold=15, proportion=0.95
     )
@@ -164,7 +164,7 @@ async def test_metric_evaluation_response_length_chars(metric_scenario):
 
         # The metric calculator returns a list of values. We can check the length
         # of this list to confirm the number of observations.
-        metric_values = metric_scenario.then[0].metric.calculator(conversations[0])
+        metric_values = metric_scenario.then[0].metric_definition.calculator(conversations[0])
         assert len(metric_values) * len(conversations) == 60
 
         results = await sigma_eval.evaluate(
@@ -183,7 +183,7 @@ async def test_metric_evaluation_total_assistant_response_chars(metric_scenario)
     """
     metric_scenario.then[
         0
-    ].metric = metrics.per_conversation.total_assistant_response_chars
+    ].metric_definition = metrics.per_conversation.total_assistant_response_chars
     metric_scenario.then[0].criteria = assertions.metrics.median_lt(threshold=20.0)
     sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
 

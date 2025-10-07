@@ -1,4 +1,4 @@
-from .core.models import Metric, ConversationRecord
+from .core.models import MetricDefinition, ConversationRecord
 from typing import List
 
 
@@ -56,12 +56,12 @@ def _calculate_total_assistant_response_chars(
 
 class PerTurn:
     def __init__(self):
-        self.response_latency = Metric(
+        self.response_latency = MetricDefinition(
             name="response_latency",
             scope="per_turn",
             calculator=_calculate_response_latency,
         )
-        self.response_length_chars = Metric(
+        self.response_length_chars = MetricDefinition(
             name="response_length_chars",
             scope="per_turn",
             calculator=_calculate_response_length_chars,
@@ -70,17 +70,17 @@ class PerTurn:
 
 class PerConversation:
     def __init__(self):
-        self.turn_count = Metric(
+        self.turn_count = MetricDefinition(
             name="turn_count",
             scope="per_conversation",
             calculator=_calculate_turn_count,
         )
-        self.total_assistant_response_time = Metric(
+        self.total_assistant_response_time = MetricDefinition(
             name="total_assistant_response_time",
             scope="per_conversation",
             calculator=_calculate_total_assistant_response_time,
         )
-        self.total_assistant_response_chars = Metric(
+        self.total_assistant_response_chars = MetricDefinition(
             name="total_assistant_response_chars",
             scope="per_conversation",
             calculator=_calculate_total_assistant_response_chars,

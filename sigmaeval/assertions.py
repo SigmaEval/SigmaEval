@@ -8,6 +8,18 @@ class Assertion(BaseModel):
     pass
 
 
+class ScoreAssertion(Assertion):
+    """Base class for assertions on scores."""
+
+    pass
+
+
+class MetricAssertion(Assertion):
+    """Base class for assertions on metrics."""
+
+    pass
+
+
 class ProportionAssertion(Assertion):
     """
     Asserts that the proportion of outcomes meeting a threshold satisfies a
@@ -41,20 +53,36 @@ class MedianAssertion(Assertion):
     )
 
 
+class ScoreProportionAssertion(ProportionAssertion, ScoreAssertion):
+    pass
+
+
+class ScoreMedianAssertion(MedianAssertion, ScoreAssertion):
+    pass
+
+
+class MetricProportionAssertion(ProportionAssertion, MetricAssertion):
+    pass
+
+
+class MetricMedianAssertion(MedianAssertion, MetricAssertion):
+    pass
+
+
 class Scores:
     def proportion_gte(
         self,
         min_score: int,
         proportion: float,
         significance_level: Optional[float] = None,
-    ) -> ProportionAssertion:
+    ) -> ScoreProportionAssertion:
         if not (1 <= min_score <= 10):
             raise ValueError("min_score must be between 1 and 10")
         if not (0 <= proportion <= 1):
             raise ValueError("proportion must be between 0 and 1")
         if significance_level is not None and not (0 < significance_level < 1):
             raise ValueError("significance_level must be between 0 and 1")
-        return ProportionAssertion(
+        return ScoreProportionAssertion(
             threshold=min_score,
             proportion=proportion,
             comparison="gte",
@@ -63,12 +91,12 @@ class Scores:
 
     def median_gte(
         self, threshold: float, significance_level: Optional[float] = None
-    ) -> MedianAssertion:
+    ) -> ScoreMedianAssertion:
         if not (1 <= threshold <= 10):
             raise ValueError("threshold must be between 1 and 10")
         if significance_level is not None and not (0 < significance_level < 1):
             raise ValueError("significance_level must be between 0 and 1")
-        return MedianAssertion(
+        return ScoreMedianAssertion(
             threshold=threshold,
             comparison="gte",
             significance_level=significance_level,
@@ -81,12 +109,12 @@ class Metrics:
         threshold: float,
         proportion: float,
         significance_level: Optional[float] = None,
-    ) -> ProportionAssertion:
+    ) -> MetricProportionAssertion:
         if not (0 <= proportion <= 1):
             raise ValueError("proportion must be between 0 and 1")
         if significance_level is not None and not (0 < significance_level < 1):
             raise ValueError("significance_level must be between 0 and 1")
-        return ProportionAssertion(
+        return MetricProportionAssertion(
             threshold=threshold,
             proportion=proportion,
             comparison="lte",
@@ -95,10 +123,10 @@ class Metrics:
 
     def median_lt(
         self, threshold: float, significance_level: Optional[float] = None
-    ) -> MedianAssertion:
+    ) -> MetricMedianAssertion:
         if significance_level is not None and not (0 < significance_level < 1):
             raise ValueError("significance_level must be between 0 and 1")
-        return MedianAssertion(
+        return MetricMedianAssertion(
             threshold=threshold,
             comparison="lte",
             significance_level=significance_level,

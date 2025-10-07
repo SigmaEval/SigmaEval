@@ -8,12 +8,12 @@ This module contains all prompt templates used for:
 """
 
 from typing import List, Dict
-from .models import ScenarioTest, ConversationTurn, BehavioralExpectation
+from .models import ScenarioTest, ConversationTurn, Expectation
 
 
 def _build_rubric_generation_prompt(
     scenario: ScenarioTest,
-    expectation: BehavioralExpectation,
+    expectation: Expectation,
 ) -> str:
     """
     Build the prompt for generating a rubric from a ScenarioTest.
@@ -151,7 +151,7 @@ Set "continue" to false when:
 
 def _build_judge_prompt(
     scenario: ScenarioTest,
-    expectation: BehavioralExpectation,
+    expectation: Expectation,
     conversation_history: list[ConversationTurn],
     rubric: str,
 ) -> str:

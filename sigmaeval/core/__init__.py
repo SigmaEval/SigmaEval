@@ -1,6 +1,6 @@
 from .models import (
     AppResponse,
-    BehavioralExpectation,
+    Expectation,
     ScenarioTest,
     ScenarioTestResult,
     Turn,
@@ -13,7 +13,7 @@ from .framework import SigmaEval
 
 __all__ = [
     "AppResponse",
-    "BehavioralExpectation",
+    "Expectation",
     "ScenarioTest",
     "ScenarioTestResult",
     "SigmaEval",

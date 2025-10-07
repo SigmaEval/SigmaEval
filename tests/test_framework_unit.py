@@ -11,8 +11,7 @@ import pytest
 from sigmaeval import (
     SigmaEval,
     ScenarioTest,
-    BehavioralExpectation,
-    MetricExpectation,
+    Expectation,
     assertions,
     metrics,
 )
@@ -81,7 +80,7 @@ async def test_assertion_significance_level_overrides_constructor(
         given="A user",
         when="An action",
         sample_size=1,
-        then=BehavioralExpectation(
+        then=Expectation.behavior(
             expected_behavior="Something happens",
             criteria=assertions.scores.proportion_gte(
                 min_score=8,
@@ -138,12 +137,12 @@ async def test_mocked_multiple_expectations_all_pass(
         when="An action",
         sample_size=2,
         then=[
-            BehavioralExpectation(
+            Expectation.behavior(
                 label="Expectation 1",
                 expected_behavior="Criteria 1",
                 criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
             ),
-            BehavioralExpectation(
+            Expectation.behavior(
                 label="Expectation 2",
                 expected_behavior="Criteria 2",
                 criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.8),
@@ -204,12 +203,12 @@ async def test_mocked_multiple_expectations_one_fails(
         when="An action",
         sample_size=2,
         then=[
-            BehavioralExpectation(
+            Expectation.behavior(
                 label="Expectation 1",
                 expected_behavior="Criteria 1",
                 criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
             ),
-            BehavioralExpectation(
+            Expectation.behavior(
                 label="Expectation 2",
                 expected_behavior="Criteria 2",
                 criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.8),
@@ -266,7 +265,7 @@ async def test_mocked_multiple_assertions_all_pass(
         given="A user",
         when="An action",
         sample_size=2,
-        then=BehavioralExpectation(
+        then=Expectation.behavior(
             label="Expectation with multiple assertions",
             expected_behavior="Criteria 1",
             criteria=[
@@ -317,7 +316,7 @@ async def test_scenario_with_only_behavioral_expectation(
         given="A user",
         when="An action",
         sample_size=2,
-        then=BehavioralExpectation(
+        then=Expectation.behavior(
             label="Behavioral Check",
             expected_behavior="Criteria 1",
             criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
@@ -376,7 +375,7 @@ async def test_scenario_with_only_metric_expectation(
         given="A user",
         when="An action",
         sample_size=2,
-        then=MetricExpectation(
+        then=Expectation.metric(
             label="Metric Check",
             metric=metrics.per_turn.response_latency,
             criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.9),

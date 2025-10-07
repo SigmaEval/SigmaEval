@@ -4,13 +4,13 @@ Data models for the SigmaEval core package.
 
 import numpy as np
 from typing import Any, Dict, List, Union, Optional, Callable
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict, ValidationError
 from datetime import datetime
 
-from ..assertions import Assertion
+from ..assertions import Assertion, ScoreAssertion, MetricAssertion
 
 
-class Metric(BaseModel):
+class MetricDefinition(BaseModel):
     name: str
     scope: str  # "per_turn" or "per_conversation"
     # The calculator function will take a conversation and return a list of values
@@ -108,48 +108,90 @@ class AppResponse(BaseModel):
     state: Dict[str, Any]
 
 
-class BehavioralExpectation(BaseModel):
+class Expectation(BaseModel):
     """
     Defines the expected outcome and evaluation method for a scenario test case.
     
+    Use the factory methods to create instances:
+    - Expectation.behavior() for LLM-judged behavioral expectations
+    - Expectation.metric() for objective metric-based expectations
+    
     Attributes:
         expected_behavior: Description of the expected behavior (passed to Judge LLM)
+        metric_definition: The metric to be measured (e.g., response_latency).
         criteria: Statistical criteria to assess the results
         label: An optional short name for the expectation, which will be displayed in logs and the evaluation results summary.
     """
-    expected_behavior: str = Field(..., description="Expected behavior description")
-    criteria: Union[Assertion, List[Assertion]] = Field(..., description="Criteria for statistical analysis")
-    label: str | None = Field(None, description="Optional short name for the expectation, which will be displayed in logs and the evaluation results summary.")
+    expected_behavior: Optional[str] = Field(None, description="Expected behavior description")
+    metric_definition: Optional[MetricDefinition] = Field(None, description="The metric to be measured.")
+    criteria: List[Assertion] = Field(..., description="Criteria for statistical analysis")
+    label: Optional[str] = Field(None, description="Optional short name for the expectation, which will be displayed in logs and the evaluation results summary.")
 
-    @field_validator("criteria")
-    def validate_criteria(cls, v):
-        if isinstance(v, list):
-            if not v:
-                raise ValueError("'criteria' cannot be an empty list")
-            return v
-        return [v]
-
-
-class MetricExpectation(BaseModel):
-    """
-    Defines an objective, quantitative test for an AI application.
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     
-    Attributes:
-        metric: The metric to be measured (e.g., response_latency).
-        criteria: Statistical criteria to assess the measured values.
-        label: An optional short name for the expectation.
-    """
-    metric: Metric = Field(..., description="The metric to be measured.")
-    criteria: Union[Assertion, List[Assertion]] = Field(..., description="Criteria for statistical analysis")
-    label: str | None = Field(None, description="Optional short name for the expectation.")
+    @model_validator(mode="before")
+    @classmethod
+    def check_behavior_or_metric(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if (
+                data.get("expected_behavior") is not None
+                and data.get("metric_definition") is not None
+            ):
+                raise ValueError(
+                    "An Expectation cannot have both 'expected_behavior' and 'metric_definition' defined."
+                )
+            if (
+                data.get("expected_behavior") is None
+                and data.get("metric_definition") is None
+            ):
+                raise ValueError(
+                    "An Expectation must have either 'expected_behavior' or 'metric_definition' defined."
+                )
+        return data
 
     @field_validator("criteria")
     def validate_criteria(cls, v):
-        if isinstance(v, list):
-            if not v:
-                raise ValueError("'criteria' cannot be an empty list")
-            return v
-        return [v]
+        if not v:
+            raise ValueError("'criteria' cannot be an empty list")
+        return v
+    
+    @classmethod
+    def behavior(
+        cls,
+        expected_behavior: str,
+        criteria: Union[ScoreAssertion, List[ScoreAssertion]],
+        label: Optional[str] = None,
+    ) -> "Expectation":
+        """
+        Creates a behavioral expectation, which is evaluated by an LLM judge.
+        
+        Args:
+            expected_behavior: A description of the desired behavior.
+            criteria: A single or list of statistical assertions to run on the judge's scores.
+            label: An optional short name for this expectation.
+        """
+        criteria_list = criteria if isinstance(criteria, list) else [criteria]
+        return cls(
+            expected_behavior=expected_behavior, criteria=criteria_list, label=label
+        )
+
+    @classmethod
+    def metric(
+        cls,
+        metric: MetricDefinition,
+        criteria: Union[MetricAssertion, List[MetricAssertion]],
+        label: Optional[str] = None,
+    ) -> "Expectation":
+        """
+        Creates a metric-based expectation, which is evaluated on objective data.
+        
+        Args:
+            metric: The metric to measure.
+            criteria: A single or list of statistical assertions to run on the metric data.
+            label: An optional short name for this expectation.
+        """
+        criteria_list = criteria if isinstance(criteria, list) else [criteria]
+        return cls(metric_definition=metric, criteria=criteria_list, label=label)
 
 
 class ScenarioTest(BaseModel):
@@ -160,7 +202,7 @@ class ScenarioTest(BaseModel):
     title: str
     given: str
     when: str
-    then: Union["BehavioralExpectation", "MetricExpectation", List[Union["BehavioralExpectation", "MetricExpectation"]]]
+    then: Union[Expectation, List[Expectation]]
     sample_size: int
     max_turns: int = 10
 

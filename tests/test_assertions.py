@@ -3,11 +3,16 @@ from unittest.mock import AsyncMock
 
 from sigmaeval import (
     ScenarioTest,
-    BehavioralExpectation,
+    Expectation,
     assertions,
     AppResponse,
 )
-from sigmaeval.assertions import ProportionAssertion, MedianAssertion
+from sigmaeval.assertions import (
+    ScoreProportionAssertion,
+    ScoreMedianAssertion,
+    MetricProportionAssertion,
+    MetricMedianAssertion,
+)
 
 
 @pytest.fixture
@@ -18,7 +23,7 @@ def basic_scenario():
         given="A test user",
         when="The user does something",
         sample_size=2,
-        then=BehavioralExpectation(
+        then=Expectation.behavior(
             expected_behavior="The app should respond appropriately",
             criteria=assertions.scores.proportion_gte(
                 min_score=8, proportion=0.9
@@ -40,7 +45,7 @@ def test_proportion_gte_returns_correct_dataclass():
     crit = assertions.scores.proportion_gte(
         min_score=8, proportion=0.9, significance_level=0.01
     )
-    assert isinstance(crit, ProportionAssertion)
+    assert isinstance(crit, ScoreProportionAssertion)
     assert crit.threshold == 8
     assert crit.proportion == 0.9
     assert crit.comparison == "gte"
@@ -52,7 +57,7 @@ def test_median_gte_returns_correct_dataclass():
     Tests that assertions.scores.median_gte creates the correct dataclass.
     """
     crit = assertions.scores.median_gte(threshold=7.5, significance_level=0.05)
-    assert isinstance(crit, MedianAssertion)
+    assert isinstance(crit, ScoreMedianAssertion)
     assert crit.threshold == 7.5
     assert crit.comparison == "gte"
     assert crit.significance_level == 0.05
@@ -65,7 +70,7 @@ def test_proportion_lt_returns_correct_dataclass():
     crit = assertions.metrics.proportion_lt(
         threshold=1.5, proportion=0.95, significance_level=0.01
     )
-    assert isinstance(crit, ProportionAssertion)
+    assert isinstance(crit, MetricProportionAssertion)
     assert crit.threshold == 1.5
     assert crit.proportion == 0.95
     assert crit.comparison == "lte"
@@ -77,7 +82,7 @@ def test_median_lt_returns_correct_dataclass():
     Tests that assertions.metrics.median_lt creates the correct dataclass.
     """
     crit = assertions.metrics.median_lt(threshold=200.0, significance_level=0.05)
-    assert isinstance(crit, MedianAssertion)
+    assert isinstance(crit, MetricMedianAssertion)
     assert crit.threshold == 200.0
     assert crit.comparison == "lte"
     assert crit.significance_level == 0.05

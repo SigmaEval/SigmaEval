@@ -9,7 +9,7 @@ from datetime import datetime
 from sigmaeval.core.data_collection import _run_single_interaction
 from sigmaeval.core.models import (
     ScenarioTest,
-    BehavioralExpectation,
+    Expectation,
     AppResponse,
 )
 from sigmaeval import assertions
@@ -21,7 +21,7 @@ test_scenario = ScenarioTest(
     given="A user wants to check timestamps",
     when="An interaction occurs",
     sample_size=1,
-    then=BehavioralExpectation(
+    then=Expectation.behavior(
         expected_behavior="Timestamps are recorded for each turn",
         criteria=assertions.scores.proportion_gte(min_score=1, proportion=1.0),
     ),

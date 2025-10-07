@@ -13,8 +13,7 @@ import pytest
 from sigmaeval import (
     SigmaEval,
     ScenarioTest,
-    BehavioralExpectation,
-    MetricExpectation,
+    Expectation,
     AppResponse,
     ScenarioTestResult,
     RetryConfig,
@@ -52,7 +51,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         when="The user asks how to start a return.",
         sample_size=sample_size,
         then=[
-            BehavioralExpectation(
+            Expectation.behavior(
                 label="Correctness",
                 expected_behavior=(
                     "The bot should acknowledge the user's request, ask for an order "
@@ -66,7 +65,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
                     assertions.scores.median_gte(threshold=6.0),
                 ],
             ),
-            MetricExpectation(
+            Expectation.metric(
                 label="Responsiveness",
                 metric=metrics.per_turn.response_latency,
                 criteria=assertions.metrics.median_lt(threshold=10.0),
@@ -169,7 +168,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         when="The user asks how to start a return.",
         sample_size=sample_size,
         then=[
-            BehavioralExpectation(
+            Expectation.behavior(
                 label="Correctness",
                 expected_behavior=(
                     "The bot should acknowledge the user's request, ask for an order "
@@ -180,7 +179,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
                     proportion=0.9,
                 ),
             ),
-            MetricExpectation(
+            Expectation.metric(
                 label="Responsiveness",
                 metric=metrics.per_turn.response_latency,
                 criteria=assertions.metrics.median_lt(threshold=0.1),
@@ -269,7 +268,7 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
         given="A user starts a conversation.",
         when="The user says 'hello'.",
         sample_size=sample_size,
-        then=BehavioralExpectation(
+        then=Expectation.behavior(
             expected_behavior="The bot should respond with a friendly greeting.",
             criteria=assertions.scores.proportion_gte(
                 min_score=6,
@@ -340,7 +339,7 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         given="A user",
         when="The user says hi",
         sample_size=sample_size,
-        then=BehavioralExpectation(
+        then=Expectation.behavior(
             expected_behavior="The bot says hi back.",
             criteria=assertions.scores.proportion_gte(
                 min_score=6,
@@ -355,7 +354,7 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         given="A user",
         when="The user says bye",
         sample_size=sample_size,
-        then=BehavioralExpectation(
+        then=Expectation.behavior(
             expected_behavior="The bot says bye back.",
             criteria=assertions.scores.proportion_gte(
                 min_score=6,

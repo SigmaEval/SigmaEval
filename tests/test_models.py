@@ -1,11 +1,16 @@
 import pytest
 from pydantic import ValidationError
 
-from sigmaeval.core.models import ScenarioTest, BehavioralExpectation
-from sigmaeval.assertions import Assertion
+from sigmaeval.core.models import ScenarioTest, Expectation, MetricDefinition
+from sigmaeval.assertions import ScoreAssertion, MetricAssertion
 
 
-class MockAssertion(Assertion):
+class MockScoreAssertion(ScoreAssertion):
+    def __call__(self, scores: list[float]) -> dict:
+        return {"passed": True}
+
+
+class MockMetricAssertion(MetricAssertion):
     def __call__(self, scores: list[float]) -> dict:
         return {"passed": True}
 
@@ -16,15 +21,15 @@ def test_scenario_test_valid():
         title="Test Scenario",
         given="A user",
         when="They do something",
-        then=BehavioralExpectation(
+        then=Expectation.behavior(
             expected_behavior="Something happens",
-            criteria=MockAssertion(),
+            criteria=MockScoreAssertion(),
         ),
         sample_size=10,
     )
     assert scenario.title == "Test Scenario"
     assert scenario.sample_size == 10
-    assert isinstance(scenario.then[0], BehavioralExpectation)
+    assert isinstance(scenario.then[0], Expectation)
 
 
 def test_scenario_test_invalid_sample_size():
@@ -34,8 +39,8 @@ def test_scenario_test_invalid_sample_size():
             title="Test",
             given="Given",
             when="When",
-            then=BehavioralExpectation(
-                expected_behavior="Then", criteria=MockAssertion()
+            then=Expectation.behavior(
+                expected_behavior="Then", criteria=MockScoreAssertion()
             ),
             sample_size=0,
         )
@@ -48,8 +53,8 @@ def test_scenario_test_invalid_max_turns():
             title="Test",
             given="Given",
             when="When",
-            then=BehavioralExpectation(
-                expected_behavior="Then", criteria=MockAssertion()
+            then=Expectation.behavior(
+                expected_behavior="Then", criteria=MockScoreAssertion()
             ),
             sample_size=1,
             max_turns=0,
@@ -67,8 +72,8 @@ def test_scenario_test_empty_string_fields(field: str):
             "title": "Test",
             "given": "Given",
             "when": "When",
-            "then": BehavioralExpectation(
-                expected_behavior="Then", criteria=MockAssertion()
+            "then": Expectation.behavior(
+                expected_behavior="Then", criteria=MockScoreAssertion()
             ),
             "sample_size": 1,
         }
@@ -88,24 +93,67 @@ def test_scenario_test_empty_then_list():
         )
 
 
-def test_behavioral_expectation_empty_criteria_list():
-    """Tests that an empty list for 'criteria' in BehavioralExpectation raises a ValidationError."""
-    with pytest.raises(ValidationError, match="'criteria' cannot be an empty list"):
-        BehavioralExpectation(
-            expected_behavior="Test behavior",
+@pytest.mark.parametrize(
+    "expectation_factory",
+    [
+        lambda: Expectation.behavior(expected_behavior="Test behavior", criteria=[]),
+        lambda: Expectation.metric(
+            metric=MetricDefinition(name="test", scope="per_turn", calculator=lambda conv: [1.0]),
             criteria=[],
-        )
-
-
-def test_metric_expectation_empty_criteria_list():
-    """Tests that an empty list for 'criteria' in MetricExpectation raises a ValidationError."""
-    from sigmaeval.core.models import MetricExpectation, Metric
-
+        ),
+    ],
+)
+def test_expectation_empty_criteria_list(expectation_factory):
+    """Tests that an empty list for 'criteria' in any Expectation raises a ValidationError."""
     with pytest.raises(ValidationError, match="'criteria' cannot be an empty list"):
-        MetricExpectation(
-            metric=Metric(name="test", scope="per_turn", calculator=lambda conv: [1.0]),
-            criteria=[],
-        )
+        expectation_factory()
+
+
+def test_expectation_behavior_factory():
+    """Tests that the .behavior() factory method correctly populates fields."""
+    expectation = Expectation.behavior(
+        expected_behavior="Test", criteria=MockScoreAssertion()
+    )
+    assert expectation.expected_behavior == "Test"
+    assert expectation.metric_definition is None
+    assert isinstance(expectation.criteria[0], MockScoreAssertion)
+
+
+def test_expectation_metric_factory():
+    """Tests that the .metric() factory method correctly populates fields."""
+    metric = MetricDefinition(name="test", scope="per_turn", calculator=lambda conv: [1.0])
+    expectation = Expectation.metric(metric=metric, criteria=MockMetricAssertion())
+    assert expectation.metric_definition == metric
+    assert expectation.expected_behavior is None
+    assert isinstance(expectation.criteria[0], MockMetricAssertion)
+
+
+@pytest.mark.parametrize(
+    "invalid_params, error_match",
+    [
+        (
+            {
+                "expected_behavior": "Test",
+                "metric_definition": MetricDefinition(
+                    name="test", scope="per_turn", calculator=lambda conv: [1.0]
+                ),
+                "criteria": [MockScoreAssertion()],
+            },
+            "An Expectation cannot have both 'expected_behavior' and 'metric_definition' defined.",
+        ),
+        (
+            {"criteria": [MockScoreAssertion()]},
+            "An Expectation must have either 'expected_behavior' or 'metric_definition' defined.",
+        ),
+    ],
+)
+def test_expectation_invalid_manual_creation(invalid_params, error_match):
+    """
+    Tests that manually creating an Expectation with invalid parameters
+    raises a ValidationError.
+    """
+    with pytest.raises(ValidationError, match=error_match):
+        Expectation(**invalid_params)
 
 
 def test_conversation_record_add_messages():
@@ -238,12 +286,12 @@ def test_scenario_test_result_str():
 
 def test_metric_model():
     """Tests the Metric model."""
-    from sigmaeval.core.models import Metric, ConversationRecord
+    from sigmaeval.core.models import ConversationRecord
 
     def latency_calculator(conversation: "ConversationRecord") -> list[float]:
         return [1.0, 2.0]
 
-    metric = Metric(
+    metric = MetricDefinition(
         name="test_latency", scope="per_turn", calculator=latency_calculator
     )
     convo = ConversationRecord()

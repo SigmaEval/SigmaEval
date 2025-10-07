@@ -13,8 +13,6 @@ from .models import (
     ExpectationResult,
     AssertionResult,
     WritingStyleConfig,
-    BehavioralExpectation,
-    MetricExpectation,
 )
 from .rubric_generator import _generate_rubric
 from .data_collection import _collect_conversations, _judge_conversations
@@ -144,11 +142,13 @@ class SigmaEval:
             assertion_results = []
             scores = []
             reasoning = []
+            about_str = "Unknown expectation"
             
-            if isinstance(expectation, BehavioralExpectation):
+            if expectation.expected_behavior is not None:
+                about_str = expectation.label or expectation.expected_behavior[:50]
                 # Phase 1: Test Setup
                 # Generate a rubric for this specific expectation
-                self.logger.debug(f"Generating rubric for expectation: {expectation.label or expectation.expected_behavior[:50]}")
+                self.logger.debug(f"Generating rubric for expectation: {about_str}")
                 rubric = await _generate_rubric(
                     scenario=scenario, 
                     expectation=expectation, 
@@ -200,23 +200,24 @@ class SigmaEval:
 
                     eval_result_dict = evaluator.evaluate(scores, label=expectation.label)
                     
-                    about_str = "Unknown assertion"
+                    assertion_about_str = "Unknown assertion"
                     if isinstance(criteria, ProportionAssertion):
-                        about_str = f"proportion of scores {criteria.comparison} {criteria.proportion} (threshold: {criteria.threshold})"
+                        assertion_about_str = f"proportion of scores {criteria.comparison} {criteria.proportion} (threshold: {criteria.threshold})"
                     elif isinstance(criteria, MedianAssertion):
-                        about_str = f"median score {criteria.comparison} {criteria.threshold}"
+                        assertion_about_str = f"median score {criteria.comparison} {criteria.threshold}"
 
                     assertion_results.append(
                         AssertionResult(
-                            about=about_str,
+                            about=assertion_about_str,
                             passed=eval_result_dict["passed"],
                             p_value=eval_result_dict.get("p_value"),
                             details=eval_result_dict,
                         )
                     )
 
-            elif isinstance(expectation, MetricExpectation):
-                metric = expectation.metric
+            elif expectation.metric_definition is not None:
+                about_str = expectation.label or expectation.metric_definition.name
+                metric = expectation.metric_definition
                 # Calculate metric values for all conversations
                 all_metric_values = []
                 for conv in conversations:
@@ -244,15 +245,15 @@ class SigmaEval:
                     
                     eval_result_dict = evaluator.evaluate(all_metric_values, label=expectation.label)
                     
-                    about_str = "Unknown assertion"
+                    assertion_about_str = "Unknown assertion"
                     if isinstance(criteria, ProportionAssertion):
-                        about_str = f"proportion of {metric.name}s {criteria.comparison} {criteria.proportion} (threshold: {criteria.threshold})"
+                        assertion_about_str = f"proportion of {metric.name}s {criteria.comparison} {criteria.proportion} (threshold: {criteria.threshold})"
                     elif isinstance(criteria, MedianAssertion):
-                        about_str = f"median {metric.name} {criteria.comparison} {criteria.threshold}"
+                        assertion_about_str = f"median {metric.name} {criteria.comparison} {criteria.threshold}"
 
                     assertion_results.append(
                         AssertionResult(
-                            about=about_str,
+                            about=assertion_about_str,
                             passed=eval_result_dict["passed"],
                             p_value=eval_result_dict.get("p_value"),
                             details=eval_result_dict,
@@ -261,15 +262,10 @@ class SigmaEval:
 
             expectation_results.append(
                 ExpectationResult(
-                    about=expectation.label
-                    or (
-                        expectation.expected_behavior[:50]
-                        if isinstance(expectation, BehavioralExpectation)
-                        else expectation.metric.name
-                    ),
+                    about=about_str,
                     assertion_results=assertion_results,
-                    scores=scores if isinstance(expectation, BehavioralExpectation) else all_metric_values,
-                    reasoning=reasoning if isinstance(expectation, BehavioralExpectation) else [],
+                    scores=scores if expectation.expected_behavior is not None else all_metric_values,
+                    reasoning=reasoning if expectation.expected_behavior is not None else [],
                 )
             )
 
