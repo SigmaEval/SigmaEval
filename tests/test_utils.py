@@ -55,7 +55,7 @@ record1 = ConversationRecord(
     writing_style={"tone": "friendly"}
 )
 expected1 = Conversation(
-    turns=[Turn(user_message="hello", app_response="hi there", latency=0.5)],
+    turns=[Turn(user_message="hello", app_response="hi there", latency=0.4)],
     details={"writing_style": {"tone": "friendly"}}
 )
 
@@ -70,8 +70,8 @@ record2 = ConversationRecord(
 )
 expected2 = Conversation(
     turns=[
-        Turn(user_message="q1", app_response="a1", latency=0.7),
-        Turn(user_message="q2", app_response="a2", latency=0.9),
+        Turn(user_message="q1", app_response="a1", latency=0.6),
+        Turn(user_message="q2", app_response="a2", latency=0.8),
     ],
     details={"writing_style": None}
 )
