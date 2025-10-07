@@ -17,7 +17,10 @@ def _convert_conversation_records(
             assistant_turn = record.turns[i + 1] if i + 1 < len(record.turns) else None
             
             if assistant_turn:
-                latency = (assistant_turn.response_timestamp - user_turn.response_timestamp).total_seconds()
+                latency = (
+                    assistant_turn.response_timestamp
+                    - assistant_turn.request_timestamp
+                ).total_seconds()
                 turns.append(
                     Turn(
                         user_message=user_turn.content,
