@@ -20,7 +20,7 @@ test_scenario = (
     ScenarioTest("Test Timestamp Recording")
     .given("A user wants to check timestamps")
     .when("An interaction occurs")
-    .sample(1)
+    .sample_size(1)
     .expect_behavior(
         "Timestamps are recorded for each turn",
         criteria=assertions.scores.proportion_gte(min_score=1, proportion=1.0),

@@ -205,7 +205,7 @@ class ScenarioTest(BaseModel):
             ScenarioTest("Bot explains its capabilities")
             .given("A new user who has not interacted with the bot before")
             .when("The user asks a general question about the bot's capabilities")
-            .sample(30)
+            .sample_size(30)
             .expect_behavior(
                 "Bot lists its main functions: tracking orders, initiating returns, etc.",
                 criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.90)
@@ -221,7 +221,7 @@ class ScenarioTest(BaseModel):
     given_context: str = Field(default="", serialization_alias="given", validation_alias="given")
     when_action: str = Field(default="", serialization_alias="when", validation_alias="when")
     then: List[Expectation] = Field(default_factory=list)
-    sample_size: int = 0
+    num_samples: int = Field(default=0, serialization_alias="sample_size", validation_alias="sample_size")
     max_turns_value: int = Field(default=10, serialization_alias="max_turns", validation_alias="max_turns")
     
     # Use Pydantic private attributes
@@ -271,7 +271,7 @@ class ScenarioTest(BaseModel):
         self.when_action = action
         return self
     
-    def sample(self, size: int) -> "ScenarioTest":
+    def sample_size(self, size: int) -> "ScenarioTest":
         """
         Set the sample size for the test scenario.
         
@@ -283,7 +283,7 @@ class ScenarioTest(BaseModel):
         """
         if size <= 0:
             raise ValueError("sample_size must be a positive integer")
-        self.__dict__["sample_size"] = size
+        self.num_samples = size
         return self
     
     def max_turns(self, turns: int) -> "ScenarioTest":
@@ -379,7 +379,7 @@ class ScenarioTest(BaseModel):
         # Access the fields
         given_value = self.given_context
         when_value = self.when_action
-        sample_size_value = self.sample_size
+        sample_size_value = self.num_samples
         then_value = self.then
         
         if not given_value or not given_value.strip():
@@ -389,7 +389,7 @@ class ScenarioTest(BaseModel):
             errors.append("'when' action must be set using .when()")
         
         if sample_size_value <= 0:
-            errors.append("sample_size must be set using .sample()")
+            errors.append("sample_size must be set using .sample_size()")
         
         if not then_value:
             errors.append("at least one expectation must be added using .expect_behavior() or .expect_metric()")

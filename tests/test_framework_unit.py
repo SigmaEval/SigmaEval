@@ -79,7 +79,7 @@ async def test_assertion_significance_level_overrides_constructor(
         ScenarioTest("Test Override")
         .given("A user")
         .when("An action")
-        .sample(1)
+        .sample_size(1)
         .expect_behavior(
             "Something happens",
             criteria=assertions.scores.proportion_gte(
@@ -135,7 +135,7 @@ async def test_mocked_multiple_expectations_all_pass(
         ScenarioTest("Multi-Expectation Test (All Pass)")
         .given("A user")
         .when("An action")
-        .sample(2)
+        .sample_size(2)
         .expect_behavior(
             "Criteria 1",
             criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
@@ -199,7 +199,7 @@ async def test_mocked_multiple_expectations_one_fails(
         ScenarioTest("Multi-Expectation Test (One Fail)")
         .given("A user")
         .when("An action")
-        .sample(2)
+        .sample_size(2)
         .expect_behavior(
             "Criteria 1",
             criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
@@ -260,7 +260,7 @@ async def test_mocked_multiple_assertions_all_pass(
         ScenarioTest("Multi-Assertion Test (All Pass)")
         .given("A user")
         .when("An action")
-        .sample(2)
+        .sample_size(2)
         .expect_behavior(
             "Criteria 1",
             criteria=[
@@ -311,7 +311,7 @@ async def test_scenario_with_only_behavioral_expectation(
         ScenarioTest("Behavioral-Only Test")
         .given("A user")
         .when("An action")
-        .sample(2)
+        .sample_size(2)
         .expect_behavior(
             "Criteria 1",
             criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.8),
@@ -370,7 +370,7 @@ async def test_scenario_with_only_metric_expectation(
         ScenarioTest("Metric-Only Test")
         .given("A user")
         .when("An action")
-        .sample(2)
+        .sample_size(2)
         .expect_metric(
             metrics.per_turn.response_latency,
             criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.9),

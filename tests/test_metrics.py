@@ -18,7 +18,7 @@ def metric_scenario():
         ScenarioTest("Test Metric Scenario")
         .given("A test user")
         .when("The user does something")
-        .sample(10)
+        .sample_size(10)
         .expect_metric(
             metrics.per_turn.response_latency,
             criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.9),
@@ -30,7 +30,7 @@ async def test_metric_evaluation_proportion_lt(metric_scenario):
     """
     Tests a metric evaluation with a proportion_lt assertion.
     """
-    metric_scenario.sample_size = 50
+    metric_scenario.num_samples = 50
     metric_scenario.then[0].criteria = assertions.metrics.proportion_lt(
         threshold=1.0, proportion=0.9, significance_level=0.05
     )

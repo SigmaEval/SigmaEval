@@ -95,7 +95,7 @@ scenario = (
     ScenarioTest("Bot explains its capabilities")
     .given("A new user who has not interacted with the bot before")
     .when("The user asks a general question about the bot's capabilities")
-    .sample(30)
+    .sample_size(30)
     .expect_behavior(
         "Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.90)
@@ -316,7 +316,7 @@ multi_condition_scenario = (
     ScenarioTest("Bot handles a complex multi-part request")
     .given("A user needs to both track a package and ask a question about a different product")
     .when("The user asks to track their package and then asks a follow-up question about a product's warranty")
-    .sample(30)
+    .sample_size(30)
     .expect_behavior(
         "Bot successfully provides the tracking status for the user's package.",
         criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90),
@@ -341,7 +341,7 @@ multi_assertion_scenario = (
     ScenarioTest("Bot gives a comprehensive and helpful answer")
     .given("A user is asking about the return policy for electronics.")
     .when("The user asks if they can return a laptop after 30 days.")
-    .sample(50)
+    .sample_size(50)
     .expect_behavior(
         "The bot correctly states that laptops must be returned within 30 days, but also helpfully suggests checking the manufacturer's warranty.",
         criteria=[
@@ -380,7 +380,7 @@ scenario = (
     ScenarioTest("Bot explains its capabilities")
     .given("A new user who has not interacted with the bot before")
     .when("The user asks a general question about the bot's capabilities")
-    .sample(30)
+    .sample_size(30)
     .expect_behavior(
         "Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.90)

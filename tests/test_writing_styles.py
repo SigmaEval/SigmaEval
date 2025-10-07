@@ -57,7 +57,7 @@ def basic_scenario():
         ScenarioTest("Test Scenario")
         .given("A test user")
         .when("The user does something")
-        .sample(2)
+        .sample_size(2)
         .expect_behavior(
             "The app should respond appropriately",
             criteria=assertions.scores.proportion_gte(
@@ -254,7 +254,7 @@ async def test_custom_writing_style_axes_are_used(
     )
     await sigma_eval.evaluate(basic_scenario, mock_app_handler)
 
-    assert mock_generate_style.call_count == basic_scenario.sample_size
+    assert mock_generate_style.call_count == basic_scenario.num_samples
     # All calls should have used the same custom axes
     for call in mock_generate_style.call_args_list:
         _, call_kwargs = call

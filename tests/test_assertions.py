@@ -22,7 +22,7 @@ def basic_scenario():
         ScenarioTest("Test Scenario")
         .given("A test user")
         .when("The user does something")
-        .sample(2)
+        .sample_size(2)
         .expect_behavior(
             "The app should respond appropriately",
             criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.9),

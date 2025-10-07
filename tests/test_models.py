@@ -21,14 +21,14 @@ def test_scenario_test_valid():
         ScenarioTest("Test Scenario")
         .given("A user")
         .when("They do something")
-        .sample(10)
+        .sample_size(10)
         .expect_behavior(
             "Something happens",
             criteria=MockScoreAssertion(),
         )
     )
     assert scenario.title == "Test Scenario"
-    assert scenario.sample_size == 10
+    assert scenario.num_samples == 10
     assert isinstance(scenario.then[0], Expectation)
 
 
@@ -37,7 +37,7 @@ def test_scenario_test_fluent_api_order_independent():
     # Call builder methods in a non-standard order
     scenario = (
         ScenarioTest("Order Independent Test")
-        .sample(50)
+        .sample_size(50)
         .expect_metric(
             metric=MetricDefinition(
                 name="test", scope="per_turn", calculator=lambda conv: [1.0]
@@ -51,7 +51,7 @@ def test_scenario_test_fluent_api_order_independent():
 
     # Assert that all fields were set correctly
     assert scenario.title == "Order Independent Test"
-    assert scenario.sample_size == 50
+    assert scenario.num_samples == 50
     assert scenario.given_context == "A user who likes non-sequential building"
     assert scenario.when_action == "They build a test out of order"
     assert len(scenario.then) == 2
@@ -68,13 +68,13 @@ def test_scenario_test_fluent_api_order_independent():
 def test_scenario_test_invalid_sample_size():
     """Tests that a non-positive sample_size raises a ValueError."""
     with pytest.raises(ValueError, match="sample_size must be a positive integer"):
-        ScenarioTest("Test").given("Given").when("When").sample(0)
+        ScenarioTest("Test").given("Given").when("When").sample_size(0)
 
 
 def test_scenario_test_invalid_max_turns():
     """Tests that a non-positive max_turns raises a ValueError."""
     with pytest.raises(ValueError, match="max_turns must be a positive integer"):
-        ScenarioTest("Test").given("Given").when("When").sample(1).max_turns(0)
+        ScenarioTest("Test").given("Given").when("When").sample_size(1).max_turns(0)
 
 
 def test_scenario_test_empty_title():
@@ -99,7 +99,7 @@ def test_scenario_test_incomplete():
     """Tests that an incomplete ScenarioTest raises a ValidationError."""
     with pytest.raises(ValidationError, match="ScenarioTest is incomplete"):
         # Try to use it without adding expectations - validation happens when finalized
-        scenario = ScenarioTest("Test").given("Given").when("When").sample(1)
+        scenario = ScenarioTest("Test").given("Given").when("When").sample_size(1)
         # Force validation by calling _finalize_build
         scenario._finalize_build()
 

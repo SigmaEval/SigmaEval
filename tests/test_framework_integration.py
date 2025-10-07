@@ -49,7 +49,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         ScenarioTest("Bot handles a product return request")
         .given("A user wants to return a recently purchased pair of shoes.")
         .when("The user asks how to start a return.")
-        .sample(sample_size)
+        .sample_size(sample_size)
         .max_turns(3)
         .expect_behavior(
             "The bot should acknowledge the user's request, ask for an order "
@@ -159,7 +159,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
         ScenarioTest("Bot handles a product return request")
         .given("A user wants to return a recently purchased pair of shoes.")
         .when("The user asks how to start a return.")
-        .sample(sample_size)
+        .sample_size(sample_size)
         .max_turns(3)
         .expect_behavior(
             "The bot should acknowledge the user's request, ask for an order "
@@ -253,7 +253,7 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
         ScenarioTest("Bot handles a simple greeting")
         .given("A user starts a conversation.")
         .when("The user says 'hello'.")
-        .sample(sample_size)
+        .sample_size(sample_size)
         .max_turns(2)
         .expect_behavior(
             "The bot should respond with a friendly greeting.",
@@ -324,7 +324,7 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         ScenarioTest("Minimal Test 1")
         .given("A user")
         .when("The user says hi")
-        .sample(sample_size)
+        .sample_size(sample_size)
         .max_turns(2)
         .expect_behavior(
             "The bot says hi back.",
@@ -339,7 +339,7 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
         ScenarioTest("Minimal Test 2")
         .given("A user")
         .when("The user says bye")
-        .sample(sample_size)
+        .sample_size(sample_size)
         .max_turns(2)
         .expect_behavior(
             "The bot says bye back.",

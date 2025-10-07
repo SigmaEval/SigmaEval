@@ -124,12 +124,12 @@ class SigmaEval:
         # Phase 2 (first half): Data Collection via Simulation
         # This is done only once per ScenarioTest, regardless of how many
         # expectations are in the `then` clause.
-        self.logger.info(f"Simulating {scenario.sample_size} conversations for '{scenario.title}'...")
+        self.logger.info(f"Simulating {scenario.num_samples} conversations for '{scenario.title}'...")
         conversations = await _collect_conversations(
             scenario=scenario,
             app_handler=app_handler,
             user_simulator_model=self.user_simulator_model,
-            sample_size=scenario.sample_size,
+            sample_size=scenario.num_samples,
             concurrency=concurrency,
             max_turns=scenario.max_turns_value,
             retry_config=self.retry_config,
