@@ -28,10 +28,60 @@ from .._evaluators import (
 
 class SigmaEval:
     """
-    Main evaluation framework for AI applications.
-    
-    Combines inferential statistics, AI-driven user simulation, and LLM-as-a-Judge
-    evaluation within a BDD framework.
+    The main evaluation framework for AI applications.
+
+    SigmaEval combines inferential statistics, AI-driven user simulation, and
+    LLM-as-a-Judge evaluation within a Behavior-Driven Development (BDD)
+    framework. This approach allows you to move beyond simple pass/fail tests
+    and gain statistical confidence in your AI's performance.
+
+    The evaluation process for a single :class:`~sigmaeval.ScenarioTest` unfolds
+    in three main phases:
+    1.  **Test Setup**: A detailed scoring rubric is generated based on the
+        test's expected behavior.
+    2.  **Data Collection**: An LLM simulates user interactions with your app to
+        collect conversation data. An LLM Judge then scores these
+        conversations against the rubric.
+    3.  **Statistical Analysis**: The collected scores are statistically
+        analyzed to determine if the application's performance meets your
+        pre-defined quality bar.
+
+    .. seealso:: :class:`~sigmaeval.ScenarioTest` for details on how to define test scenarios.
+
+    Example:
+        .. code-block:: python
+
+            from sigmaeval import SigmaEval, ScenarioTest, AppResponse, assertions
+            import asyncio
+
+            # Define a test scenario
+            scenario = (
+                ScenarioTest("Bot explains its capabilities")
+                .given("A new user")
+                .when("The user asks about the bot's capabilities")
+                .expect_behavior(
+                    "Bot lists its main functions.",
+                    criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90)
+                )
+            )
+
+            # Define the callback to connect SigmaEval to your app
+            async def app_handler(message, state):
+                # Your app logic here
+                return AppResponse(response=f"You said: {message}", state={})
+
+            # Initialize SigmaEval and run the evaluation
+            async def main():
+                sigma_eval = SigmaEval(
+                    judge_model="openai/gpt-4o",
+                    significance_level=0.05,
+                    sample_size=30
+                )
+                results = await sigma_eval.evaluate(scenario, app_handler)
+                print(results)
+
+            if __name__ == "__main__":
+                asyncio.run(main())
     """
     
     def __init__(
@@ -45,32 +95,42 @@ class SigmaEval:
         writing_style_config: WritingStyleConfig | None = None,
     ):
         """
-        Initialize SigmaEval framework.
+        Initializes the SigmaEval framework.
 
         Args:
-            judge_model: Fully-qualified model identifier used for the Judge LLM
-                and rubric generation, e.g., "openai/gpt-4o". The application under
-                test may use any model; this parameter configures the judge model.
-            significance_level: The significance level (alpha) for statistical
-                tests. This can be overridden on a per-assertion basis. If not 
-                provided here, it must be provided on each assertion.
-            user_simulator_model: Optional model identifier for the User Simulator
-                LLM. If None, the `judge_model` will be used for all roles.
-            log_level: The logging level for the 'sigmaeval' logger.
-            retry_config: Optional configuration for Tenacity-based retries on
-                LiteLLM calls. If None, default settings are used (enabled=True, 
-                max_attempts=5, backoff_multiplier=0.5, max_backoff_seconds=30.0).
-            writing_style_config: Optional configuration for user simulator writing
-                style variations. To disable, pass `WritingStyleConfig(enabled=False)`.
-                See `WritingStyleAxes` for default style definitions.
+            judge_model: The fully-qualified model identifier for the Judge LLM
+                and rubric generator (e.g., "openai/gpt-4o", "anthropic/claude-3-opus").
+                This model is responsible for generating scoring rubrics and
+                evaluating conversations. The application under test can use
+                any model, as it is decoupled from the judge.
+            significance_level: The default significance level (alpha) for all
+                statistical tests. This value represents the probability of a
+                Type I error (false positive). It can be overridden on a
+                per-assertion basis. If not provided here, it *must* be provided
+                in every assertion.
+            sample_size: The default number of conversations to simulate for each
+                :class:`~sigmaeval.ScenarioTest`. A larger sample size provides more
+                statistical power. This can be overridden on a per-scenario basis.
+            user_simulator_model: The model identifier for the User Simulator
+                LLM. If ``None``, the ``judge_model`` will be used for all roles.
+            log_level: The logging level for the 'sigmaeval' logger. Use
+                ``logging.DEBUG`` for detailed output, including prompts and
+                LLM reasoning.
+            retry_config: Configuration for retrying failed LLM calls. If
+                ``None``, default settings are used.
+            writing_style_config: Configuration for the user simulator's
+                writing style variations. Enabled by default. To disable,
+                pass ``WritingStyleConfig(enabled=False)``.
+
+        Raises:
+            ValueError: If ``judge_model`` is not a valid, non-empty string.
 
         Note:
-            SigmaEval uses LiteLLM as the unified interface for the LLM-as-a-Judge.
-            For a complete list of supported providers, refer to the LiteLLM documentation:
-            https://docs.litellm.ai/docs/providers
-            
-            Tenacity-based retries are applied to rubric generation, user simulation,
-            and judge calls. Retries can be disabled via the RetryConfig object.
+            SigmaEval uses the `LiteLLM`_ library to interface with various
+            LLM providers. Ensure the necessary API keys are set as environment
+            variables for your chosen models.
+
+            .. _LiteLLM: https://github.com/BerriAI/litellm
         """
         if not isinstance(judge_model, str) or not judge_model.strip():
             raise ValueError("judge_model must be a non-empty string, e.g., 'openai/gpt-4o'.\nFor a complete list of supported providers, refer to the LiteLLM documentation: https://docs.litellm.ai/docs/providers")
@@ -347,27 +407,35 @@ class SigmaEval:
         concurrency: int = 10,
     ) -> ScenarioTestResult | List[ScenarioTestResult]:
         """
-        Run evaluation for one or more behavioral test cases. When a list of tests
-        is provided, they are run concurrently.
-        
+        Runs an evaluation for one or more test scenarios.
+
+        When a list of :class:`~sigmaeval.ScenarioTest` objects is provided,
+        they are run concurrently.
+
         Args:
-            scenarios: A single behavioral test case or a list of test cases to evaluate.
-            app_handler: Async callback that takes a user message and state dict, and returns 
-                an AppResponse. The state dict is managed by your application - SigmaEval 
-                passes back the state from your previous AppResponse without modification. 
-                On the first turn, state will be an empty dict. Use it to track conversation 
-                history, user context, or any other stateful information your app needs.
-            concurrency: Number of evaluations to run concurrently for each test case
-                (default: 10). This refers to the concurrency of the sample collection
-                within a single test, not the concurrency of running multiple tests in parallel.
-            
+            scenarios: A single :class:`~sigmaeval.ScenarioTest` or a list of
+                scenarios to evaluate.
+            app_handler: An async callback that connects SigmaEval to your
+                application. It receives a user message (``str``) and a state
+                dictionary (``Dict[str, Any]``), and must return an
+                :class:`~sigmaeval.AppResponse`. The state dictionary is managed
+                by your application; SigmaEval passes it back unmodified on
+                subsequent turns. On the first turn of a conversation, the state
+                will be an empty dictionary.
+            concurrency: The number of simulated conversations to run in
+                parallel for each test scenario. This controls the concurrency
+                *within* a single test, not the number of tests run in parallel.
+
         Returns:
-            - If a single `ScenarioTest` is provided, returns a single `EvaluationResult`.
-            - If a list of `ScenarioTest` is provided, returns a list of `EvaluationResult`.
-        
+            - A single :class:`~sigmaeval.ScenarioTestResult` if one scenario was provided.
+            - A ``list`` of :class:`~sigmaeval.ScenarioTestResult` objects if a list
+              of scenarios was provided.
+
         Raises:
-            LLMCommunicationError: If any LLM call (rubric generation, user simulation,
-                or judging) fails or returns an invalid/malformed response.
+            LLMCommunicationError: If any LLM call (rubric generation, user
+                simulation, or judging) fails after all retries.
+            ValueError: If a ``significance_level`` or ``sample_size`` is not
+                properly configured at either the framework or scenario level.
         """
         is_single_item = False
         if isinstance(scenarios, ScenarioTest):

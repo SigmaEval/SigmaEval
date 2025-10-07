@@ -91,6 +91,19 @@ class WritingStyleAxes(BaseModel):
 class WritingStyleConfig(BaseModel):
     """
     Configuration for user simulator writing style variations.
+
+    To better address the "infinite input space" problem, SigmaEval's user
+    simulator can be configured to adopt a wide variety of writing styles.
+    This feature helps ensure your application is robust to the many ways
+    real users communicate.
+
+    By default, for each evaluation run, the user simulator will randomly
+    adopt a different writing style. This behavior can be configured or
+    disabled via this object.
+
+    Attributes:
+        enabled: If ``True``, enables writing style variations.
+        axes: The different axes of writing styles to use.
     """
     enabled: bool = True
     axes: WritingStyleAxes = Field(default_factory=WritingStyleAxes)
@@ -98,11 +111,16 @@ class WritingStyleConfig(BaseModel):
 
 class AppResponse(BaseModel):
     """
-    The response from the application under test for a single turn.
+    Represents the response from the application under test for a single turn.
+
+    This object is returned by the ``app_handler`` callback and serves as the
+    bridge between SigmaEval and your application.
 
     Attributes:
-        response: The string response from the app.
-        state: An updated state object to be passed to the next turn.
+        response: The string response from your application.
+        state: An updated state dictionary to be passed back to your application
+            on the next turn of the conversation. SigmaEval does not modify
+            this dictionary.
     """
     response: str
     state: Dict[str, Any]
@@ -110,17 +128,23 @@ class AppResponse(BaseModel):
 
 class Expectation(BaseModel):
     """
-    Defines the expected outcome and evaluation method for a scenario test case.
-    
+    Defines the expected outcome for a scenario test case.
+
+    An expectation specifies what to measure (a behavior or a metric) and the
+    statistical criteria used to evaluate the measurement.
+
     Use the factory methods to create instances:
-    - Expectation.behavior() for LLM-judged behavioral expectations
-    - Expectation.metric() for objective metric-based expectations
-    
+    - :meth:`~sigmaeval.Expectation.behavior` for LLM-judged behavioral checks.
+    - :meth:`~sigmaeval.Expectation.metric` for objective metric-based checks.
+
     Attributes:
-        expected_behavior: Description of the expected behavior (passed to Judge LLM)
-        metric_definition: The metric to be measured (e.g., response_latency).
-        criteria: Statistical criteria to assess the results
-        label: An optional short name for the expectation, which will be displayed in logs and the evaluation results summary.
+        expected_behavior: A description of the expected behavior, which is
+            used to generate a rubric for the LLM Judge.
+        metric_definition: The metric to be measured (e.g., response latency).
+        criteria: The statistical criteria used to evaluate the scores or metric
+            values.
+        label: An optional short name for the expectation, which is displayed
+            in logs and results.
     """
     expected_behavior: Optional[str] = Field(None, description="Expected behavior description")
     metric_definition: Optional[MetricDefinition] = Field(None, description="The metric to be measured.")
@@ -164,10 +188,12 @@ class Expectation(BaseModel):
     ) -> "Expectation":
         """
         Creates a behavioral expectation, which is evaluated by an LLM judge.
-        
+
         Args:
-            expected_behavior: A description of the desired behavior.
-            criteria: A single or list of statistical assertions to run on the judge's scores.
+            expected_behavior: A description of the desired behavior. This is
+                used to generate a scoring rubric for the LLM judge.
+            criteria: A single or list of statistical assertions to run on the
+                judge's 1-10 scores.
             label: An optional short name for this expectation.
         """
         criteria_list = criteria if isinstance(criteria, list) else [criteria]
@@ -184,10 +210,11 @@ class Expectation(BaseModel):
     ) -> "Expectation":
         """
         Creates a metric-based expectation, which is evaluated on objective data.
-        
+
         Args:
-            metric: The metric to measure.
-            criteria: A single or list of statistical assertions to run on the metric data.
+            metric: The metric to measure (e.g., from the ``sigmaeval.metrics`` module).
+            criteria: A single or list of statistical assertions to run on the
+                collected metric data.
             label: An optional short name for this expectation.
         """
         criteria_list = criteria if isinstance(criteria, list) else [criteria]
@@ -197,24 +224,38 @@ class Expectation(BaseModel):
 class ScenarioTest(BaseModel):
     """
     Defines a test case for a specific behavior of an AI application.
-    
-    This class uses a fluent builder API for improved readability and discoverability.
-    
+
+    This class uses a fluent builder API to construct a test by chaining
+    methods like :meth:`~given`, :meth:`~when`, and :meth:`~expect_behavior`.
+    This BDD-style syntax makes tests more readable and expressive.
+
+    A test scenario is composed of three main parts:
+    -   **.given()**: Establishes the prerequisite state and context for the
+        **User Simulator LLM**.
+    -   **.when()**: Describes the specific goal or action the **User Simulator
+        LLM** will try to achieve.
+    -   **.expect_behavior()** / **.expect_metric()**: Specifies the expected outcomes
+        and the statistical criteria for success.
+
     Example:
-        scenario = (
-            ScenarioTest("Bot explains its capabilities")
-            .given("A new user who has not interacted with the bot before")
-            .when("The user asks a general question about the bot's capabilities")
-            .sample_size(30)
-            .expect_behavior(
-                "Bot lists its main functions: tracking orders, initiating returns, etc.",
-                criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.90)
+        .. code-block:: python
+
+            from sigmaeval import ScenarioTest, assertions, metrics
+
+            scenario = (
+                ScenarioTest("Bot explains its capabilities")
+                .given("A new user who has not interacted with the bot before")
+                .when("The user asks a general question about the bot's capabilities")
+                .sample_size(30)
+                .expect_behavior(
+                    "Bot lists its main functions: tracking orders, initiating returns, etc.",
+                    criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.90)
+                )
+                .expect_metric(
+                    metrics.per_turn.response_latency,
+                    criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.90)
+                )
             )
-            .expect_metric(
-                metrics.per_turn.response_latency,
-                criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.90)
-            )
-        )
     """
 
     title: str
@@ -231,10 +272,11 @@ class ScenarioTest(BaseModel):
 
     def __init__(self, title: str, **kwargs):
         """
-        Initialize a ScenarioTest with a title.
-        
+        Initializes a ScenarioTest with a title.
+
         Args:
-            title: The title/name of the test scenario
+            title: The title or name of the test scenario. This should be a
+                descriptive summary of the behavior being tested.
         """
         if not title or not title.strip():
             raise ValueError("title must not be empty")
@@ -243,13 +285,17 @@ class ScenarioTest(BaseModel):
     
     def given(self, context: str) -> "ScenarioTest":
         """
-        Set the 'Given' context for the test scenario.
-        
+        Sets the 'Given' context for the test scenario.
+
+        This method establishes the prerequisite state and context for the
+        User Simulator LLM. This can include the persona of the user, the
+        context of the conversation, or any other background information.
+
         Args:
-            context: The prerequisite state and context for the user simulator
-            
+            context: A string describing the context for the user simulator.
+
         Returns:
-            Self for method chaining
+            The :class:`ScenarioTest` instance for method chaining.
         """
         if not context or not context.strip():
             raise ValueError("'given' context must not be empty")
@@ -258,13 +304,16 @@ class ScenarioTest(BaseModel):
     
     def when(self, action: str) -> "ScenarioTest":
         """
-        Set the 'When' action/goal for the test scenario.
-        
+        Sets the 'When' action for the test scenario.
+
+        This method describes the specific goal or action the User Simulator
+        LLM will try to achieve. SigmaEval uses this to guide the simulation.
+
         Args:
-            action: The specific goal or action the user simulator will try to achieve
-            
+            action: A string describing the goal for the user simulator.
+
         Returns:
-            Self for method chaining
+            The :class:`ScenarioTest` instance for method chaining.
         """
         if not action or not action.strip():
             raise ValueError("'when' action must not be empty")
@@ -273,13 +322,17 @@ class ScenarioTest(BaseModel):
     
     def sample_size(self, size: int) -> "ScenarioTest":
         """
-        Set the sample size for the test scenario.
-        
+        Sets the sample size for the test scenario.
+
+        This determines the number of conversations to simulate. A larger
+        sample size provides more statistical evidence. This value overrides
+        any default set in the :class:`~sigmaeval.SigmaEval` constructor.
+
         Args:
-            size: The number of conversations to simulate
-            
+            size: The number of conversations to simulate.
+
         Returns:
-            Self for method chaining
+            The :class:`ScenarioTest` instance for method chaining.
         """
         if size <= 0:
             raise ValueError("sample_size must be a positive integer")
@@ -288,13 +341,15 @@ class ScenarioTest(BaseModel):
     
     def max_turns(self, turns: int) -> "ScenarioTest":
         """
-        Set the maximum number of turns per conversation.
-        
+        Sets the maximum number of turns for each simulated conversation.
+
+        This prevents conversations from running indefinitely.
+
         Args:
-            turns: The maximum number of turns allowed in each conversation
-            
+            turns: The maximum number of turns allowed in each conversation.
+
         Returns:
-            Self for method chaining
+            The :class:`ScenarioTest` instance for method chaining.
         """
         if turns <= 0:
             raise ValueError("max_turns must be a positive integer")
@@ -308,15 +363,19 @@ class ScenarioTest(BaseModel):
         label: Optional[str] = None,
     ) -> "ScenarioTest":
         """
-        Add a behavioral expectation to be evaluated by an LLM judge.
-        
+        Adds a behavioral expectation to be evaluated by an LLM judge.
+
+        You can call this method multiple times to add multiple expectations
+        to a single test. The test will only pass if all expectations are met.
+
         Args:
-            expected_behavior: A description of the desired behavior
-            criteria: A single or list of statistical assertions to run on the judge's scores
-            label: An optional short name for this expectation
-            
+            expected_behavior: A description of the desired behavior.
+            criteria: A single or list of statistical assertions to run on the
+                judge's 1-10 scores.
+            label: An optional short name for this expectation.
+
         Returns:
-            Self for method chaining
+            The :class:`ScenarioTest` instance for method chaining.
         """
         criteria_list = criteria if isinstance(criteria, list) else [criteria]
         expectation = Expectation(
@@ -335,15 +394,19 @@ class ScenarioTest(BaseModel):
         label: Optional[str] = None,
     ) -> "ScenarioTest":
         """
-        Add a metric-based expectation to be evaluated on objective data.
-        
+        Adds a metric-based expectation to be evaluated on objective data.
+
+        You can call this method multiple times to add multiple expectations
+        to a single test. The test will only pass if all expectations are met.
+
         Args:
-            metric: The metric to measure
-            criteria: A single or list of statistical assertions to run on the metric data
-            label: An optional short name for this expectation
-            
+            metric: The metric to measure.
+            criteria: A single or list of statistical assertions to run on the
+                collected metric data.
+            label: An optional short name for this expectation.
+
         Returns:
-            Self for method chaining
+            The :class:`ScenarioTest` instance for method chaining.
         """
         criteria_list = criteria if isinstance(criteria, list) else [criteria]
         expectation = Expectation(
@@ -407,9 +470,17 @@ class ScenarioTest(BaseModel):
 
 class RetryConfig(BaseModel):
     """
-    Configuration for Tenacity retry behavior used for LiteLLM calls.
+    Configuration for Tenacity retry behavior for all LLM calls.
 
-    Set enabled=False or max_attempts<=1 to disable retries.
+    To improve robustness against transient network or API issues, SigmaEval
+    automatically retries failed LLM calls using an exponential backoff strategy.
+    This includes retries for malformed or unparsable LLM responses.
+
+    Attributes:
+        enabled: If ``True`` (default), retries are enabled.
+        max_attempts: The maximum number of attempts for each LLM call.
+        backoff_multiplier: The multiplier for the exponential backoff delay.
+        max_backoff_seconds: The maximum delay between retries.
     """
 
     enabled: bool = True
@@ -507,7 +578,15 @@ class Conversation(BaseModel):
 
 
 class AssertionResult(BaseModel):
-    """The result of a single assertion check."""
+    """
+    The result of a single statistical assertion.
+
+    Attributes:
+        about: A description of what the assertion was testing.
+        passed: A boolean indicating if the assertion passed.
+        p_value: The calculated p-value from the statistical test, if applicable.
+        details: A dictionary containing detailed statistical results.
+    """
 
     about: str
     passed: bool
@@ -521,7 +600,18 @@ class AssertionResult(BaseModel):
 
 
 class ExpectationResult(BaseModel):
-    """The result of a single Expectation, which may contain multiple assertions."""
+    """
+    The result of a single Expectation, which may contain multiple assertions.
+
+    Attributes:
+        about: A description of the expectation that was evaluated.
+        assertion_results: A list of results for each assertion within this
+            expectation.
+        scores: The raw scores (for behavioral expectations) or metric values
+            (for metric expectations) that were evaluated.
+        reasoning: A list of reasoning strings from the LLM Judge for each
+            score (only for behavioral expectations).
+    """
 
     about: str
     assertion_results: List[AssertionResult]
@@ -563,7 +653,25 @@ class ExpectationResult(BaseModel):
 
 
 class ScenarioTestResult(BaseModel):
-    """The comprehensive result of a single ScenarioTest run."""
+    """
+    The comprehensive result of a single :class:`ScenarioTest` run.
+
+    This object contains all the information about the test run, including
+    the overall pass/fail status, detailed results for each expectation,
+    and the raw conversation data.
+
+    Printing this object provides a human-readable summary of the test outcome.
+
+    Attributes:
+        title: The title of the scenario test.
+        expectation_results: A list of results for each expectation in the test.
+        conversations: A list of all simulated conversations.
+        significance_level: The significance level used for the statistical tests.
+        judge_model: The model used for the LLM Judge.
+        user_simulator_model: The model used for the User Simulator.
+        retry_config: The retry configuration used for the test run.
+        rubric: The rubric generated and used by the LLM Judge.
+    """
 
     title: str
     expectation_results: List["ExpectationResult"]
