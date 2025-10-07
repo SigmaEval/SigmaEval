@@ -118,12 +118,12 @@ class AppResponse(BaseModel):
 
     Attributes:
         response: The string response from your application.
-        state: An updated state dictionary to be passed back to your application
+        state: An updated state object to be passed back to your application
             on the next turn of the conversation. SigmaEval does not modify
-            this dictionary.
+            this object; it is treated as a pass-through.
     """
     response: str
-    state: Dict[str, Any]
+    state: Any
 
 
 class Expectation(BaseModel):

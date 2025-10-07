@@ -106,12 +106,12 @@ scenario = (
 )
 
 # Define the callback to connect SigmaEval to your app
-async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
+async def app_handler(message: str, state: Any) -> AppResponse:
     """
     This function acts as a bridge between SigmaEval and your application.
-    It takes a message and a state dictionary, and returns an AppResponse.
+    It takes a message and a state object, and returns an AppResponse.
     The 'message' is the message from SigmaEval's User Simulator LLM.
-    The 'state' dictionary is empty on the first turn of a conversation.
+    The 'state' object is an empty dictionary on the first turn of a conversation.
     The 'AppResponse' is the response from your application, containing the response string and the updated state of the conversation.
     """
     print(f"  [App] Received message: '{message}'")

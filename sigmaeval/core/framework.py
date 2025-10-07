@@ -154,7 +154,7 @@ class SigmaEval:
     async def _evaluate_single(
         self,
         scenario: ScenarioTest,
-        app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
+        app_handler: Callable[[str, Any], Awaitable[AppResponse]],
         concurrency: int = 10,
     ) -> ScenarioTestResult:
         """
@@ -162,11 +162,12 @@ class SigmaEval:
         
         Args:
             scenario: The behavioral test case to evaluate
-            app_handler: Async callback that takes a user message and state dict, and returns 
-                an AppResponse. The state dict is managed by your application - SigmaEval 
-                passes back the state from your previous AppResponse without modification. 
-                On the first turn, state will be an empty dict. Use it to track conversation 
-                history, user context, or any other stateful information your app needs.
+            app_handler: Async callback that takes a user message and a state object,
+                and returns an AppResponse. The state object is managed by your
+                application - SigmaEval passes back the state from your previous
+                AppResponse without modification. On the first turn, state will be
+                an empty dict. Use it to track conversation history, user context,
+                or any other stateful information your app needs.
             concurrency: Number of evaluations to run concurrently (default: 10)
             
         Returns:
@@ -403,7 +404,7 @@ class SigmaEval:
     async def evaluate(
         self, 
         scenarios: ScenarioTest | List[ScenarioTest], 
-        app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
+        app_handler: Callable[[str, Any], Awaitable[AppResponse]],
         concurrency: int = 10,
     ) -> ScenarioTestResult | List[ScenarioTestResult]:
         """
@@ -417,8 +418,8 @@ class SigmaEval:
                 scenarios to evaluate.
             app_handler: An async callback that connects SigmaEval to your
                 application. It receives a user message (``str``) and a state
-                dictionary (``Dict[str, Any]``), and must return an
-                :class:`~sigmaeval.AppResponse`. The state dictionary is managed
+                object (``Any``), and must return an
+                :class:`~sigmaeval.AppResponse`. The state object is managed
                 by your application; SigmaEval passes it back unmodified on
                 subsequent turns. On the first turn of a conversation, the state
                 will be an empty dictionary.

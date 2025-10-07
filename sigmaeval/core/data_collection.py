@@ -138,7 +138,7 @@ async def _simulate_user_turn(
 
 async def _run_single_interaction(
     scenario: ScenarioTest,
-    app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
+    app_handler: Callable[[str, Any], Awaitable[AppResponse]],
     user_simulator_model: str,
     max_turns: int = 10,
     eval_id: str = "",
@@ -164,7 +164,7 @@ async def _run_single_interaction(
     conversation = ConversationRecord(writing_style=writing_style)
     # History for User Simulator LLM - only the actual conversation content
     simulator_conversation_history: List[Dict[str, str]] = []
-    app_state: Dict[str, Any] = {}
+    app_state: Any = {}
     
     should_continue = True
     
@@ -306,7 +306,7 @@ async def _judge_interaction(
 
 async def _collect_conversations(
     scenario: ScenarioTest,
-    app_handler: Callable[[str, Dict[str, Any]], Awaitable[AppResponse]],
+    app_handler: Callable[[str, Any], Awaitable[AppResponse]],
     user_simulator_model: str,
     sample_size: int,
     concurrency: int = 10,
