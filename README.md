@@ -68,7 +68,7 @@ To gather a statistically meaningful sample, the following steps are repeated mu
 
 **Phase 3: Statistical Analysis**
 
-6.  **Drawing a Conclusion:** After all repetitions are complete, the collection of scores (the sample) is passed to the statistical evaluator you defined (`SuccessRateEvaluator`, `RatingAverageEvaluator`, etc.). This evaluator performs the appropriate statistical tests to determine if the application's performance meets your quality bar, providing a final pass/fail result with statistical confidence.
+6.  **Drawing a Conclusion:** After all repetitions are complete, the collection of scores (the sample) is passed to the statistical evaluator you defined (`SuccessRateEvaluator`, `RatingProportionEvaluator`, etc.). This evaluator performs the appropriate statistical tests to determine if the application's performance meets your quality bar, providing a final pass/fail result with statistical confidence.
 
 Each scenario is defined using a `ScenarioTest` object with a fluent builder API. The test has three main parts that mirror the Behavior-Driven Development (BDD) pattern:
 
@@ -114,7 +114,7 @@ async def app_handler(messages: List[Dict[str, str]], state: Any) -> Tuple[str, 
     and for your application to respond back to SigmaEval's User Simulator LLM.
     """
     new_user_message = messages[-1]["content"]
-    print(f"  [App] Received message: '{user_message}'")
+    print(f"  [App] Received message: '{new_user_message}'")
     
     # For stateful apps, you can use the `state` object to track information
     # across turns. It will be an empty dictionary on the first turn.
@@ -123,7 +123,7 @@ async def app_handler(messages: List[Dict[str, str]], state: Any) -> Tuple[str, 
 
     await asyncio.sleep(0.1)  # Simulate your apps generation time
     response_message = (
-        f"Response for convo_id '{convo_id}' to message: '{user_message}'"
+        f"Response for convo_id '{convo_id}' to message: '{new_user_message}'"
     )
     
     # Return the response string and the updated state to SigmaEval.
@@ -162,25 +162,34 @@ SigmaEval provides different statistical criteria to evaluate your AI's performa
 All statistical tests require a `significance_level` (alpha), which can be provided to the `SigmaEval` constructor as a default, or on a per-assertion basis. This value, typically set to 0.05, represents the probability of rejecting the null hypothesis when it is actually true (a Type I error).
 
 #### `assertions.scores.proportion_gte(min_score, proportion, significance_level=None)`
-This criterion performs a one-sided hypothesis test to determine if the true proportion of high-quality outcomes for the entire user population is greater than a specified minimum. A score at or above `min_score` is considered a "high-quality" outcome. The test passes if there is statistical evidence that the system's performance exceeds the `min_proportion`.
+This criterion helps you answer the question: **"Is my AI's performance good enough, most of the time?"**
 
-This is useful when you have a clear minimum standard that a certain percentage of responses should meet. For example, `assertions.scores.proportion_gte(min_score=8, proportion=0.75)` checks if at least 75% of responses have a score of 8 or higher.
+It performs a one-sided hypothesis test to verify that a desired proportion of your app's responses meet a minimum quality bar.
 
+Specifically, it checks if there is enough statistical evidence to conclude that the true proportion of scores *greater than or equal to* your `min_score` is *at least* your specified `proportion`.
+
+This is useful for setting quality targets. For example, `assertions.scores.proportion_gte(min_score=8, proportion=0.75)` lets you test the hypothesis: "Are at least 75% of our responses scoring an 8 or higher?". The test passes if the collected data supports this claim with statistical confidence.
 
 #### `assertions.scores.median_gte(threshold, significance_level=None)`
-This criterion is particularly useful for subjective qualities like helpfulness or tone. It performs a one-sided **bootstrap hypothesis test** to determine if the true median rating for a response across the entire user population is statistically higher than the specified `threshold`.
+This criterion helps you answer the question: **"Is the *typical* user experience good?"** The median represents the middle-of-the-road experience, so this test is robust to a few unusually bad outcomes.
 
-The bootstrap method is a modern, non-parametric method that is robust to the underlying distribution of the data. By testing the **median**, it ensures that at least 50% of responses meet a certain quality bar. For example, `assertions.scores.median_gte(threshold=8.0)` checks if there is statistical evidence that the median score is greater than 8.
+It performs a one-sided bootstrap hypothesis test to determine if the true median score is statistically higher than your `threshold`. Because the median is the 50th percentile, passing this test means you can be confident that at least half of all responses will meet the quality bar.
+
+This is particularly useful for subjective qualities like helpfulness or tone. For example, `assertions.scores.median_gte(threshold=8.0)` tests the hypothesis: "Is the typical score at least an 8?".
 
 #### `assertions.metrics.proportion_lt(threshold, proportion, significance_level=None)`
-This criterion performs a one-sided hypothesis test to determine if the true proportion of metric values below a certain `threshold` is statistically significant. It checks if the proportion of observations under the threshold is less than the expected `proportion`.
+This criterion is used for "lower is better" metrics like response latency. It performs a one-sided hypothesis test to verify that a desired proportion of your app's responses are fast enough.
 
-This is useful for metrics like latency, where a lower value is better. For example, `assertions.metrics.proportion_lt(threshold=1.5, proportion=0.95)` checks if it is statistically likely that 95% of responses have a latency of less than 1.5 seconds.
+Specifically, it checks if there is enough statistical evidence to conclude that the true proportion of metric values *less than* your `threshold` is *at least* your specified `proportion`.
+
+This is useful for setting performance targets (e.g., Service Level Objectives). For example, `assertions.metrics.proportion_lt(threshold=1.5, proportion=0.95)` lets you test the hypothesis: "Are at least 95% of our responses faster than 1.5 seconds?". The test passes if the collected data supports this claim with statistical confidence.
 
 #### `assertions.metrics.median_lt(threshold, significance_level=None)`
-This criterion performs a one-sided bootstrap hypothesis test to determine if the true median of a metric is statistically lower than a specified `threshold`. This non-parametric test is robust to outliers and does not assume the data is normally distributed, making it ideal for skewed metrics like latency or turn count.
+This criterion helps you answer the question: **"Is the *typical* performance efficient?"** for "lower is better" metrics like latency or turn count. The median is robust to a few unusually slow or long-running outcomes.
 
-This is useful for evaluating the typical performance of a system. For example, `assertions.metrics.median_lt(threshold=2.0)` could be used to test if the median number of turns in a conversation is less than 2.
+It performs a one-sided bootstrap hypothesis test to determine if the true median of a metric is statistically lower than your `threshold`.
+
+This is useful for evaluating the typical efficiency of your system. For example, when applied to turn count, `assertions.metrics.median_lt(threshold=3.0)` tests the hypothesis: "Does a typical conversation wrap up in 3 turns or less?".
 
 ### Available Metrics
 
@@ -195,12 +204,12 @@ SigmaEval provides several built-in metrics to measure objective, quantitative a
 *   **Use Case**: Ensuring the application feels responsive and meets performance requirements (e.g., "95% of responses should be under 1.5 seconds").
 
 #### `metrics.per_turn.response_length_chars`
-*   **Description**: The number of characters in the assistant's response.
+*   **Description**: The number of characters in an assistant's response.
 *   **Scope**: Per-Turn
 *   **Use Case**: Enforcing conciseness in individual responses to prevent overly long messages (e.g., "90% of responses must be under 1000 characters").
 
 #### `metrics.per_conversation.turn_count`
-*   **Description**: The total number of assistant responses in a conversation.
+*   **Description**: The total number of turns in a conversation. A "turn" consists of a user message and the assistant's response.
 *   **Scope**: Per-Conversation
 *   **Use Case**: Measuring the efficiency of the AI. A lower turn count to resolve an issue is often better (e.g., "The average conversation should be less than 4 turns").
 
