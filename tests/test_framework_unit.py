@@ -260,6 +260,101 @@ async def test_missing_significance_level_in_one_of_many_expectations_raises() -
 
 
 @pytest.mark.asyncio
+async def test_missing_sample_size_raises_value_error() -> None:
+    """
+    Tests that a ValueError is raised if sample_size is missing from both the
+    constructor and the scenario.
+    """
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
+    scenario = (
+        ScenarioTest("Test Missing sample_size")
+        .given("A user")
+        .when("An action")
+        .expect_behavior(
+            "Something happens",
+            criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.9),
+        )
+    )
+
+    with pytest.raises(ValueError, match="is missing a sample_size"):
+        await sigma_eval.evaluate(scenario, AsyncMock())
+
+
+@pytest.mark.asyncio
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework.ProportionEvaluator")
+async def test_sample_size_from_constructor(
+    mock_evaluator_class,
+    mock_generate_rubric,
+    mock_collect_conversations,
+    mock_judge_conversations,
+) -> None:
+    """
+    Tests that sample_size from the constructor is used when the scenario
+    does not specify one.
+    """
+    mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_judge_conversations.return_value = ([10.0], ["reason"])
+    sigma_eval = SigmaEval(
+        judge_model="test/model", significance_level=0.05, sample_size=25
+    )
+    scenario = (
+        ScenarioTest("Test sample_size from constructor")
+        .given("A user")
+        .when("An action")
+        .expect_behavior(
+            "Something happens",
+            criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.9),
+        )
+    )
+
+    await sigma_eval.evaluate(scenario, AsyncMock())
+    mock_collect_conversations.assert_called_once()
+    _, kwargs = mock_collect_conversations.call_args
+    assert kwargs["sample_size"] == 25
+
+
+@pytest.mark.asyncio
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework.ProportionEvaluator")
+async def test_sample_size_from_scenario_overrides_constructor(
+    mock_evaluator_class,
+    mock_generate_rubric,
+    mock_collect_conversations,
+    mock_judge_conversations,
+) -> None:
+    """
+    Tests that sample_size from the scenario overrides the value from the constructor.
+    """
+    mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_judge_conversations.return_value = ([10.0], ["reason"])
+    sigma_eval = SigmaEval(
+        judge_model="test/model", significance_level=0.05, sample_size=25
+    )
+    scenario = (
+        ScenarioTest("Test sample_size override")
+        .given("A user")
+        .when("An action")
+        .sample_size(99)
+        .expect_behavior(
+            "Something happens",
+            criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.9),
+        )
+    )
+
+    await sigma_eval.evaluate(scenario, AsyncMock())
+    mock_collect_conversations.assert_called_once()
+    _, kwargs = mock_collect_conversations.call_args
+    assert kwargs["sample_size"] == 99
+
+
+@pytest.mark.asyncio
 @patch("sigmaeval.core.framework.ProportionEvaluator")
 @patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)

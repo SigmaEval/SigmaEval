@@ -95,7 +95,6 @@ scenario = (
     ScenarioTest("Bot explains its capabilities")
     .given("A new user who has not interacted with the bot before")
     .when("The user asks a general question about the bot's capabilities")
-    .sample_size(30)
     .expect_behavior(
         "Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.90)
@@ -133,7 +132,12 @@ async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
 
 # Initialize SigmaEval and run the evaluation
 async def main():
-    sigma_eval = SigmaEval(judge_model="openai/gpt-5-nano", significance_level=0.05)
+    # significance_level and sample_size can be provided here or in the scenario
+    sigma_eval = SigmaEval(
+        judge_model="openai/gpt-5-nano", 
+        significance_level=0.05,
+        sample_size=30
+    )
     results: ScenarioTestResult = await sigma_eval.evaluate(scenario, app_handler)
 
     # The result object provides a comprehensive, human-readable summary
@@ -213,6 +217,8 @@ SigmaEval provides several built-in metrics to measure objective, quantitative a
 
 ### A Note on Sample Size and Statistical Significance
 
+The `sample_size` determines the number of conversations to simulate for each `ScenarioTest`. It can be set globally in the `SigmaEval` constructor or on a per-scenario basis using the `.sample_size()` method. The scenario-specific value takes precedence.
+
 It is important to note that the `sample_size` plays a crucial role in the outcome of the hypothesis tests used by `SuccessRateEvaluator` and `RatingProportionEvaluator`. A larger sample size provides more statistical evidence, making it easier to detect a true effect. With very small sample sizes (e.g., less than 10), a test might fail to achieve statistical significance (i.e., pass) even if the observed success rate in the sample is 100%. This is the expected and correct behavior, as there isn't enough data to confidently conclude that the *true* success rate for the entire user population is above the minimum threshold.
 
 
@@ -247,6 +253,7 @@ custom_retry_config = RetryConfig(
 
 sigma_eval = SigmaEval(
     judge_model="openai/gpt-5-nano",
+    # significance_level can be omitted here if provided in all assertions
     significance_level=0.05,
     retry_config=custom_retry_config
 )

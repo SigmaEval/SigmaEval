@@ -38,6 +38,7 @@ class SigmaEval:
         self,
         judge_model: str,
         significance_level: float | None = None,
+        sample_size: int | None = None,
         user_simulator_model: str | None = None,
         log_level: int = logging.INFO,
         retry_config: RetryConfig | None = None,
@@ -79,6 +80,7 @@ class SigmaEval:
         self.logger = logging.getLogger("sigmaeval")
         self.retry_config = retry_config or RetryConfig()
         self.significance_level = significance_level
+        self.sample_size = sample_size
         self.writing_style_config = writing_style_config or WritingStyleConfig()
         
         if not self.logger.handlers:
@@ -152,15 +154,25 @@ class SigmaEval:
                 "This will be used as a fallback for assertions."
             )
 
+        # Validate and determine sample_size
+        sample_size = scenario.num_samples or self.sample_size
+        if sample_size is None or sample_size <= 0:
+            raise ValueError(
+                f"ScenarioTest '{scenario.title}' is missing a sample_size. "
+                "A sample_size must be provided either in the SigmaEval "
+                "constructor or in the ScenarioTest."
+            )
+        self.logger.debug(f"Using sample_size: {sample_size} for '{scenario.title}'")
+
         # Phase 2 (first half): Data Collection via Simulation
         # This is done only once per ScenarioTest, regardless of how many
         # expectations are in the `then` clause.
-        self.logger.info(f"Simulating {scenario.num_samples} conversations for '{scenario.title}'...")
+        self.logger.info(f"Simulating {sample_size} conversations for '{scenario.title}'...")
         conversations = await _collect_conversations(
             scenario=scenario,
             app_handler=app_handler,
             user_simulator_model=self.user_simulator_model,
-            sample_size=scenario.num_samples,
+            sample_size=sample_size,
             concurrency=concurrency,
             max_turns=scenario.max_turns_value,
             retry_config=self.retry_config,

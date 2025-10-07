@@ -221,7 +221,7 @@ class ScenarioTest(BaseModel):
     given_context: str = Field(default="", serialization_alias="given", validation_alias="given")
     when_action: str = Field(default="", serialization_alias="when", validation_alias="when")
     then: List[Expectation] = Field(default_factory=list)
-    num_samples: int = Field(default=0, serialization_alias="sample_size", validation_alias="sample_size")
+    num_samples: int | None = Field(default=None, serialization_alias="sample_size", validation_alias="sample_size")
     max_turns_value: int = Field(default=10, serialization_alias="max_turns", validation_alias="max_turns")
     
     # Use Pydantic private attributes
@@ -388,8 +388,10 @@ class ScenarioTest(BaseModel):
         if not when_value or not when_value.strip():
             errors.append("'when' action must be set using .when()")
         
-        if sample_size_value <= 0:
-            errors.append("sample_size must be set using .sample_size()")
+        # The check for a missing sample_size is done in SigmaEval to allow for a
+        # global default.
+        if sample_size_value is not None and sample_size_value <= 0:
+            errors.append("sample_size must be a positive integer")
         
         if not then_value:
             errors.append("at least one expectation must be added using .expect_behavior() or .expect_metric()")
