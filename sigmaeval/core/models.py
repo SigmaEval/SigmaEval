@@ -566,7 +566,7 @@ class ScenarioTestResult(BaseModel):
     title: str
     expectation_results: List["ExpectationResult"]
     conversations: List["Conversation"]
-    significance_level: float
+    significance_level: float | None
     judge_model: str
     user_simulator_model: str
     retry_config: "RetryConfig"

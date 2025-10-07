@@ -108,6 +108,162 @@ async def test_assertion_significance_level_overrides_constructor(
 @patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
 @patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+async def test_significance_level_provided_only_in_constructor_passes(
+    mock_generate_rubric,
+    mock_collect_conversations,
+    mock_judge_conversations,
+    mock_evaluator_class,
+) -> None:
+    """
+    Tests that the evaluation passes when the significance_level is provided
+    only in the SigmaEval constructor.
+    """
+    mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_collect_conversations.return_value = [ConversationRecord()]
+    mock_judge_conversations.return_value = ([10.0], ["reason"])
+
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
+    scenario = (
+        ScenarioTest("Test SL in constructor")
+        .given("A user")
+        .when("An action")
+        .sample_size(1)
+        .expect_behavior(
+            "Something happens",
+            criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.9),
+        )
+    )
+
+    await sigma_eval.evaluate(scenario, AsyncMock())
+
+    mock_evaluator_class.assert_called_once()
+    _, kwargs = mock_evaluator_class.call_args
+    assert kwargs["significance_level"] == 0.05
+
+
+@pytest.mark.asyncio
+@patch("sigmaeval.core.framework.ProportionEvaluator")
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
+async def test_significance_level_provided_only_in_assertion_passes(
+    mock_generate_rubric,
+    mock_collect_conversations,
+    mock_judge_conversations,
+    mock_evaluator_class,
+) -> None:
+    """
+    Tests that the evaluation passes when the significance_level is provided
+    only in the assertion, not in the constructor.
+    """
+    mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
+    mock_generate_rubric.return_value = "Test Rubric"
+    mock_collect_conversations.return_value = [ConversationRecord()]
+    mock_judge_conversations.return_value = ([10.0], ["reason"])
+
+    sigma_eval = SigmaEval(judge_model="test/model")
+    scenario = (
+        ScenarioTest("Test SL in assertion")
+        .given("A user")
+        .when("An action")
+        .sample_size(1)
+        .expect_behavior(
+            "Something happens",
+            criteria=assertions.scores.proportion_gte(
+                min_score=8, proportion=0.9, significance_level=0.01
+            ),
+        )
+    )
+
+    await sigma_eval.evaluate(scenario, AsyncMock())
+
+    mock_evaluator_class.assert_called_once()
+    _, kwargs = mock_evaluator_class.call_args
+    assert kwargs["significance_level"] == 0.01
+
+
+@pytest.mark.asyncio
+async def test_missing_significance_level_behavioral_raises_value_error() -> None:
+    """
+    Tests that a ValueError is raised if significance_level is missing from
+    both the constructor and a behavioral assertion.
+    """
+    sigma_eval = SigmaEval(judge_model="test/model")
+    scenario = (
+        ScenarioTest("Test Missing SL")
+        .given("A user")
+        .when("An action")
+        .sample_size(1)
+        .expect_behavior(
+            "Something happens",
+            criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.9),
+            label="My Expectation",
+        )
+    )
+
+    with pytest.raises(ValueError, match="Expectation 'My Expectation' is missing a significance_level"):
+        await sigma_eval.evaluate(scenario, AsyncMock())
+
+
+@pytest.mark.asyncio
+async def test_missing_significance_level_metric_raises_value_error() -> None:
+    """
+    Tests that a ValueError is raised if significance_level is missing from
+    both the constructor and a metric assertion.
+    """
+    sigma_eval = SigmaEval(judge_model="test/model")
+    scenario = (
+        ScenarioTest("Test Missing SL Metric")
+        .given("A user")
+        .when("An action")
+        .sample_size(1)
+        .expect_metric(
+            metrics.per_turn.response_latency,
+            criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.9),
+            label="My Metric Expectation",
+        )
+    )
+
+    with pytest.raises(ValueError, match="Expectation 'My Metric Expectation' is missing a significance_level"):
+        await sigma_eval.evaluate(scenario, AsyncMock())
+
+
+@pytest.mark.asyncio
+async def test_missing_significance_level_in_one_of_many_expectations_raises() -> None:
+    """
+    Tests that a ValueError is raised if significance_level is missing from
+    one of multiple assertions when no default is set in the constructor.
+    """
+    sigma_eval = SigmaEval(judge_model="test/model")
+    scenario = (
+        ScenarioTest("Test Missing SL in one expectation")
+        .given("A user")
+        .when("An action")
+        .sample_size(1)
+        .expect_behavior(
+            "Something happens",
+            criteria=assertions.scores.proportion_gte(
+                min_score=8, proportion=0.9, significance_level=0.05
+            ),
+            label="Good one",
+        )
+        .expect_behavior(
+            "Something else happens",
+            criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.9),
+            label="Bad one",
+        )
+    )
+
+    with pytest.raises(ValueError, match="Expectation 'Bad one' is missing a significance_level"):
+        await sigma_eval.evaluate(scenario, AsyncMock())
+
+
+@pytest.mark.asyncio
+@patch("sigmaeval.core.framework.ProportionEvaluator")
+@patch("sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock)
+@patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock)
 async def test_mocked_multiple_expectations_all_pass(
     mock_generate_rubric,
     mock_collect_conversations,

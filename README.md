@@ -156,7 +156,7 @@ if __name__ == "__main__":
 
 SigmaEval provides different statistical criteria to evaluate your AI's performance based on the 1-10 scores from the Judge LLM. You can choose the one that best fits your scenario. All criteria are available under the `assertions.scores` object.
 
-All statistical tests are performed at the `significance_level` (alpha) passed to the `SigmaEval` constructor. This value, typically set to 0.05, represents the probability of rejecting the null hypothesis when it is actually true (a Type I error). You can override this on a per-assertion basis.
+All statistical tests require a `significance_level` (alpha), which can be provided to the `SigmaEval` constructor as a default, or on a per-assertion basis. This value, typically set to 0.05, represents the probability of rejecting the null hypothesis when it is actually true (a Type I error).
 
 #### `assertions.scores.proportion_gte(min_score, proportion, significance_level=None)`
 This criterion performs a one-sided hypothesis test to determine if the true proportion of high-quality outcomes for the entire user population is greater than a specified minimum. A score at or above `min_score` is considered a "high-quality" outcome. The test passes if there is statistical evidence that the system's performance exceeds the `min_proportion`.

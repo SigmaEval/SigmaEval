@@ -37,7 +37,7 @@ class SigmaEval:
     def __init__(
         self,
         judge_model: str,
-        significance_level: float,
+        significance_level: float | None = None,
         user_simulator_model: str | None = None,
         log_level: int = logging.INFO,
         retry_config: RetryConfig | None = None,
@@ -51,10 +51,8 @@ class SigmaEval:
                 and rubric generation, e.g., "openai/gpt-4o". The application under
                 test may use any model; this parameter configures the judge model.
             significance_level: The significance level (alpha) for statistical
-                tests, representing the probability of detecting an effect that is
-                not actually present (a "false positive"). A lower value means a
-                stricter test. The standard value is 0.05. This can be overridden
-                on a per-assertion basis.
+                tests. This can be overridden on a per-assertion basis. If not 
+                provided here, it must be provided on each assertion.
             user_simulator_model: Optional model identifier for the User Simulator
                 LLM. If None, the `judge_model` will be used for all roles.
             log_level: The logging level for the 'sigmaeval' logger.
@@ -121,6 +119,39 @@ class SigmaEval:
         
         self.logger.info(f"--- Starting evaluation for ScenarioTest: {scenario.title} ---")
 
+        # Validate significance_level before expensive operations
+        if self.significance_level is None:
+            self.logger.debug(
+                "No global significance_level set. Verifying on each assertion."
+            )
+            for expectation in scenario.then:
+                # Get a descriptive name for the expectation for the error message
+                about_str = "Unknown"
+                if expectation.expected_behavior:
+                    about_str = (
+                        expectation.label or f"'{expectation.expected_behavior[:50]}...'"
+                    )
+                elif expectation.metric_definition:
+                    about_str = expectation.label or expectation.metric_definition.name
+
+                for criteria in expectation.criteria:
+                    if criteria.significance_level is None:
+                        raise ValueError(
+                            f"Expectation '{about_str}' is missing a significance_level. "
+                            "A significance_level must be provided either in the SigmaEval "
+                            "constructor or in every assertion when no default is set."
+                        )
+                    else:
+                        self.logger.debug(
+                            f"Expectation '{about_str}' uses assertion-specific "
+                            f"significance_level: {criteria.significance_level}"
+                        )
+        else:
+            self.logger.debug(
+                f"Global significance_level set to {self.significance_level}. "
+                "This will be used as a fallback for assertions."
+            )
+
         # Phase 2 (first half): Data Collection via Simulation
         # This is done only once per ScenarioTest, regardless of how many
         # expectations are in the `then` clause.
@@ -181,10 +212,16 @@ class SigmaEval:
                     log_msg += f" (Expectation: {expectation.label})"
                 self.logger.info(log_msg)
 
-                criteria_list = expectation.criteria if isinstance(expectation.criteria, list) else [expectation.criteria]
+                criteria_list = (
+                    expectation.criteria
+                    if isinstance(expectation.criteria, list)
+                    else [expectation.criteria]
+                )
                 for criteria in criteria_list:
                     evaluator = None
-                    significance_level = criteria.significance_level or self.significance_level
+                    significance_level = (
+                        criteria.significance_level or self.significance_level
+                    )
                     if isinstance(criteria, ProportionAssertion):
                         evaluator = ProportionEvaluator(
                             significance_level=significance_level,
@@ -225,11 +262,17 @@ class SigmaEval:
                 all_metric_values = []
                 for conv in conversations:
                     all_metric_values.extend(metric(conv))
-                
-                criteria_list = expectation.criteria if isinstance(expectation.criteria, list) else [expectation.criteria]
+
+                criteria_list = (
+                    expectation.criteria
+                    if isinstance(expectation.criteria, list)
+                    else [expectation.criteria]
+                )
                 for criteria in criteria_list:
                     evaluator = None
-                    significance_level = criteria.significance_level or self.significance_level
+                    significance_level = (
+                        criteria.significance_level or self.significance_level
+                    )
                     if isinstance(criteria, ProportionAssertion):
                         evaluator = ProportionEvaluator(
                             significance_level=significance_level,
