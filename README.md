@@ -386,6 +386,58 @@ print(results)
 
 For more detailed programmatic analysis, the object gives you full access to the nested `expectation_results` (including scores and reasoning) and the complete `conversations` list.
 
+### Compatibility with Testing Libraries
+
+SigmaEval is designed to integrate seamlessly with standard Python testing libraries like `pytest` and `unittest`. Since the `evaluate` method returns a result object with a simple `.passed` boolean property, you can easily use it within your existing test suites.
+
+Here's an example of how to use SigmaEval with `pytest`:
+
+```python
+import pytest
+from sigmaeval import SigmaEval, ScenarioTest, assertions
+
+# Assume app_handler and a scenario are defined as in the main example
+
+@pytest.mark.asyncio
+async def test_bot_capabilities_scenario():
+    """
+    This test will pass if the SigmaEval scenario passes.
+    """
+    sigma_eval = SigmaEval(judge_model="openai/gpt-5-nano")
+    
+    scenario = (
+        ScenarioTest("Bot explains its capabilities")
+        .given("A new user asks about what the bot can do")
+        .when("The user asks 'what can you do?'")
+        .expect_behavior(
+            "Bot lists its main functions.",
+            criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90)
+        )
+    )
+    
+    # The app_handler is the callback to your application
+    result = await sigma_eval.evaluate(scenario, app_handler)
+    
+    # Print the detailed summary for logs
+    print(result)
+    
+    # Use a standard pytest assertion
+    assert result.passed, "The bot capabilities scenario failed."
+
+```
+
+This allows you to incorporate rigorous, statistical evaluation of your AI's behavior directly into your CI/CD pipelines.
+
+### A Note on the Statistical Methods
+
+To ensure robust and reliable conclusions, SigmaEval uses established statistical hypothesis tests tailored to the type of evaluation being performed.
+
+*   **For Proportion-Based Criteria** (e.g., `proportion_gte`): The framework employs a **one-sided binomial test**. This test is ideal for scenarios where each data point can be classified as a binary outcome (e.g., "success" or "failure," like a score being above or below a threshold). It directly evaluates whether the observed proportion of successes in your sample provides enough statistical evidence to conclude that the true proportion for all possible interactions meets your specified minimum target.
+
+*   **For Median-Based Criteria** (e.g., `median_gte`): The framework uses a **bootstrap hypothesis test**. The median is a robust measure of central tendency, but its theoretical sampling distribution can be complex. Bootstrapping is a powerful, non-parametric resampling method that avoids making assumptions about the underlying distribution of the scores or metric values. By repeatedly resampling the collected data, it constructs an empirical distribution of the median, which is then used to determine if the observed median is statistically significant.
+
+This approach ensures that the framework's conclusions are statistically sound without imposing rigid assumptions on the nature of your AI's performance data.
+
 ### Appendix A: Example Rubric
 
 For the `ScenarioTest` defined in the Python snippet:
