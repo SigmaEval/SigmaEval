@@ -1,11 +1,41 @@
 # SigmaEval
 
+[![PyPI version](https://badge.fury.io/py/sigmaeval-framework.svg)](https://badge.fury.io/py/sigmaeval-framework)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python versions](https://img.shields.io/pypi/pyversions/sigmaeval-framework.svg)](https://pypi.org/project/sigmaeval-framework/)
+
+**SigmaEval** is a powerful Python library for evaluating Generative AI agents and applications using a statistical, behavior-driven approach.
+
+- [SigmaEval](#sigmaeval)
+  - [Installation](#installation)
+  - [SigmaEval: A Statistical Framework for AI App Evaluation](#sigmaeval-a-statistical-framework-for-ai-app-evaluation)
+    - [The Problem](#the-problem)
+    - [The Stakes: Why Traditional QA Fails](#the-stakes-why-traditional-qa-fails)
+    - [A New Paradigm: From Determinism to Statistical Confidence](#a-new-paradigm-from-determinism-to-statistical-confidence)
+    - [How SigmaEval Works](#how-sigmaeval-works)
+    - [Available Criteria](#available-criteria)
+    - [Available Metrics](#available-metrics)
+    - [A Note on Sample Size and Statistical Significance](#a-note-on-sample-size-and-statistical-significance)
+    - [Supported LLMs](#supported-llms)
+    - [Logging](#logging)
+    - [Retry Configuration](#retry-configuration)
+    - [User Simulation Writing Styles](#user-simulation-writing-styles)
+    - [Evaluating a Test Suite](#evaluating-a-test-suite)
+    - [Evaluating Multiple Conditions and Assertions](#evaluating-multiple-conditions-and-assertions)
+    - [Accessing Evaluation Results](#accessing-evaluation-results)
+    - [Compatibility with Testing Libraries](#compatibility-with-testing-libraries)
+    - [A Note on the Statistical Methods](#a-note-on-the-statistical-methods)
+  - [Appendix A: Example Rubric](#appendix-a-example-rubric)
+  - [Development](#development)
+  - [License](#license)
+  - [Contributing](#contributing)
+
 A Python library for evaluating Generative AI agents and apps.
 
 ## Installation
 
 ```bash
-pip install sigmaeval
+pip install sigmaeval-framework
 ```
 
 Or install from source:
