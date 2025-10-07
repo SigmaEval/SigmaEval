@@ -88,7 +88,8 @@ from sigmaeval import (
     metrics,
 )
 import asyncio
-from typing import Dict, Any
+from typing import Dict, Any, List, Union, Tuple
+import secrets
 
 # --- Define the ScenarioTest ---
 scenario = (
@@ -106,29 +107,27 @@ scenario = (
 )
 
 # Define the callback to connect SigmaEval to your app
-async def app_handler(message: str, state: Any) -> AppResponse:
+async def app_handler(messages: List[Dict[str, str]], state: Any) -> Tuple[str, Any]:
     """
     This function acts as a bridge between SigmaEval and your application.
-    It takes a message and a state object, and returns an AppResponse.
-    The 'message' is the message from SigmaEval's User Simulator LLM.
-    The 'state' object is an empty dictionary on the first turn of a conversation.
-    The 'AppResponse' is the response from your application, containing the response string and the updated state of the conversation.
+    It allows SigmaEval to initialize a conversation and pass it to your application,
+    and for your application to respond back to SigmaEval's User Simulator LLM.
     """
-    print(f"  [App] Received message: '{message}'")
+    new_user_message = messages[-1]["content"]
+    print(f"  [App] Received message: '{user_message}'")
+    
+    # For stateful apps, you can use the `state` object to track information
+    # across turns. It will be an empty dictionary on the first turn.
+    # Stateless apps can return just the response string without a state.
+    convo_id = state.get("convo_id", secrets.token_hex(4))
 
-    # In a real test, you would call your actual application logic here.
-    # For this example, we'll manage a simple history in the state.
-    history = state.get("history", [])
-    history.append({"role": "user", "content": message})
+    await asyncio.sleep(0.1)  # Simulate your apps generation time
+    response_message = (
+        f"Response for convo_id '{convo_id}' to message: '{user_message}'"
+    )
     
-    await asyncio.sleep(0.1)  # Simulate async work
-    response_message = f"Hello! This is turn #{len(history)}. You said: '{message}'."
-    history.append({"role": "assistant", "content": response_message})
-    
-    print(f"  [App] Sending response: '{response_message}'")
-    
-    # Return the response and the updated state
-    return AppResponse(response=response_message, state={"history": history})
+    # Return the response string and the updated state to SigmaEval.
+    return response_message, {"convo_id": convo_id}
 
 # Initialize SigmaEval and run the evaluation
 async def main():

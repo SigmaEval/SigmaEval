@@ -29,12 +29,15 @@ test_scenario = (
 
 
 # A mock app handler that simulates some async work
-async def mock_app_handler(message: str, state: dict) -> AppResponse:
+async def mock_app_handler(
+    messages: list[dict[str, str]], state: dict
+) -> AppResponse:
     """A mock app handler that returns a simple response."""
     await asyncio.sleep(0.01)
+    user_message = messages[-1]["content"]
     return AppResponse(
-        response=f"App response to: {message}",
-        state={"history": [message]}
+        response=f"App response to: {user_message}",
+        state={"history": [user_message]},
     )
 
 

@@ -10,7 +10,7 @@ This module handles:
 import asyncio
 import logging
 import secrets
-from typing import Callable, Awaitable, Any, Dict, List
+from typing import Callable, Awaitable, Any, Dict, List, Tuple, Union
 from datetime import datetime, timezone
 import json
 from litellm import acompletion as _litellm_acompletion
@@ -37,6 +37,13 @@ from .utils import _extract_json_from_response
 from .models import Expectation
 
 logger = logging.getLogger("sigmaeval")
+
+
+# Define the flexible app_handler signature and its possible return types
+AppHandler = Callable[
+    [List[Dict[str, str]], Any],
+    Awaitable[Union[AppResponse, str, Tuple[str, Any]]],
+]
 
 
 async def _simulate_user_turn(
@@ -138,7 +145,7 @@ async def _simulate_user_turn(
 
 async def _run_single_interaction(
     scenario: ScenarioTest,
-    app_handler: Callable[[str, Any], Awaitable[AppResponse]],
+    app_handler: AppHandler,
     user_simulator_model: str,
     max_turns: int = 10,
     eval_id: str = "",
@@ -184,6 +191,31 @@ async def _run_single_interaction(
         if not user_message or user_message.startswith("[Conversation ended"):
             break
         
+        # Add the new user message to the history for the app
+        app_conversation_history = simulator_conversation_history + [
+            {"role": "user", "content": user_message}
+        ]
+
+        # Get app response for this user message
+        app_req_ts = datetime.now(timezone.utc)
+        app_output = await app_handler(app_conversation_history, app_state)
+        app_resp_ts = datetime.now(timezone.utc)
+        
+        # --- Normalize the app's response ---
+        app_response: AppResponse
+        if isinstance(app_output, AppResponse):
+            app_response = app_output
+        elif isinstance(app_output, str):
+            app_response = AppResponse(response=app_output, state={})
+        elif isinstance(app_output, tuple) and len(app_output) == 2:
+            app_response = AppResponse(response=app_output[0], state=app_output[1])
+        else:
+            raise TypeError(
+                f"app_handler returned an unsupported type: {type(app_output)}. "
+                "Supported types are: str, Tuple[str, Any], or AppResponse."
+            )
+        # --- End Normalization ---
+
         # Record user message
         if sim_req_ts and sim_resp_ts:
             conversation.add_user_message(
@@ -191,11 +223,6 @@ async def _run_single_interaction(
                 request_timestamp=sim_req_ts,
                 response_timestamp=sim_resp_ts,
             )
-        
-        # Get app response for this user message
-        app_req_ts = datetime.now(timezone.utc)
-        app_response = await app_handler(user_message, app_state)
-        app_resp_ts = datetime.now(timezone.utc)
         
         # Record app response
         conversation.add_assistant_message(
@@ -306,7 +333,7 @@ async def _judge_interaction(
 
 async def _collect_conversations(
     scenario: ScenarioTest,
-    app_handler: Callable[[str, Any], Awaitable[AppResponse]],
+    app_handler: AppHandler,
     user_simulator_model: str,
     sample_size: int,
     concurrency: int = 10,

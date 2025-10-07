@@ -4,7 +4,7 @@ Framework orchestration logic for SigmaEval.
 
 import logging
 import asyncio
-from typing import Callable, Awaitable, Any, Dict, List
+from typing import Callable, Awaitable, Any, Dict, List, Tuple, Union
 
 from .models import (
     AppResponse,
@@ -24,6 +24,13 @@ from .._evaluators import (
     MedianEvaluator,
     ProportionEvaluator,
 )
+
+
+# Define the flexible app_handler signature and its possible return types
+AppHandler = Callable[
+    [List[Dict[str, str]], Any],
+    Awaitable[Union[AppResponse, str, Tuple[str, Any]]],
+]
 
 
 class SigmaEval:
@@ -154,7 +161,7 @@ class SigmaEval:
     async def _evaluate_single(
         self,
         scenario: ScenarioTest,
-        app_handler: Callable[[str, Any], Awaitable[AppResponse]],
+        app_handler: AppHandler,
         concurrency: int = 10,
     ) -> ScenarioTestResult:
         """
@@ -162,11 +169,10 @@ class SigmaEval:
         
         Args:
             scenario: The behavioral test case to evaluate
-            app_handler: Async callback that takes a user message and a state object,
-                and returns an AppResponse. The state object is managed by your
-                application - SigmaEval passes back the state from your previous
-                AppResponse without modification. On the first turn, state will be
-                an empty dict. Use it to track conversation history, user context,
+            app_handler: Async callback that takes a list of messages and a state
+                object, and returns an AppResponse. The state object is managed
+                by your application. On the first turn, state will be an empty
+                dict. Use the state to track conversation history, user context,
                 or any other stateful information your app needs.
             concurrency: Number of evaluations to run concurrently (default: 10)
             
@@ -404,7 +410,7 @@ class SigmaEval:
     async def evaluate(
         self, 
         scenarios: ScenarioTest | List[ScenarioTest], 
-        app_handler: Callable[[str, Any], Awaitable[AppResponse]],
+        app_handler: AppHandler,
         concurrency: int = 10,
     ) -> ScenarioTestResult | List[ScenarioTestResult]:
         """
@@ -417,12 +423,13 @@ class SigmaEval:
             scenarios: A single :class:`~sigmaeval.ScenarioTest` or a list of
                 scenarios to evaluate.
             app_handler: An async callback that connects SigmaEval to your
-                application. It receives a user message (``str``) and a state
-                object (``Any``), and must return an
-                :class:`~sigmaeval.AppResponse`. The state object is managed
-                by your application; SigmaEval passes it back unmodified on
-                subsequent turns. On the first turn of a conversation, the state
-                will be an empty dictionary.
+                application. It receives a list of messages
+                (e.g., ``[{"role": "user", "content": "..."}]``) and a state 
+                object (``Any``), and can return a ``str``, a ``tuple`` of 
+                ``(str, Any)``, or an :class:`~sigmaeval.AppResponse`. The 
+                state object is managed by your application; SigmaEval passes 
+                it back unmodified on subsequent turns. On the first turn of 
+                a conversation, the state will be an empty dictionary.
             concurrency: The number of simulated conversations to run in
                 parallel for each test scenario. This controls the concurrency
                 *within* a single test, not the number of tests run in parallel.

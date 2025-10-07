@@ -1,6 +1,6 @@
 """Integration tests for the SigmaEval framework."""
 
-from typing import Any, Dict
+from typing import Any
 import os
 from dotenv import load_dotenv
 import logging
@@ -13,7 +13,6 @@ import pytest
 from sigmaeval import (
     SigmaEval,
     ScenarioTest,
-    Expectation,
     AppResponse,
     ScenarioTestResult,
     RetryConfig,
@@ -70,15 +69,23 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     # 3. Create the app handler to bridge SigmaEval and the target app
     chat_app = SimpleChatApp(model=app_model)
 
-    async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
+    async def app_handler(
+        messages: list[dict[str, str]], state: dict[str, Any]
+    ) -> AppResponse:
         """
         This bridge function takes messages from SigmaEval's user simulator,
-        passes them to the chat app, and manages conversation history
-        in the state dictionary.
+        extracts the latest message and history, passes them to the chat app
+        in the format it expects, and manages conversation history in the
+        state dictionary.
         """
         history = state.get("history", [])
+        user_message = messages[-1]["content"]
+
+        # The chat_app expects the history *before* the current message
+        history_for_app = [msg for msg in messages[:-1] if msg["role"] != "system"]
+
         response_text, updated_history = await chat_app.respond(
-            user_message=message, history=history
+            user_message=user_message, history=history_for_app
         )
         return AppResponse(response=response_text, state={"history": updated_history})
 
@@ -175,7 +182,9 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     )
 
     # 3. Create a bad app handler that returns gibberish and does NOT call SimpleChatApp
-    async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
+    async def app_handler(
+        messages: list[dict[str, str]], state: dict[str, Any]
+    ) -> AppResponse:
         """
         This intentionally poor handler ignores the input and returns gibberish,
         returning the state unchanged.
@@ -268,10 +277,14 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
     # 3. Create the app handler
     chat_app = SimpleChatApp(model=app_model)
 
-    async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
+    async def app_handler(
+        messages: list[dict[str, str]], state: dict[str, Any]
+    ) -> AppResponse:
         history = state.get("history", [])
+        user_message = messages[-1]["content"]
+        history_for_app = [msg for msg in messages[:-1] if msg["role"] != "system"]
         response_text, updated_history = await chat_app.respond(
-            user_message=message, history=history
+            user_message=user_message, history=history_for_app
         )
         return AppResponse(response=response_text, state={"history": updated_history})
 
@@ -353,7 +366,9 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
     test_suite = [scenario_1, scenario_2]
 
     # 3. Create a simple, fixed-response app handler
-    async def app_handler(message: str, state: Dict[str, Any]) -> AppResponse:
+    async def app_handler(
+        messages: list[dict[str, str]], state: dict[str, Any]
+    ) -> AppResponse:
         return AppResponse(response="ok", state=state)
 
     # 4. Run the evaluation on the full suite
