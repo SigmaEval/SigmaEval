@@ -246,7 +246,7 @@ class SigmaEval:
                     
                     about_str = "Unknown assertion"
                     if isinstance(criteria, ProportionAssertion):
-                        about_str = f"{metric.name} {criteria.comparison} {criteria.proportion} (threshold: {criteria.threshold})"
+                        about_str = f"proportion of {metric.name}s {criteria.comparison} {criteria.proportion} (threshold: {criteria.threshold})"
                     elif isinstance(criteria, MedianAssertion):
                         about_str = f"median {metric.name} {criteria.comparison} {criteria.threshold}"
 
@@ -262,9 +262,11 @@ class SigmaEval:
             expectation_results.append(
                 ExpectationResult(
                     about=expectation.label
-                    or expectation.expected_behavior[:50]
-                    if isinstance(expectation, BehavioralExpectation)
-                    else expectation.metric.name,
+                    or (
+                        expectation.expected_behavior[:50]
+                        if isinstance(expectation, BehavioralExpectation)
+                        else expectation.metric.name
+                    ),
                     assertion_results=assertion_results,
                     scores=scores if isinstance(expectation, BehavioralExpectation) else all_metric_values,
                     reasoning=reasoning if isinstance(expectation, BehavioralExpectation) else [],
