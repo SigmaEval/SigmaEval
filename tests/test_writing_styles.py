@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, patch
 from sigmaeval.core.models import (
     AppResponse,
     ScenarioTest,
-    Expectation,
     WritingStyleConfig,
     WritingStyleAxes,
     ConversationRecord,

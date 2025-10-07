@@ -3,7 +3,6 @@ Rubric generation logic for Phase 1 of SigmaEval evaluation.
 """
 
 import logging
-from typing import Dict, Any
 from litellm import acompletion as _litellm_acompletion
 from tenacity import (
     AsyncRetrying,

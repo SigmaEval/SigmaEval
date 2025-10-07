@@ -74,7 +74,6 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
         in the format it expects, and manages conversation history in the
         state dictionary.
         """
-        history = state.get("history", [])
         user_message = messages[-1]["content"]
 
         # The chat_app expects the history *before* the current message
@@ -276,7 +275,6 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
     chat_app = SimpleChatApp(model=app_model)
 
     async def app_handler(messages: list[dict[str, str]], state: dict[str, Any]) -> AppResponse:
-        history = state.get("history", [])
         user_message = messages[-1]["content"]
         history_for_app = [msg for msg in messages[:-1] if msg["role"] != "system"]
         response_text, updated_history = await chat_app.respond(

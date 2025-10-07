@@ -1,5 +1,4 @@
 import pytest
-import numpy as np
 from sigmaeval._evaluators import (
     MedianEvaluator,
     ProportionEvaluator,

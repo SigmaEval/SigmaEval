@@ -1,6 +1,5 @@
 """Unit tests for the SigmaEval framework."""
 
-import asyncio
 from typing import Any, Dict, List, Tuple
 from unittest.mock import AsyncMock, patch
 

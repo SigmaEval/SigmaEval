@@ -11,7 +11,6 @@ import pytest
 from sigmaeval import (
     SigmaEval,
     ScenarioTest,
-    Expectation,
     assertions,
     metrics,
 )

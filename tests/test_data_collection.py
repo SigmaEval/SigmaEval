@@ -10,7 +10,6 @@ from datetime import datetime
 from sigmaeval.core.data_collection import _run_single_interaction
 from sigmaeval.core.models import (
     ScenarioTest,
-    Expectation,
     AppResponse,
 )
 from sigmaeval import assertions

@@ -12,10 +12,8 @@ import logging
 import secrets
 from typing import Callable, Awaitable, Any, Dict, List, Tuple, Union
 from datetime import datetime, timezone
-import json
 from litellm import acompletion as _litellm_acompletion
 from tqdm.asyncio import tqdm
-import re
 from tenacity import (
     AsyncRetrying,
     stop_after_attempt,

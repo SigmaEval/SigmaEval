@@ -3,7 +3,7 @@ Defines and generates writing style variations for the user simulator.
 """
 
 import random
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from .models import WritingStyleAxes
 
 

@@ -2,7 +2,6 @@
 Data models for the SigmaEval core package.
 """
 
-import numpy as np
 from typing import Any, Dict, List, Union, Optional, Callable
 from pydantic import (
     BaseModel,
@@ -10,7 +9,6 @@ from pydantic import (
     field_validator,
     model_validator,
     ConfigDict,
-    ValidationError,
     PrivateAttr,
 )
 from datetime import datetime

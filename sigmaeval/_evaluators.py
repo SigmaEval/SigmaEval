@@ -3,7 +3,7 @@ Statistical evaluators for SigmaEval framework.
 """
 
 import logging
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel
 from typing import List, Literal
 import numpy as np
 from scipy.stats import binomtest

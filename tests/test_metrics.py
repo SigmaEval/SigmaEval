@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, patch
 from sigmaeval import (
     SigmaEval,
     ScenarioTest,
-    Expectation,
     assertions,
     metrics,
     AppResponse,

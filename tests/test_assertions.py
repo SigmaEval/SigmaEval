@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock
 
 from sigmaeval import (
     ScenarioTest,
-    Expectation,
     assertions,
     AppResponse,
 )
