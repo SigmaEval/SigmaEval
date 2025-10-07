@@ -90,7 +90,7 @@ class SigmaEval:
             if __name__ == "__main__":
                 asyncio.run(main())
     """
-    
+
     def __init__(
         self,
         judge_model: str,
@@ -140,7 +140,9 @@ class SigmaEval:
             .. _LiteLLM: https://github.com/BerriAI/litellm
         """
         if not isinstance(judge_model, str) or not judge_model.strip():
-            raise ValueError("judge_model must be a non-empty string, e.g., 'openai/gpt-4o'.\nFor a complete list of supported providers, refer to the LiteLLM documentation: https://docs.litellm.ai/docs/providers")
+            raise ValueError(
+                "judge_model must be a non-empty string, e.g., 'openai/gpt-4o'.\nFor a complete list of supported providers, refer to the LiteLLM documentation: https://docs.litellm.ai/docs/providers"
+            )
 
         self.judge_model: str = judge_model
         self.user_simulator_model: str = user_simulator_model or judge_model
@@ -149,15 +151,15 @@ class SigmaEval:
         self.significance_level = significance_level
         self.sample_size = sample_size
         self.writing_style_config = writing_style_config or WritingStyleConfig()
-        
+
         if not self.logger.handlers:
             handler = logging.StreamHandler()
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
-        
+
         self.logger.setLevel(log_level)
-    
+
     async def _evaluate_single(
         self,
         scenario: ScenarioTest,
@@ -166,7 +168,7 @@ class SigmaEval:
     ) -> ScenarioTestResult:
         """
         Run evaluation for a single behavioral test case.
-        
+
         Args:
             scenario: The behavioral test case to evaluate
             app_handler: Async callback that takes a list of messages and a state
@@ -175,31 +177,27 @@ class SigmaEval:
                 dict. Use the state to track conversation history, user context,
                 or any other stateful information your app needs.
             concurrency: Number of evaluations to run concurrently (default: 10)
-            
+
         Returns:
             EvaluationResult: A data class containing the evaluation results.
-        
+
         Raises:
             LLMCommunicationError: If any LLM call (rubric generation, user simulation,
                 or judging) fails or returns an invalid/malformed response.
         """
         # Finalize the build and trigger validation
         scenario._finalize_build()
-        
+
         self.logger.info(f"--- Starting evaluation for ScenarioTest: {scenario.title} ---")
 
         # Validate significance_level before expensive operations
         if self.significance_level is None:
-            self.logger.debug(
-                "No global significance_level set. Verifying on each assertion."
-            )
+            self.logger.debug("No global significance_level set. Verifying on each assertion.")
             for expectation in scenario.then:
                 # Get a descriptive name for the expectation for the error message
                 about_str = "Unknown"
                 if expectation.expected_behavior:
-                    about_str = (
-                        expectation.label or f"'{expectation.expected_behavior[:50]}...'"
-                    )
+                    about_str = expectation.label or f"'{expectation.expected_behavior[:50]}...'"
                 elif expectation.metric_definition:
                     about_str = expectation.label or expectation.metric_definition.name
 
@@ -248,7 +246,7 @@ class SigmaEval:
 
         expectation_results = []
         all_rubrics = []
-        
+
         # A ScenarioTest can have multiple `then` clauses (BehavioralExpectations)
         # Each one is evaluated independently against the same set of conversations.
         for expectation in scenario.then:
@@ -256,21 +254,21 @@ class SigmaEval:
             scores = []
             reasoning = []
             about_str = "Unknown expectation"
-            
+
             if expectation.expected_behavior is not None:
                 about_str = expectation.label or expectation.expected_behavior[:50]
                 # Phase 1: Test Setup
                 # Generate a rubric for this specific expectation
                 self.logger.debug(f"Generating rubric for expectation: {about_str}")
                 rubric = await _generate_rubric(
-                    scenario=scenario, 
-                    expectation=expectation, 
-                    model=self.judge_model, 
-                    retry_config=self.retry_config
+                    scenario=scenario,
+                    expectation=expectation,
+                    model=self.judge_model,
+                    retry_config=self.retry_config,
                 )
                 self.logger.debug(f"Generated rubric: {rubric}")
                 all_rubrics.append(rubric)
-                
+
                 # Phase 2 (second half): Judging
                 # The collected conversations are now judged against the new rubric.
                 scores, reasoning = await _judge_conversations(
@@ -282,10 +280,10 @@ class SigmaEval:
                     concurrency=concurrency,
                     retry_config=self.retry_config,
                 )
-                
+
                 # Phase 3: Statistical Analysis
                 self.logger.debug(f"Collected scores for '{scenario.title}': {scores}")
-                
+
                 log_msg = f"Starting statistical analysis for '{scenario.title}'"
                 if expectation.label:
                     log_msg += f" (Expectation: {expectation.label})"
@@ -298,9 +296,7 @@ class SigmaEval:
                 )
                 for criteria in criteria_list:
                     evaluator = None
-                    significance_level = (
-                        criteria.significance_level or self.significance_level
-                    )
+                    significance_level = criteria.significance_level or self.significance_level
                     if isinstance(criteria, ProportionAssertion):
                         evaluator = ProportionEvaluator(
                             significance_level=significance_level,
@@ -318,12 +314,14 @@ class SigmaEval:
                         raise TypeError(f"Unsupported criteria type: {type(criteria)}")
 
                     eval_result_dict = evaluator.evaluate(scores, label=expectation.label)
-                    
+
                     assertion_about_str = "Unknown assertion"
                     if isinstance(criteria, ProportionAssertion):
                         assertion_about_str = f"proportion of scores {criteria.comparison} {criteria.proportion} (threshold: {criteria.threshold})"
                     elif isinstance(criteria, MedianAssertion):
-                        assertion_about_str = f"median score {criteria.comparison} {criteria.threshold}"
+                        assertion_about_str = (
+                            f"median score {criteria.comparison} {criteria.threshold}"
+                        )
 
                     assertion_results.append(
                         AssertionResult(
@@ -349,9 +347,7 @@ class SigmaEval:
                 )
                 for criteria in criteria_list:
                     evaluator = None
-                    significance_level = (
-                        criteria.significance_level or self.significance_level
-                    )
+                    significance_level = criteria.significance_level or self.significance_level
                     if isinstance(criteria, ProportionAssertion):
                         evaluator = ProportionEvaluator(
                             significance_level=significance_level,
@@ -366,15 +362,21 @@ class SigmaEval:
                             comparison=criteria.comparison,
                         )
                     else:
-                        raise TypeError(f"Unsupported criteria type for MetricExpectation: {type(criteria)}")
-                    
-                    eval_result_dict = evaluator.evaluate(all_metric_values, label=expectation.label)
-                    
+                        raise TypeError(
+                            f"Unsupported criteria type for MetricExpectation: {type(criteria)}"
+                        )
+
+                    eval_result_dict = evaluator.evaluate(
+                        all_metric_values, label=expectation.label
+                    )
+
                     assertion_about_str = "Unknown assertion"
                     if isinstance(criteria, ProportionAssertion):
                         assertion_about_str = f"proportion of {metric.name}s {criteria.comparison} {criteria.proportion} (threshold: {criteria.threshold})"
                     elif isinstance(criteria, MedianAssertion):
-                        assertion_about_str = f"median {metric.name} {criteria.comparison} {criteria.threshold}"
+                        assertion_about_str = (
+                            f"median {metric.name} {criteria.comparison} {criteria.threshold}"
+                        )
 
                     assertion_results.append(
                         AssertionResult(
@@ -389,13 +391,15 @@ class SigmaEval:
                 ExpectationResult(
                     about=about_str,
                     assertion_results=assertion_results,
-                    scores=scores if expectation.expected_behavior is not None else all_metric_values,
+                    scores=(
+                        scores if expectation.expected_behavior is not None else all_metric_values
+                    ),
                     reasoning=reasoning if expectation.expected_behavior is not None else [],
                 )
             )
 
         self.logger.info(f"--- Evaluation complete for: {scenario.title} ---")
-        
+
         return ScenarioTestResult(
             title=scenario.title,
             expectation_results=expectation_results,
@@ -408,8 +412,8 @@ class SigmaEval:
         )
 
     async def evaluate(
-        self, 
-        scenarios: ScenarioTest | List[ScenarioTest], 
+        self,
+        scenarios: ScenarioTest | List[ScenarioTest],
         app_handler: AppHandler,
         concurrency: int = 10,
     ) -> ScenarioTestResult | List[ScenarioTestResult]:
@@ -424,11 +428,11 @@ class SigmaEval:
                 scenarios to evaluate.
             app_handler: An async callback that connects SigmaEval to your
                 application. It receives a list of messages
-                (e.g., ``[{"role": "user", "content": "..."}]``) and a state 
-                object (``Any``), and can return a ``str``, a ``tuple`` of 
-                ``(str, Any)``, or an :class:`~sigmaeval.AppResponse`. The 
-                state object is managed by your application; SigmaEval passes 
-                it back unmodified on subsequent turns. On the first turn of 
+                (e.g., ``[{"role": "user", "content": "..."}]``) and a state
+                object (``Any``), and can return a ``str``, a ``tuple`` of
+                ``(str, Any)``, or an :class:`~sigmaeval.AppResponse`. The
+                state object is managed by your application; SigmaEval passes
+                it back unmodified on subsequent turns. On the first turn of
                 a conversation, the state will be an empty dictionary.
             concurrency: The number of simulated conversations to run in
                 parallel for each test scenario. This controls the concurrency
@@ -450,11 +454,12 @@ class SigmaEval:
             scenarios = [scenarios]
             is_single_item = True
         else:
-            self.logger.info(f"--- Starting evaluation for test suite with {len(scenarios)} scenarios ---")
+            self.logger.info(
+                f"--- Starting evaluation for test suite with {len(scenarios)} scenarios ---"
+            )
 
         tasks = [
-            self._evaluate_single(scenario, app_handler, concurrency)
-            for scenario in scenarios
+            self._evaluate_single(scenario, app_handler, concurrency) for scenario in scenarios
         ]
         all_results = await asyncio.gather(*tasks)
 
@@ -463,5 +468,5 @@ class SigmaEval:
 
         if is_single_item:
             return all_results[0]
-        
+
         return all_results

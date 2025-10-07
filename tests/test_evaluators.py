@@ -68,9 +68,7 @@ from sigmaeval._evaluators import (
         ([10, 5], 6, 0.9, False, "1/2 successes at 90% -> fail"),
     ],
 )
-def test_proportion_evaluator_gte(
-    scores, threshold, proportion, expected_pass, description
-):
+def test_proportion_evaluator_gte(scores, threshold, proportion, expected_pass, description):
     """Tests the ProportionEvaluator with gte comparison."""
     evaluator = ProportionEvaluator(
         significance_level=0.05,
@@ -107,9 +105,7 @@ def test_proportion_evaluator_gte(
         ([0.1], 0.5, 0.9, False, "1/1 success at 90% -> not enough evidence"),
     ],
 )
-def test_proportion_evaluator_lt(
-    scores, threshold, proportion, expected_pass, description
-):
+def test_proportion_evaluator_lt(scores, threshold, proportion, expected_pass, description):
     """Tests the ProportionEvaluator with lt comparison."""
     evaluator = ProportionEvaluator(
         significance_level=0.05,

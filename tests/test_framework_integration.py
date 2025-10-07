@@ -37,11 +37,9 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     eval_model = os.getenv("TEST_EVAL_MODEL")
     app_model = os.getenv("TEST_APP_MODEL")
     if not eval_model or not app_model:
-        pytest.skip(
-            "TEST_EVAL_MODEL and TEST_APP_MODEL env vars must be set to run this test."
-        )
-    
-    sample_size = 10 # Keep sample size low for a quick test
+        pytest.skip("TEST_EVAL_MODEL and TEST_APP_MODEL env vars must be set to run this test.")
+
+    sample_size = 10  # Keep sample size low for a quick test
 
     # 2. Define the Behavioral Test
     scenario = (
@@ -69,9 +67,7 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     # 3. Create the app handler to bridge SigmaEval and the target app
     chat_app = SimpleChatApp(model=app_model)
 
-    async def app_handler(
-        messages: list[dict[str, str]], state: dict[str, Any]
-    ) -> AppResponse:
+    async def app_handler(messages: list[dict[str, str]], state: dict[str, Any]) -> AppResponse:
         """
         This bridge function takes messages from SigmaEval's user simulator,
         extracts the latest message and history, passes them to the chat app
@@ -126,7 +122,10 @@ async def test_e2e_evaluation_with_simple_example_app(caplog) -> None:
     assert proportion_above_5 >= 0.7, f"Only {proportion_above_5:.1%} of scores are above 5."
 
     # Check that reasoning is available
-    assert results.expectation_results[0].reasoning and len(results.expectation_results[0].reasoning) == sample_size
+    assert (
+        results.expectation_results[0].reasoning
+        and len(results.expectation_results[0].reasoning) == sample_size
+    )
 
     # Check that a multi-turn conversation was recorded
     first_conversation = results.conversations[0]
@@ -155,9 +154,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     eval_model = os.getenv("TEST_EVAL_MODEL")
     app_model = os.getenv("TEST_APP_MODEL")
     if not eval_model or not app_model:
-        pytest.skip(
-            "TEST_EVAL_MODEL and TEST_APP_MODEL env vars must be set to run this test."
-        )
+        pytest.skip("TEST_EVAL_MODEL and TEST_APP_MODEL env vars must be set to run this test.")
 
     sample_size = 10  # Keep sample size low for a quick test
 
@@ -182,9 +179,7 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     )
 
     # 3. Create a bad app handler that returns gibberish and does NOT call SimpleChatApp
-    async def app_handler(
-        messages: list[dict[str, str]], state: dict[str, Any]
-    ) -> AppResponse:
+    async def app_handler(messages: list[dict[str, str]], state: dict[str, Any]) -> AppResponse:
         """
         This intentionally poor handler ignores the input and returns gibberish,
         returning the state unchanged.
@@ -208,16 +203,21 @@ async def test_e2e_evaluation_with_bad_app_returns_low_scores(caplog) -> None:
     assert results.title == scenario.title
     assert results.rubric and len(results.rubric) > 0
     assert results.conversations and len(results.conversations) == sample_size
-    
+
     # Expect that at most 30% of scores are above 2 for this bad app
     scores = results.expectation_results[0].scores
     assert scores and len(scores) == sample_size
     scores_above_2 = [score for score in scores if score > 2]
     proportion_above_2 = len(scores_above_2) / len(scores)
-    assert proportion_above_2 <= 0.3, f"Too many high scores for a bad app: {proportion_above_2:.1%}."
+    assert (
+        proportion_above_2 <= 0.3
+    ), f"Too many high scores for a bad app: {proportion_above_2:.1%}."
 
     # Check that reasoning is available
-    assert results.expectation_results[0].reasoning and len(results.expectation_results[0].reasoning) == sample_size
+    assert (
+        results.expectation_results[0].reasoning
+        and len(results.expectation_results[0].reasoning) == sample_size
+    )
 
     # The overall test should FAIL because the behavioral expectation is not met.
     assert results.passed is False
@@ -251,9 +251,7 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
     eval_model = os.getenv("TEST_EVAL_MODEL")
     app_model = os.getenv("TEST_APP_MODEL")
     if not eval_model or not app_model:
-        pytest.skip(
-            "TEST_EVAL_MODEL and TEST_APP_MODEL env vars must be set to run this test."
-        )
+        pytest.skip("TEST_EVAL_MODEL and TEST_APP_MODEL env vars must be set to run this test.")
 
     sample_size = 2  # Keep sample size low for a quick test
 
@@ -277,9 +275,7 @@ async def test_e2e_evaluation_with_custom_writing_style(caplog) -> None:
     # 3. Create the app handler
     chat_app = SimpleChatApp(model=app_model)
 
-    async def app_handler(
-        messages: list[dict[str, str]], state: dict[str, Any]
-    ) -> AppResponse:
+    async def app_handler(messages: list[dict[str, str]], state: dict[str, Any]) -> AppResponse:
         history = state.get("history", [])
         user_message = messages[-1]["content"]
         history_for_app = [msg for msg in messages[:-1] if msg["role"] != "system"]
@@ -366,9 +362,7 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
     test_suite = [scenario_1, scenario_2]
 
     # 3. Create a simple, fixed-response app handler
-    async def app_handler(
-        messages: list[dict[str, str]], state: dict[str, Any]
-    ) -> AppResponse:
+    async def app_handler(messages: list[dict[str, str]], state: dict[str, Any]) -> AppResponse:
         return AppResponse(response="ok", state=state)
 
     # 4. Run the evaluation on the full suite
@@ -394,4 +388,3 @@ async def test_e2e_evaluation_with_test_suite(caplog) -> None:
     # Check that individual test logs are also present
     assert "--- Starting evaluation for ScenarioTest: Minimal Test 1 ---" in caplog.text
     assert "--- Evaluation complete for: Minimal Test 1 ---" in caplog.text
-

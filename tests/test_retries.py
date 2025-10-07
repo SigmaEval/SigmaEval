@@ -45,9 +45,7 @@ async def test_retry_succeeds_after_failures(monkeypatch, mock_scenario):
             raise RuntimeError("transient error")
         return _FakeResponse("ok rubric")
 
-    monkeypatch.setattr(
-        "sigmaeval.core.rubric_generator._litellm_acompletion", fake_acompletion
-    )
+    monkeypatch.setattr("sigmaeval.core.rubric_generator._litellm_acompletion", fake_acompletion)
 
     cfg = RetryConfig(
         enabled=True,
@@ -79,9 +77,7 @@ async def test_retry_on_empty_response(monkeypatch, mock_scenario):
             return _FakeResponse("")
         return _FakeResponse("ok rubric")
 
-    monkeypatch.setattr(
-        "sigmaeval.core.rubric_generator._litellm_acompletion", fake_acompletion
-    )
+    monkeypatch.setattr("sigmaeval.core.rubric_generator._litellm_acompletion", fake_acompletion)
 
     cfg = RetryConfig(
         enabled=True,
@@ -108,9 +104,7 @@ async def test_retry_disabled_no_retry(monkeypatch, mock_scenario):
         call_counter["n"] += 1
         raise RuntimeError("should not retry when disabled")
 
-    monkeypatch.setattr(
-        "sigmaeval.core.rubric_generator._litellm_acompletion", fake_acompletion
-    )
+    monkeypatch.setattr("sigmaeval.core.rubric_generator._litellm_acompletion", fake_acompletion)
 
     cfg = RetryConfig(enabled=False, max_attempts=5)
     with pytest.raises(LLMCommunicationError):
@@ -165,9 +159,7 @@ async def test_retry_succeeds_for_user_simulation(monkeypatch, mock_scenario):
         # A valid JSON response for the user simulator
         return _FakeResponse('{"message": "Test message", "continue": false}')
 
-    monkeypatch.setattr(
-        "sigmaeval.core.data_collection._litellm_acompletion", fake_acompletion
-    )
+    monkeypatch.setattr("sigmaeval.core.data_collection._litellm_acompletion", fake_acompletion)
 
     cfg = RetryConfig(
         enabled=True,
@@ -200,9 +192,7 @@ async def test_retry_succeeds_for_judging(monkeypatch, mock_scenario):
         # A valid JSON response for the judge
         return _FakeResponse('{"score": 8, "reasoning": "Good response"}')
 
-    monkeypatch.setattr(
-        "sigmaeval.core.data_collection._litellm_acompletion", fake_acompletion
-    )
+    monkeypatch.setattr("sigmaeval.core.data_collection._litellm_acompletion", fake_acompletion)
 
     cfg = RetryConfig(
         enabled=True,
@@ -224,5 +214,3 @@ async def test_retry_succeeds_for_judging(monkeypatch, mock_scenario):
     assert scores == [8]
     assert reasoning == ["Good response"]
     assert call_counter["n"] == 3
-
-

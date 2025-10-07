@@ -202,7 +202,9 @@ async def test_missing_significance_level_behavioral_raises_value_error() -> Non
         )
     )
 
-    with pytest.raises(ValueError, match="Expectation 'My Expectation' is missing a significance_level"):
+    with pytest.raises(
+        ValueError, match="Expectation 'My Expectation' is missing a significance_level"
+    ):
         await sigma_eval.evaluate(scenario, AsyncMock())
 
 
@@ -225,7 +227,9 @@ async def test_missing_significance_level_metric_raises_value_error() -> None:
         )
     )
 
-    with pytest.raises(ValueError, match="Expectation 'My Metric Expectation' is missing a significance_level"):
+    with pytest.raises(
+        ValueError, match="Expectation 'My Metric Expectation' is missing a significance_level"
+    ):
         await sigma_eval.evaluate(scenario, AsyncMock())
 
 
@@ -298,9 +302,7 @@ async def test_sample_size_from_constructor(
     mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
     mock_generate_rubric.return_value = "Test Rubric"
     mock_judge_conversations.return_value = ([10.0], ["reason"])
-    sigma_eval = SigmaEval(
-        judge_model="test/model", significance_level=0.05, sample_size=25
-    )
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05, sample_size=25)
     scenario = (
         ScenarioTest("Test sample_size from constructor")
         .given("A user")
@@ -334,9 +336,7 @@ async def test_sample_size_from_scenario_overrides_constructor(
     mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
     mock_generate_rubric.return_value = "Test Rubric"
     mock_judge_conversations.return_value = ([10.0], ["reason"])
-    sigma_eval = SigmaEval(
-        judge_model="test/model", significance_level=0.05, sample_size=25
-    )
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05, sample_size=25)
     scenario = (
         ScenarioTest("Test sample_size override")
         .given("A user")
@@ -411,8 +411,14 @@ async def test_mocked_multiple_expectations_all_pass(
     assert mock_collect_conversations.call_count == 1
     assert mock_generate_rubric.call_count == 2
     assert mock_evaluator_instance.evaluate.call_count == 2
-    assert "Starting statistical analysis for 'Multi-Expectation Test (All Pass)' (Expectation: Expectation 1)" in caplog.text
-    assert "Starting statistical analysis for 'Multi-Expectation Test (All Pass)' (Expectation: Expectation 2)" in caplog.text
+    assert (
+        "Starting statistical analysis for 'Multi-Expectation Test (All Pass)' (Expectation: Expectation 1)"
+        in caplog.text
+    )
+    assert (
+        "Starting statistical analysis for 'Multi-Expectation Test (All Pass)' (Expectation: Expectation 2)"
+        in caplog.text
+    )
 
 
 @pytest.mark.asyncio
@@ -475,8 +481,14 @@ async def test_mocked_multiple_expectations_one_fails(
     assert mock_collect_conversations.call_count == 1
     assert mock_generate_rubric.call_count == 2
     assert mock_evaluator_instance.evaluate.call_count == 2
-    assert "Starting statistical analysis for 'Multi-Expectation Test (One Fail)' (Expectation: Expectation 1)" in caplog.text
-    assert "Starting statistical analysis for 'Multi-Expectation Test (One Fail)' (Expectation: Expectation 2)" in caplog.text
+    assert (
+        "Starting statistical analysis for 'Multi-Expectation Test (One Fail)' (Expectation: Expectation 1)"
+        in caplog.text
+    )
+    assert (
+        "Starting statistical analysis for 'Multi-Expectation Test (One Fail)' (Expectation: Expectation 2)"
+        in caplog.text
+    )
 
 
 @pytest.mark.asyncio
@@ -534,7 +546,10 @@ async def test_mocked_multiple_assertions_all_pass(
     assert mock_collect_conversations.call_count == 1
     assert mock_generate_rubric.call_count == 1
     assert mock_evaluator_instance.evaluate.call_count == 2
-    assert "Starting statistical analysis for 'Multi-Assertion Test (All Pass)' (Expectation: Expectation with multiple assertions)" in caplog.text
+    assert (
+        "Starting statistical analysis for 'Multi-Assertion Test (All Pass)' (Expectation: Expectation with multiple assertions)"
+        in caplog.text
+    )
 
 
 @pytest.mark.asyncio
@@ -602,18 +617,43 @@ async def test_scenario_with_only_metric_expectation(
     """
     # 1. Setup
     mock_evaluator_class.return_value.evaluate.return_value = {"passed": True}
-    
+
     from datetime import datetime, timezone, timedelta
+
     now = datetime.now(timezone.utc)
     mock_collect_conversations.return_value = [
-        ConversationRecord(turns=[
-            ConversationTurn(role="user", content="hello", request_timestamp=now, response_timestamp=now + timedelta(seconds=0.1)),
-            ConversationTurn(role="assistant", content="hi", request_timestamp=now + timedelta(seconds=0.2), response_timestamp=now + timedelta(seconds=0.5)),
-        ]),
-        ConversationRecord(turns=[
-            ConversationTurn(role="user", content="bye", request_timestamp=now, response_timestamp=now + timedelta(seconds=0.1)),
-            ConversationTurn(role="assistant", content="goodbye", request_timestamp=now + timedelta(seconds=0.2), response_timestamp=now + timedelta(seconds=0.4)),
-        ]),
+        ConversationRecord(
+            turns=[
+                ConversationTurn(
+                    role="user",
+                    content="hello",
+                    request_timestamp=now,
+                    response_timestamp=now + timedelta(seconds=0.1),
+                ),
+                ConversationTurn(
+                    role="assistant",
+                    content="hi",
+                    request_timestamp=now + timedelta(seconds=0.2),
+                    response_timestamp=now + timedelta(seconds=0.5),
+                ),
+            ]
+        ),
+        ConversationRecord(
+            turns=[
+                ConversationTurn(
+                    role="user",
+                    content="bye",
+                    request_timestamp=now,
+                    response_timestamp=now + timedelta(seconds=0.1),
+                ),
+                ConversationTurn(
+                    role="assistant",
+                    content="goodbye",
+                    request_timestamp=now + timedelta(seconds=0.2),
+                    response_timestamp=now + timedelta(seconds=0.4),
+                ),
+            ]
+        ),
     ]
 
     # 2. Define Scenario
@@ -641,5 +681,5 @@ async def test_scenario_with_only_metric_expectation(
     assert len(results.expectation_results[0].reasoning) == 0
     assert mock_collect_conversations.call_count == 1
     assert mock_generate_rubric.call_count == 0  # Should not be called
-    assert mock_judge_conversations.call_count == 0    # Should not be called
+    assert mock_judge_conversations.call_count == 0  # Should not be called
     assert mock_evaluator_class.return_value.evaluate.call_count == 1

@@ -4,7 +4,15 @@ Data models for the SigmaEval core package.
 
 import numpy as np
 from typing import Any, Dict, List, Union, Optional, Callable
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict, ValidationError, PrivateAttr
+from pydantic import (
+    BaseModel,
+    Field,
+    field_validator,
+    model_validator,
+    ConfigDict,
+    ValidationError,
+    PrivateAttr,
+)
 from datetime import datetime
 
 from ..assertions import Assertion, ScoreAssertion, MetricAssertion
@@ -24,6 +32,7 @@ class MetricDefinition(BaseModel):
 
 class ConversationTurn(BaseModel):
     """A single turn in a conversation, with timestamps."""
+
     role: str
     content: str
     request_timestamp: datetime
@@ -34,6 +43,7 @@ class WritingStyleAxes(BaseModel):
     """
     Defines the axes for writing style variations.
     """
+
     proficiency: List[str] = Field(
         default=[
             "Third-grade level.",
@@ -105,6 +115,7 @@ class WritingStyleConfig(BaseModel):
         enabled: If ``True``, enables writing style variations.
         axes: The different axes of writing styles to use.
     """
+
     enabled: bool = True
     axes: WritingStyleAxes = Field(default_factory=WritingStyleAxes)
 
@@ -122,6 +133,7 @@ class AppResponse(BaseModel):
             on the next turn of the conversation. SigmaEval does not modify
             this object; it is treated as a pass-through.
     """
+
     response: str
     state: Any
 
@@ -146,13 +158,19 @@ class Expectation(BaseModel):
         label: An optional short name for the expectation, which is displayed
             in logs and results.
     """
+
     expected_behavior: Optional[str] = Field(None, description="Expected behavior description")
-    metric_definition: Optional[MetricDefinition] = Field(None, description="The metric to be measured.")
+    metric_definition: Optional[MetricDefinition] = Field(
+        None, description="The metric to be measured."
+    )
     criteria: List[Assertion] = Field(..., description="Criteria for statistical analysis")
-    label: Optional[str] = Field(None, description="Optional short name for the expectation, which will be displayed in logs and the evaluation results summary.")
+    label: Optional[str] = Field(
+        None,
+        description="Optional short name for the expectation, which will be displayed in logs and the evaluation results summary.",
+    )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     @model_validator(mode="before")
     @classmethod
     def check_behavior_or_metric(cls, data: Any) -> Any:
@@ -164,10 +182,7 @@ class Expectation(BaseModel):
                 raise ValueError(
                     "An Expectation cannot have both 'expected_behavior' and 'metric_definition' defined."
                 )
-            if (
-                data.get("expected_behavior") is None
-                and data.get("metric_definition") is None
-            ):
+            if data.get("expected_behavior") is None and data.get("metric_definition") is None:
                 raise ValueError(
                     "An Expectation must have either 'expected_behavior' or 'metric_definition' defined."
                 )
@@ -178,7 +193,7 @@ class Expectation(BaseModel):
         if not v:
             raise ValueError("'criteria' cannot be an empty list")
         return v
-    
+
     @classmethod
     def behavior(
         cls,
@@ -197,9 +212,7 @@ class Expectation(BaseModel):
             label: An optional short name for this expectation.
         """
         criteria_list = criteria if isinstance(criteria, list) else [criteria]
-        return cls(
-            expected_behavior=expected_behavior, criteria=criteria_list, label=label
-        )
+        return cls(expected_behavior=expected_behavior, criteria=criteria_list, label=label)
 
     @classmethod
     def metric(
@@ -262,9 +275,13 @@ class ScenarioTest(BaseModel):
     given_context: str = Field(default="", serialization_alias="given", validation_alias="given")
     when_action: str = Field(default="", serialization_alias="when", validation_alias="when")
     then: List[Expectation] = Field(default_factory=list)
-    num_samples: int | None = Field(default=None, serialization_alias="sample_size", validation_alias="sample_size")
-    max_turns_value: int = Field(default=10, serialization_alias="max_turns", validation_alias="max_turns")
-    
+    num_samples: int | None = Field(
+        default=None, serialization_alias="sample_size", validation_alias="sample_size"
+    )
+    max_turns_value: int = Field(
+        default=10, serialization_alias="max_turns", validation_alias="max_turns"
+    )
+
     # Use Pydantic private attributes
     _building: bool = PrivateAttr(default=True)
 
@@ -282,7 +299,7 @@ class ScenarioTest(BaseModel):
             raise ValueError("title must not be empty")
         super().__init__(title=title, **kwargs)
         # Private attribute is automatically set to True by default
-    
+
     def given(self, context: str) -> "ScenarioTest":
         """
         Sets the 'Given' context for the test scenario.
@@ -301,7 +318,7 @@ class ScenarioTest(BaseModel):
             raise ValueError("'given' context must not be empty")
         self.given_context = context
         return self
-    
+
     def when(self, action: str) -> "ScenarioTest":
         """
         Sets the 'When' action for the test scenario.
@@ -319,7 +336,7 @@ class ScenarioTest(BaseModel):
             raise ValueError("'when' action must not be empty")
         self.when_action = action
         return self
-    
+
     def sample_size(self, size: int) -> "ScenarioTest":
         """
         Sets the sample size for the test scenario.
@@ -338,7 +355,7 @@ class ScenarioTest(BaseModel):
             raise ValueError("sample_size must be a positive integer")
         self.num_samples = size
         return self
-    
+
     def max_turns(self, turns: int) -> "ScenarioTest":
         """
         Sets the maximum number of turns for each simulated conversation.
@@ -355,7 +372,7 @@ class ScenarioTest(BaseModel):
             raise ValueError("max_turns must be a positive integer")
         self.max_turns_value = turns
         return self
-    
+
     def expect_behavior(
         self,
         expected_behavior: str,
@@ -379,14 +396,12 @@ class ScenarioTest(BaseModel):
         """
         criteria_list = criteria if isinstance(criteria, list) else [criteria]
         expectation = Expectation(
-            expected_behavior=expected_behavior,
-            criteria=criteria_list,
-            label=label
+            expected_behavior=expected_behavior, criteria=criteria_list, label=label
         )
         # Get the current then list and append to it
         self.__dict__["then"].append(expectation)
         return self
-    
+
     def expect_metric(
         self,
         metric: MetricDefinition,
@@ -409,15 +424,11 @@ class ScenarioTest(BaseModel):
             The :class:`ScenarioTest` instance for method chaining.
         """
         criteria_list = criteria if isinstance(criteria, list) else [criteria]
-        expectation = Expectation(
-            metric_definition=metric,
-            criteria=criteria_list,
-            label=label
-        )
+        expectation = Expectation(metric_definition=metric, criteria=criteria_list, label=label)
         # Get the current then list and append to it
         self.__dict__["then"].append(expectation)
         return self
-    
+
     def _finalize_build(self) -> None:
         """
         Internal method to finalize the build and trigger validation.
@@ -426,7 +437,7 @@ class ScenarioTest(BaseModel):
         self._building = False
         # Now trigger validation by re-validating the model
         self.model_validate(self)
-    
+
     @model_validator(mode="after")
     def validate_complete(self) -> "ScenarioTest":
         """
@@ -436,35 +447,37 @@ class ScenarioTest(BaseModel):
         # Skip validation if we're still in builder mode
         if self._building:
             return self
-        
+
         errors = []
-        
+
         # Access the fields
         given_value = self.given_context
         when_value = self.when_action
         sample_size_value = self.num_samples
         then_value = self.then
-        
+
         if not given_value or not given_value.strip():
             errors.append("'given' context must be set using .given()")
-        
+
         if not when_value or not when_value.strip():
             errors.append("'when' action must be set using .when()")
-        
+
         # The check for a missing sample_size is done in SigmaEval to allow for a
         # global default.
         if sample_size_value is not None and sample_size_value <= 0:
             errors.append("sample_size must be a positive integer")
-        
+
         if not then_value:
-            errors.append("at least one expectation must be added using .expect_behavior() or .expect_metric()")
-        
+            errors.append(
+                "at least one expectation must be added using .expect_behavior() or .expect_metric()"
+            )
+
         if errors:
             raise ValueError(
                 "ScenarioTest is incomplete. Missing required configuration:\n  - "
                 + "\n  - ".join(errors)
             )
-        
+
         return self
 
 
@@ -492,49 +505,48 @@ class RetryConfig(BaseModel):
 class ConversationRecord(BaseModel):
     """
     Record of a single conversation between user simulator and app.
-    
+
     This class stores the turn-by-turn interaction between the simulated user
     and the application under test.
-    
+
     Attributes:
         turns: List of conversation turns.
         writing_style: The writing style used for this conversation, if any.
     """
+
     turns: list[ConversationTurn] = Field(default_factory=list)
     writing_style: Dict[str, str] | None = None
 
     def add_user_message(
-        self,
-        message: str,
-        request_timestamp: datetime,
-        response_timestamp: datetime
+        self, message: str, request_timestamp: datetime, response_timestamp: datetime
     ):
         """Add a user message to the conversation."""
-        self.turns.append(ConversationTurn(
-            role="user",
-            content=message,
-            request_timestamp=request_timestamp,
-            response_timestamp=response_timestamp,
-        ))
-    
+        self.turns.append(
+            ConversationTurn(
+                role="user",
+                content=message,
+                request_timestamp=request_timestamp,
+                response_timestamp=response_timestamp,
+            )
+        )
+
     def add_assistant_message(
-        self,
-        message: str,
-        request_timestamp: datetime,
-        response_timestamp: datetime
+        self, message: str, request_timestamp: datetime, response_timestamp: datetime
     ):
         """Add an assistant message to the conversation."""
-        self.turns.append(ConversationTurn(
-            role="assistant",
-            content=message,
-            request_timestamp=request_timestamp,
-            response_timestamp=response_timestamp,
-        ))
-    
+        self.turns.append(
+            ConversationTurn(
+                role="assistant",
+                content=message,
+                request_timestamp=request_timestamp,
+                response_timestamp=response_timestamp,
+            )
+        )
+
     def to_formatted_string(self) -> str:
         """
         Format the conversation as a human-readable string.
-        
+
         Returns:
             A string with each turn formatted as "User: ..." or "Assistant: ..."
         """
@@ -630,9 +642,7 @@ class ExpectationResult(BaseModel):
             # If there's only one assertion, condense the output to a single line
             res = self.assertion_results[0]
             res_status = "✅ PASSED" if res.passed else "❌ FAILED"
-            p_value_str = (
-                f", p-value: {res.p_value:.4f}" if res.p_value is not None else ""
-            )
+            p_value_str = f", p-value: {res.p_value:.4f}" if res.p_value is not None else ""
             return f"[{res_status}] {self.about}{p_value_str}"
         else:
             # For multiple assertions, use a detailed breakdown
@@ -641,12 +651,8 @@ class ExpectationResult(BaseModel):
             results_breakdown = []
             for res in self.assertion_results:
                 assertion_status = "✅" if res.passed else "❌"
-                p_value_str = (
-                    f", p-value: {res.p_value:.4f}" if res.p_value is not None else ""
-                )
-                results_breakdown.append(
-                    f"    - [{assertion_status}] {res.about}{p_value_str}"
-                )
+                p_value_str = f", p-value: {res.p_value:.4f}" if res.p_value is not None else ""
+                results_breakdown.append(f"    - [{assertion_status}] {res.about}{p_value_str}")
 
             breakdown_str = "\n".join(results_breakdown)
             return f"{title_line}\n{breakdown_str}"
@@ -695,8 +701,4 @@ class ScenarioTestResult(BaseModel):
         total_count = len(self.expectation_results)
         summary_line = f"Summary: {passed_count}/{total_count} expectations passed."
         results_breakdown = "\n\n".join(f"  - {r}" for r in self.expectation_results)
-        return (
-            f"{title_line}\n{status_line}\n{summary_line}\n\nBreakdown:\n{results_breakdown}"
-        )
-
-
+        return f"{title_line}\n{status_line}\n{summary_line}\n\nBreakdown:\n{results_breakdown}"

@@ -40,9 +40,7 @@ def test_proportion_gte_returns_correct_dataclass():
     """
     Tests that assertions.scores.proportion_gte creates the correct dataclass.
     """
-    crit = assertions.scores.proportion_gte(
-        min_score=8, proportion=0.9, significance_level=0.01
-    )
+    crit = assertions.scores.proportion_gte(min_score=8, proportion=0.9, significance_level=0.01)
     assert isinstance(crit, ScoreProportionAssertion)
     assert crit.threshold == 8
     assert crit.proportion == 0.9
@@ -65,9 +63,7 @@ def test_proportion_lt_returns_correct_dataclass():
     """
     Tests that assertions.metrics.proportion_lt creates the correct dataclass.
     """
-    crit = assertions.metrics.proportion_lt(
-        threshold=1.5, proportion=0.95, significance_level=0.01
-    )
+    crit = assertions.metrics.proportion_lt(threshold=1.5, proportion=0.95, significance_level=0.01)
     assert isinstance(crit, MetricProportionAssertion)
     assert crit.threshold == 1.5
     assert crit.proportion == 0.95

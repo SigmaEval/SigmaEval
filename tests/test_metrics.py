@@ -11,6 +11,7 @@ from sigmaeval import (
 from sigmaeval.core.models import ConversationRecord, ConversationTurn
 from datetime import datetime, timedelta
 
+
 @pytest.fixture
 def metric_scenario():
     """Fixture for a ScenarioTest with a MetricExpectation."""
@@ -24,6 +25,7 @@ def metric_scenario():
             criteria=assertions.metrics.proportion_lt(threshold=1.0, proportion=0.9),
         )
     )
+
 
 @pytest.mark.asyncio
 async def test_metric_evaluation_proportion_lt(metric_scenario):
@@ -71,9 +73,9 @@ async def test_metric_evaluation_total_assistant_response_time(metric_scenario):
     """
     Tests a metric evaluation with a total_assistant_response_time metric.
     """
-    metric_scenario.then[
-        0
-    ].metric_definition = metrics.per_conversation.total_assistant_response_time
+    metric_scenario.then[0].metric_definition = (
+        metrics.per_conversation.total_assistant_response_time
+    )
     metric_scenario.then[0].criteria = assertions.metrics.median_lt(threshold=10.0)
     sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
 
@@ -84,7 +86,7 @@ async def test_metric_evaluation_total_assistant_response_time(metric_scenario):
         t2 = t1 + timedelta(seconds=0.5)
         t3 = t2 + timedelta(seconds=1.0)
         t4 = t3 + timedelta(seconds=1.5)
-        
+
         user_turn_1 = ConversationTurn(
             role="user", content="...", request_timestamp=t1, response_timestamp=t1
         )
@@ -151,9 +153,7 @@ async def test_metric_evaluation_response_length_chars(metric_scenario):
             request_timestamp=datetime.now(),
             response_timestamp=datetime.now(),
         )
-        conversations.append(
-            ConversationRecord(turns=[assistant_turn_1, assistant_turn_2])
-        )
+        conversations.append(ConversationRecord(turns=[assistant_turn_1, assistant_turn_2]))
 
     with patch(
         "sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock
@@ -179,9 +179,9 @@ async def test_metric_evaluation_total_assistant_response_chars(metric_scenario)
     """
     Tests a metric evaluation with a total_assistant_response_chars metric.
     """
-    metric_scenario.then[
-        0
-    ].metric_definition = metrics.per_conversation.total_assistant_response_chars
+    metric_scenario.then[0].metric_definition = (
+        metrics.per_conversation.total_assistant_response_chars
+    )
     metric_scenario.then[0].criteria = assertions.metrics.median_lt(threshold=20.0)
     sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
 
@@ -199,9 +199,7 @@ async def test_metric_evaluation_total_assistant_response_chars(metric_scenario)
             request_timestamp=datetime.now(),
             response_timestamp=datetime.now(),
         )
-        conversations.append(
-            ConversationRecord(turns=[assistant_turn_1, assistant_turn_2])
-        )
+        conversations.append(ConversationRecord(turns=[assistant_turn_1, assistant_turn_2]))
 
     with patch(
         "sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock

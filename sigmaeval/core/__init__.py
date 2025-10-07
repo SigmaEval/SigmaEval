@@ -23,5 +23,3 @@ __all__ = [
     "WritingStyleConfig",
     "WritingStyleAxes",
 ]
-
-

@@ -12,4 +12,3 @@ def test_version():
 def test_import():
     """Test that the package can be imported."""
     assert sigmaeval is not None
-

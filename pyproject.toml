@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "sigmaeval-framework"
 version = "0.1.0"
-description = "Evaluate Generative AI agents and apps."
+description = "Evaluate Gen AI agents and apps."
 readme = "README.md"
 authors = ["Itura AI"]
 license = "Apache-2.0"

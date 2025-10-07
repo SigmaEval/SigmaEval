@@ -42,12 +42,13 @@ class ProportionAssertion(Assertion):
             test. Overrides the default if provided.
     """
 
-    threshold: float = Field(..., description="The threshold for an outcome to be counted as a 'success'.")
-    proportion: float = Field(
-        ..., description="The proportion of successes to compare against."
+    threshold: float = Field(
+        ..., description="The threshold for an outcome to be counted as a 'success'."
     )
+    proportion: float = Field(..., description="The proportion of successes to compare against.")
     comparison: Literal["gte", "lte"] = Field(
-        ..., description="The type of comparison to perform (greater than or equal to, or less than or equal to)."
+        ...,
+        description="The type of comparison to perform (greater than or equal to, or less than or equal to).",
     )
     significance_level: Optional[float] = Field(
         None, description="The significance level (alpha) for the hypothesis test."
@@ -74,7 +75,8 @@ class MedianAssertion(Assertion):
 
     threshold: float = Field(..., description="The threshold to compare the median against.")
     comparison: Literal["gte", "lte"] = Field(
-        ..., description="The type of comparison to perform (greater than or equal to, or less than or equal to)."
+        ...,
+        description="The type of comparison to perform (greater than or equal to, or less than or equal to).",
     )
     significance_level: Optional[float] = Field(
         None, description="The significance level (alpha) for the hypothesis test."

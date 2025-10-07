@@ -47,6 +47,7 @@ When a customer asks about returns:
 
 Be friendly, professional, and always aim to help the customer resolve their issue efficiently."""
 
+
 class SimpleChatApp:
     """
     Minimal chat app wrapper around LiteLLM that keeps conversation state
@@ -62,14 +63,18 @@ class SimpleChatApp:
         self.model = model or TEST_APP_MODEL
         self.system_prompt = system_prompt or SYSTEM_PROMPT
 
-    def _build_messages(self, history: List[Dict[str, str]], user_message: str) -> List[Dict[str, str]]:
+    def _build_messages(
+        self, history: List[Dict[str, str]], user_message: str
+    ) -> List[Dict[str, str]]:
         messages: List[Dict[str, str]] = []
         messages.append({"role": "system", "content": self.system_prompt})
         messages.extend(history)
         messages.append({"role": "user", "content": user_message})
         return messages
 
-    async def respond(self, user_message: str, history: List[Dict[str, str]]) -> tuple[str, List[Dict[str, str]]]:
+    async def respond(
+        self, user_message: str, history: List[Dict[str, str]]
+    ) -> tuple[str, List[Dict[str, str]]]:
         """
         Generate a reply given a user message and a conversation history.
 
@@ -133,5 +138,3 @@ async def _demo() -> None:
 
 if __name__ == "__main__":
     asyncio.run(_demo())
-
-

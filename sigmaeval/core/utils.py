@@ -15,11 +15,10 @@ def _convert_conversation_records(
         for i in range(0, len(record.turns), 2):
             user_turn = record.turns[i]
             assistant_turn = record.turns[i + 1] if i + 1 < len(record.turns) else None
-            
+
             if assistant_turn:
                 latency = (
-                    assistant_turn.response_timestamp
-                    - assistant_turn.request_timestamp
+                    assistant_turn.response_timestamp - assistant_turn.request_timestamp
                 ).total_seconds()
                 turns.append(
                     Turn(
@@ -28,7 +27,9 @@ def _convert_conversation_records(
                         latency=latency,
                     )
                 )
-        conversations.append(Conversation(turns=turns, details={"writing_style": record.writing_style}))
+        conversations.append(
+            Conversation(turns=turns, details={"writing_style": record.writing_style})
+        )
     return conversations
 
 
@@ -65,7 +66,7 @@ def _extract_json_from_response(content: str) -> Dict[str, Any] | None:
                 open_braces += 1
             elif content[i] == "}":
                 open_braces -= 1
-            
+
             if open_braces == 0:
                 json_str = content[start_index : i + 1]
                 try:

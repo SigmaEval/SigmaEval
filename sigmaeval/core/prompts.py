@@ -17,12 +17,12 @@ def _build_rubric_generation_prompt(
 ) -> str:
     """
     Build the prompt for generating a rubric from a ScenarioTest.
-    
+
     Internal implementation detail - API may change without backward compatibility.
-    
+
     Args:
         scenario: The behavioral test case
-        
+
     Returns:
         A formatted prompt string for the LLM
     """
@@ -67,14 +67,14 @@ def _build_user_simulator_prompt(
 ) -> str:
     """
     Build the prompt for simulating a user turn.
-    
+
     Internal implementation detail - API may change without backward compatibility.
-    
+
     Args:
         scenario: The behavioral test case
         conversation_history: List of previous conversation turns
         writing_style: Optional writing style instruction
-        
+
     Returns:
         A formatted prompt string for the user simulator LLM
     """
@@ -91,7 +91,7 @@ def _build_user_simulator_prompt(
             content = turn["content"]
             conversation_context += f'<turn speaker="{speaker}">\n{content}\n</turn>\n'
         conversation_context += "</conversation_history>"
-    
+
     # Build instructions list
     instructions = [
         "- Be realistic and natural in your conversation",
@@ -157,14 +157,14 @@ def _build_judge_prompt(
 ) -> str:
     """
     Build the prompt for judging an interaction.
-    
+
     Internal implementation detail - API may change without backward compatibility.
-    
+
     Args:
         scenario: The behavioral test case
         conversation_history: List of conversation turns to evaluate
         rubric: The scoring rubric (1-10 scale)
-        
+
     Returns:
         A formatted prompt string for the judge LLM
     """
@@ -204,9 +204,12 @@ Respond in the following JSON format:
 
 
 # System prompts for different LLM roles
-RUBRIC_GENERATOR_SYSTEM_PROMPT = "You are an expert at creating detailed evaluation rubrics for AI system behavior."
+RUBRIC_GENERATOR_SYSTEM_PROMPT = (
+    "You are an expert at creating detailed evaluation rubrics for AI system behavior."
+)
 
 USER_SIMULATOR_SYSTEM_PROMPT = "You are simulating a user interacting with an AI assistant. You will be given a scenario and a conversation history in XML format. Follow the instructions to generate the user's next message."
 
-JUDGE_SYSTEM_PROMPT = "You are an expert evaluator. Provide fair, consistent judgments based on the rubric."
-
+JUDGE_SYSTEM_PROMPT = (
+    "You are an expert evaluator. Provide fair, consistent judgments based on the rubric."
+)

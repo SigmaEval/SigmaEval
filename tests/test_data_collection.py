@@ -1,6 +1,7 @@
 """
 Tests for the data collection module.
 """
+
 import pytest
 import asyncio
 from unittest.mock import MagicMock, AsyncMock, patch
@@ -29,9 +30,7 @@ test_scenario = (
 
 
 # A mock app handler that simulates some async work
-async def mock_app_handler(
-    messages: list[dict[str, str]], state: dict
-) -> AppResponse:
+async def mock_app_handler(messages: list[dict[str, str]], state: dict) -> AppResponse:
     """A mock app handler that returns a simple response."""
     await asyncio.sleep(0.01)
     user_message = messages[-1]["content"]
@@ -49,8 +48,7 @@ async def test_timestamps_are_recorded_for_each_turn():
     """
     # Mock the call to the external LLM to avoid actual API calls
     with patch(
-        "sigmaeval.core.data_collection._litellm_acompletion",
-        new_callable=AsyncMock
+        "sigmaeval.core.data_collection._litellm_acompletion", new_callable=AsyncMock
     ) as mock_litellm:
         # The mock needs to return a structure that mimics the real LiteLLM response
         mock_litellm.return_value = MagicMock(
@@ -100,11 +98,7 @@ async def test_simulate_user_turn_success(mock_litellm):
 
     mock_litellm.return_value = MagicMock(
         choices=[
-            MagicMock(
-                message=MagicMock(
-                    content='{"message": "Test message", "continue": true}'
-                )
-            )
+            MagicMock(message=MagicMock(content='{"message": "Test message", "continue": true}'))
         ]
     )
     message, should_continue, _, _ = await _simulate_user_turn(
@@ -157,13 +151,7 @@ async def test_judge_interaction_success(mock_litellm):
     from sigmaeval.core.models import ConversationRecord
 
     mock_litellm.return_value = MagicMock(
-        choices=[
-            MagicMock(
-                message=MagicMock(
-                    content='{"score": 8.5, "reasoning": "Good job"}'
-                )
-            )
-        ]
+        choices=[MagicMock(message=MagicMock(content='{"score": 8.5, "reasoning": "Good job"}'))]
     )
     score, reasoning = await _judge_interaction(
         scenario=test_scenario,
@@ -207,11 +195,7 @@ async def test_judge_interaction_score_clamping(mock_litellm, input_score, expec
 
     mock_litellm.return_value = MagicMock(
         choices=[
-            MagicMock(
-                message=MagicMock(
-                    content=f'{{"score": {input_score}, "reasoning": "..."}}'
-                )
-            )
+            MagicMock(message=MagicMock(content=f'{{"score": {input_score}, "reasoning": "..."}}'))
         ]
     )
     score, _ = await _judge_interaction(

@@ -22,9 +22,7 @@ def test_generate_writing_style_with_custom_axes():
     """
     Tests that _generate_writing_style correctly uses custom axes.
     """
-    custom_axes = WritingStyleAxes(
-        proficiency=["a"], tone=["b"], verbosity=["c"], formality=["d"]
-    )
+    custom_axes = WritingStyleAxes(proficiency=["a"], tone=["b"], verbosity=["c"], formality=["d"])
     style = _generate_writing_style(axes=custom_axes)
     assert style["Proficiency"] == "a"
     assert style["Tone"] == "b"
@@ -204,37 +202,21 @@ async def test_custom_writing_style_axes_are_used(
     mock_acompletion.side_effect = [
         # User sim (sample 1)
         AsyncMock(
-            choices=[
-                AsyncMock(
-                    message=AsyncMock(content='{"message": "Hi", "continue": false}')
-                )
-            ]
+            choices=[AsyncMock(message=AsyncMock(content='{"message": "Hi", "continue": false}'))]
         ),
         # User sim (sample 2)
         AsyncMock(
             choices=[
-                AsyncMock(
-                    message=AsyncMock(
-                        content='{"message": "Hi again", "continue": false}'
-                    )
-                )
+                AsyncMock(message=AsyncMock(content='{"message": "Hi again", "continue": false}'))
             ]
         ),
         # Judge (sample 1)
         AsyncMock(
-            choices=[
-                AsyncMock(
-                    message=AsyncMock(content='{"score": 8, "reasoning": "Good"}')
-                )
-            ]
+            choices=[AsyncMock(message=AsyncMock(content='{"score": 8, "reasoning": "Good"}'))]
         ),
         # Judge (sample 2)
         AsyncMock(
-            choices=[
-                AsyncMock(
-                    message=AsyncMock(content='{"score": 9, "reasoning": "Great"}')
-                )
-            ]
+            choices=[AsyncMock(message=AsyncMock(content='{"score": 9, "reasoning": "Great"}'))]
         ),
     ]
     mock_generate_style.return_value = {
@@ -279,35 +261,19 @@ async def test_writing_style_is_in_prompt(
     mock_acompletion.side_effect = [
         # User sim 1
         AsyncMock(
-            choices=[
-                AsyncMock(
-                    message=AsyncMock(content='{"message": "Stop", "continue": false}')
-                )
-            ]
+            choices=[AsyncMock(message=AsyncMock(content='{"message": "Stop", "continue": false}'))]
         ),
         # User sim 2
         AsyncMock(
-            choices=[
-                AsyncMock(
-                    message=AsyncMock(content='{"message": "Stop", "continue": false}')
-                )
-            ]
+            choices=[AsyncMock(message=AsyncMock(content='{"message": "Stop", "continue": false}'))]
         ),
         # Judge 1
         AsyncMock(
-            choices=[
-                AsyncMock(
-                    message=AsyncMock(content='{"score": 8, "reasoning": "Good"}')
-                )
-            ]
+            choices=[AsyncMock(message=AsyncMock(content='{"score": 8, "reasoning": "Good"}'))]
         ),
         # Judge 2
         AsyncMock(
-            choices=[
-                AsyncMock(
-                    message=AsyncMock(content='{"score": 9, "reasoning": "Great"}')
-                )
-            ]
+            choices=[AsyncMock(message=AsyncMock(content='{"score": 9, "reasoning": "Great"}'))]
         ),
     ]
 

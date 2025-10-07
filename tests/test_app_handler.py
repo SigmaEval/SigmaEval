@@ -22,9 +22,7 @@ async def test_app_handler_receives_correct_history(mock_simulate_user_turn: Asy
     ]
 
     # This mock will run asserts for us
-    async def mock_app_handler(
-        messages: List[Dict[str, str]], state: Any
-    ) -> AppResponse:
+    async def mock_app_handler(messages: List[Dict[str, str]], state: Any) -> AppResponse:
         # On first turn, history should just be the user's message
         if len(messages) == 1:
             assert messages == [{"role": "user", "content": "Hello"}]
@@ -51,11 +49,12 @@ async def test_app_handler_receives_correct_history(mock_simulate_user_turn: Asy
 
     # Act
     # We patch the expensive parts and test the interaction loop
-    with patch(
-        "sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock
-    ) as mock_judge, patch(
-        "sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock
-    ) as mock_rubric:
+    with (
+        patch(
+            "sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock
+        ) as mock_judge,
+        patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock) as mock_rubric,
+    ):
         mock_judge.return_value = ([10.0], ["reason"])
         mock_rubric.return_value = "Test Rubric"
         await sigma_eval.evaluate(scenario, mock_app_handler)
@@ -76,9 +75,7 @@ async def test_app_handler_state_is_passed_between_turns(
     ]
     app_handler_call_count = 0
 
-    async def stateful_app_handler(
-        messages: List[Dict[str, str]], state: Any
-    ) -> Tuple[str, Any]:
+    async def stateful_app_handler(messages: List[Dict[str, str]], state: Any) -> Tuple[str, Any]:
         nonlocal app_handler_call_count
         app_handler_call_count += 1
         current_turn = state.get("turn", 0)
@@ -103,11 +100,12 @@ async def test_app_handler_state_is_passed_between_turns(
     )
     sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
 
-    with patch(
-        "sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock
-    ) as mock_judge, patch(
-        "sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock
-    ) as mock_rubric:
+    with (
+        patch(
+            "sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock
+        ) as mock_judge,
+        patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock) as mock_rubric,
+    ):
         mock_judge.return_value = ([10.0], ["reason"])
         mock_rubric.return_value = "Test Rubric"
         await sigma_eval.evaluate(scenario, stateful_app_handler)
@@ -153,32 +151,26 @@ async def test_app_handler_return_types(mock_simulate_user_turn: AsyncMock):
         return AppResponse(response="Explicit response", state={"key": "value"})
 
     # Act & Assert
-    with patch(
-        "sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock
-    ) as mock_judge, patch(
-        "sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock
-    ) as mock_rubric:
+    with (
+        patch(
+            "sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock
+        ) as mock_judge,
+        patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock) as mock_rubric,
+    ):
         mock_judge.return_value = ([10.0], ["reason"])
         mock_rubric.return_value = "Test Rubric"
 
         # Test string return
         results_str = await sigma_eval.evaluate(scenario, string_handler)
-        assert (
-            results_str.conversations[0].turns[0].app_response == "Stateless response"
-        )
+        assert results_str.conversations[0].turns[0].app_response == "Stateless response"
 
         # Test tuple return
         results_tuple = await sigma_eval.evaluate(scenario, tuple_handler)
-        assert (
-            results_tuple.conversations[0].turns[0].app_response == "Stateful response"
-        )
+        assert results_tuple.conversations[0].turns[0].app_response == "Stateful response"
 
         # Test AppResponse return
         results_app_resp = await sigma_eval.evaluate(scenario, app_response_handler)
-        assert (
-            results_app_resp.conversations[0].turns[0].app_response
-            == "Explicit response"
-        )
+        assert results_app_resp.conversations[0].turns[0].app_response == "Explicit response"
 
 
 @pytest.mark.asyncio
@@ -207,12 +199,12 @@ async def test_app_handler_invalid_return_type_raises_error(
         return 123  # Invalid return type
 
     # Act & Assert
-    with patch(
-        "sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock
-    ) as mock_judge, patch(
-        "sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock
-    ), pytest.raises(
-        TypeError, match="app_handler returned an unsupported type"
+    with (
+        patch(
+            "sigmaeval.core.framework._judge_conversations", new_callable=AsyncMock
+        ) as mock_judge,
+        patch("sigmaeval.core.framework._generate_rubric", new_callable=AsyncMock),
+        pytest.raises(TypeError, match="app_handler returned an unsupported type"),
     ):
         mock_judge.return_value = ([10.0], ["reason"])
         await sigma_eval.evaluate(scenario, invalid_handler)

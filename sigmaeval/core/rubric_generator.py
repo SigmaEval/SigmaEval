@@ -27,32 +27,32 @@ async def _generate_rubric(
 ) -> str:
     """
     Generate a 1-10 scoring rubric based on the expected behavior.
-    
+
     Internal implementation detail - API may change without backward compatibility.
-    
+
     This is Phase 1, Step 2 of the evaluation process. The rubric provides
     detailed criteria for the Judge LLM to evaluate interactions consistently.
-    
+
     Args:
         scenario: The behavioral test case containing the expected behavior
         model: The LLM model identifier to use (e.g., "openai/gpt-4o")
-        
+
     Returns:
         A string containing the generated 1-10 rubric
-        
+
     Example:
         A rubric might look like:
-        
+
         1: Bot gives no answer or ignores the question.
         2: Bot answers irrelevantly, with no mention of its functions.
         3: Bot gives vague or incomplete information, missing most functions.
         ...
-        10: Bot names all required functions clearly, concisely, in order, 
+        10: Bot names all required functions clearly, concisely, in order,
             and with natural, helpful phrasing.
     """
     prompt = _build_rubric_generation_prompt(scenario, expectation)
     logger.debug(f"Rubric generation prompt: {prompt}")
-    
+
     cfg = retry_config or RetryConfig()
     retrying = AsyncRetrying(
         reraise=True,
@@ -87,8 +87,6 @@ async def _generate_rubric(
 
             logger.debug(f"Generated rubric: {rubric}")
             return rubric
-    
+
     # This path should not be reachable if reraise=True is set
     raise LLMCommunicationError("Exhausted all retries for rubric generation.")
-
-

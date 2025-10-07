@@ -1,6 +1,7 @@
 """
 Statistical evaluators for SigmaEval framework.
 """
+
 import logging
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Literal
@@ -15,6 +16,7 @@ class ProportionEvaluator(BaseModel):
     Tests if the proportion of values meeting a threshold satisfies a statistical
     comparison.
     """
+
     significance_level: float
     threshold: float
     proportion: float
@@ -32,13 +34,11 @@ class ProportionEvaluator(BaseModel):
             successes = sum(1 for v in values if v < self.threshold)
 
         sample_size = len(values)
-        
+
         # In both 'gte' and 'lte' scenarios, we are testing if the proportion of
         # "successes" (defined differently for each case) is statistically
         # GREATER than the specified minimum proportion.
-        result = binomtest(
-            k=successes, n=sample_size, p=self.proportion, alternative="greater"
-        )
+        result = binomtest(k=successes, n=sample_size, p=self.proportion, alternative="greater")
         p_value = result.pvalue
         passed = p_value < self.significance_level
 
@@ -49,11 +49,9 @@ class ProportionEvaluator(BaseModel):
         }
 
         if label:
-            results = {
-                f"{label}: {k.replace('_', ' ').title()}": v for k, v in results.items()
-            }
+            results = {f"{label}: {k.replace('_', ' ').title()}": v for k, v in results.items()}
             results["passed"] = bool(passed)
-        
+
         return results
 
 
@@ -62,6 +60,7 @@ class MedianEvaluator(BaseModel):
     Performs a one-sided bootstrap hypothesis test for the median of a set of
     values.
     """
+
     significance_level: float
     threshold: float
     comparison: Literal["gte", "lte"]
@@ -101,10 +100,7 @@ class MedianEvaluator(BaseModel):
         }
 
         if label:
-            results = {
-                f"{label}: {k.replace('_', ' ').title()}": v for k, v in results.items()
-            }
+            results = {f"{label}: {k.replace('_', ' ').title()}": v for k, v in results.items()}
             results["passed"] = bool(passed)
 
         return results
-

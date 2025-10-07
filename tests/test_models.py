@@ -39,9 +39,7 @@ def test_scenario_test_fluent_api_order_independent():
         ScenarioTest("Order Independent Test")
         .sample_size(50)
         .expect_metric(
-            metric=MetricDefinition(
-                name="test", scope="per_turn", calculator=lambda conv: [1.0]
-            ),
+            metric=MetricDefinition(name="test", scope="per_turn", calculator=lambda conv: [1.0]),
             criteria=MockMetricAssertion(),
         )
         .given("A user who likes non-sequential building")
@@ -122,9 +120,7 @@ def test_expectation_empty_criteria_list(expectation_factory):
 
 def test_expectation_behavior_factory():
     """Tests that the .behavior() factory method correctly populates fields."""
-    expectation = Expectation.behavior(
-        expected_behavior="Test", criteria=MockScoreAssertion()
-    )
+    expectation = Expectation.behavior(expected_behavior="Test", criteria=MockScoreAssertion())
     assert expectation.expected_behavior == "Test"
     assert expectation.metric_definition is None
     assert isinstance(expectation.criteria[0], MockScoreAssertion)
@@ -273,9 +269,7 @@ def test_scenario_test_result_str():
         expectation_results=[
             ExpectationResult(
                 about="Expectation 1",
-                assertion_results=[
-                    AssertionResult(about="Assertion", passed=True, p_value=0.01)
-                ],
+                assertion_results=[AssertionResult(about="Assertion", passed=True, p_value=0.01)],
             )
         ],
         conversations=[],
@@ -302,9 +296,7 @@ def test_metric_model():
     def latency_calculator(conversation: "ConversationRecord") -> list[float]:
         return [1.0, 2.0]
 
-    metric = MetricDefinition(
-        name="test_latency", scope="per_turn", calculator=latency_calculator
-    )
+    metric = MetricDefinition(name="test_latency", scope="per_turn", calculator=latency_calculator)
     convo = ConversationRecord()
 
     assert metric.name == "test_latency"

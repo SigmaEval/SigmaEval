@@ -58,7 +58,7 @@ async def _simulate_user_turn(
     """
     Simulate a single user turn using the User Simulator LLM. This function
     includes retries for LLM communication and response parsing errors.
-    
+
     Args:
         scenario: The behavioral test case
         conversation_history: List of previous conversation turns
@@ -67,7 +67,7 @@ async def _simulate_user_turn(
         eval_id: Unique identifier for the evaluation run
         retry_config: Configuration for retrying LLM calls on failure.
         writing_style: Optional writing style instruction dictionary
-        
+
     Returns:
         Tuple of (user_message, should_continue, request_timestamp, response_timestamp)
         - user_message: The simulated user's message
@@ -80,18 +80,18 @@ async def _simulate_user_turn(
     )
     log_prefix = f"[{eval_id}] " if eval_id else ""
     logger.debug(f"{log_prefix}User simulator prompt: {prompt}")
-    
+
     messages = [
         {"role": "system", "content": USER_SIMULATOR_SYSTEM_PROMPT},
         {"role": "user", "content": prompt},
     ]
-    
+
     # Check if we've exceeded max turns
     turn_count = len([m for m in conversation_history if m["role"] == "user"])
     if turn_count >= max_turns:
         logger.debug(f"{log_prefix}Max turns reached, ending conversation.")
         return "[Conversation ended - max turns reached]", False, None, None
-    
+
     cfg = retry_config or RetryConfig()
     retrying = AsyncRetrying(
         reraise=True,
@@ -116,7 +116,7 @@ async def _simulate_user_turn(
                 response_timestamp = datetime.now(timezone.utc)
             except Exception as e:
                 raise LLMCommunicationError("User simulator LLM call failed") from e
-            
+
             content = response.choices[0].message.content
             logger.debug(f"{log_prefix}User simulator response: {content}")
 
@@ -138,7 +138,7 @@ async def _simulate_user_turn(
                 raise LLMCommunicationError(
                     f"Failed to parse user simulator response: {content[:200]}"
                 ) from e
-    
+
     # This path should not be reachable if reraise=True is set
     raise LLMCommunicationError("Exhausted all retries for user simulator.")
 
@@ -154,9 +154,9 @@ async def _run_single_interaction(
 ) -> ConversationRecord:
     """
     Run a single interaction between user simulator and the app.
-    
+
     This is Phase 2, Steps 3-4: Simulate user and record interaction.
-    
+
     Args:
         scenario: The behavioral test case
         app_handler: Async callback to interact with the app under test
@@ -164,7 +164,7 @@ async def _run_single_interaction(
         max_turns: Maximum conversation turns
         eval_id: Unique identifier for the evaluation run
         writing_style: Optional writing style instruction dictionary
-        
+
     Returns:
         ConversationRecord containing the full interaction
     """
@@ -172,9 +172,9 @@ async def _run_single_interaction(
     # History for User Simulator LLM - only the actual conversation content
     simulator_conversation_history: List[Dict[str, str]] = []
     app_state: Any = {}
-    
+
     should_continue = True
-    
+
     while should_continue:
         # Simulate user message based on current conversation history
         user_message, should_continue, sim_req_ts, sim_resp_ts = await _simulate_user_turn(
@@ -186,11 +186,11 @@ async def _run_single_interaction(
             retry_config,
             writing_style,
         )
-        
+
         # Check if conversation should end
         if not user_message or user_message.startswith("[Conversation ended"):
             break
-        
+
         # Add the new user message to the history for the app
         app_conversation_history = simulator_conversation_history + [
             {"role": "user", "content": user_message}
@@ -200,7 +200,7 @@ async def _run_single_interaction(
         app_req_ts = datetime.now(timezone.utc)
         app_output = await app_handler(app_conversation_history, app_state)
         app_resp_ts = datetime.now(timezone.utc)
-        
+
         # --- Normalize the app's response ---
         app_response: AppResponse
         if isinstance(app_output, AppResponse):
@@ -223,22 +223,22 @@ async def _run_single_interaction(
                 request_timestamp=sim_req_ts,
                 response_timestamp=sim_resp_ts,
             )
-        
+
         # Record app response
         conversation.add_assistant_message(
-            app_response.response,
-            request_timestamp=app_req_ts,
-            response_timestamp=app_resp_ts
+            app_response.response, request_timestamp=app_req_ts, response_timestamp=app_resp_ts
         )
-        
+
         # Update histories for next iteration
         # The simulator needs to see: what it said (user), what app replied (assistant)
         simulator_conversation_history.append({"role": "user", "content": user_message})
-        simulator_conversation_history.append({"role": "assistant", "content": app_response.response})
-        
+        simulator_conversation_history.append(
+            {"role": "assistant", "content": app_response.response}
+        )
+
         # Update app state for next turn
         app_state = app_response.state
-    
+
     return conversation
 
 
@@ -254,9 +254,9 @@ async def _judge_interaction(
     """
     Judge a single interaction using the Judge LLM. This function
     includes retries for LLM communication and response parsing errors.
-    
+
     This is Phase 2, Step 5: Judge expected behavior with Judge LLM.
-    
+
     Args:
         scenario: The behavioral test case
         conversation: The recorded conversation to judge
@@ -264,7 +264,7 @@ async def _judge_interaction(
         judge_model: The LLM model identifier for judging
         eval_id: Unique identifier for the evaluation run
         retry_config: Configuration for retrying LLM calls on failure.
-        
+
     Returns:
         Tuple of (score, reasoning)
         - score: Score from 1-10 based on the rubric
@@ -273,7 +273,7 @@ async def _judge_interaction(
     prompt = _build_judge_prompt(scenario, expectation, conversation.turns, rubric)
     log_prefix = f"[{eval_id}] " if eval_id else ""
     logger.debug(f"{log_prefix}Judge prompt: {prompt}")
-    
+
     cfg = retry_config or RetryConfig()
     retrying = AsyncRetrying(
         reraise=True,
@@ -299,7 +299,7 @@ async def _judge_interaction(
                 )
             except Exception as e:
                 raise LLMCommunicationError("Judge LLM call failed") from e
-            
+
             content = response.choices[0].message.content
             logger.debug(f"{log_prefix}Judge response: {content}")
 
@@ -369,9 +369,7 @@ async def _collect_conversations(
 
         # Generate a random writing style for this specific interaction
         config = writing_style_config or WritingStyleConfig()
-        writing_style = (
-            _generate_writing_style(axes=config.axes) if config.enabled else None
-        )
+        writing_style = _generate_writing_style(axes=config.axes) if config.enabled else None
 
         async with semaphore:
             return await _run_single_interaction(
@@ -439,11 +437,14 @@ async def _judge_conversations(
             )
 
     tasks = [_judge_with_semaphore(conv) for conv in conversations]
-    
-    desc = f"Judging conversations for expectation '{expectation.label}'" if expectation.label else "Judging conversations"
+
+    desc = (
+        f"Judging conversations for expectation '{expectation.label}'"
+        if expectation.label
+        else "Judging conversations"
+    )
     results = await tqdm.gather(*tasks, desc=desc)
-    
+
     scores = [score for score, _ in results]
     reasoning_list = [reasoning for _, reasoning in results]
     return scores, reasoning_list
-

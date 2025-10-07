@@ -28,6 +28,7 @@ Example:
             )
         )
 """
+
 from .core.models import MetricDefinition, ConversationRecord
 from typing import List
 
@@ -35,23 +36,15 @@ from typing import List
 def _calculate_response_latency(conversation: ConversationRecord) -> List[float]:
     """Calculates the response latency for each assistant turn in a conversation."""
     latencies = []
-    assistant_turns = [
-        turn for turn in conversation.turns if turn.role == "assistant"
-    ]
+    assistant_turns = [turn for turn in conversation.turns if turn.role == "assistant"]
     for turn in assistant_turns:
-        latencies.append(
-            (turn.response_timestamp - turn.request_timestamp).total_seconds()
-        )
+        latencies.append((turn.response_timestamp - turn.request_timestamp).total_seconds())
     return latencies
 
 
 def _calculate_response_length_chars(conversation: ConversationRecord) -> List[float]:
     """Calculates the length of each assistant response in characters."""
-    return [
-        float(len(turn.content))
-        for turn in conversation.turns
-        if turn.role == "assistant"
-    ]
+    return [float(len(turn.content)) for turn in conversation.turns if turn.role == "assistant"]
 
 
 def _calculate_turn_count(conversation: ConversationRecord) -> List[float]:
@@ -76,16 +69,13 @@ def _calculate_total_assistant_response_chars(
     conversation: ConversationRecord,
 ) -> List[float]:
     """Calculates the total characters in all assistant responses."""
-    total_chars = sum(
-        len(turn.content)
-        for turn in conversation.turns
-        if turn.role == "assistant"
-    )
+    total_chars = sum(len(turn.content) for turn in conversation.turns if turn.role == "assistant")
     return [float(total_chars)]
 
 
 class PerTurn:
     """Metrics that are collected for each assistant response within a conversation."""
+
     def __init__(self):
         self.response_latency = MetricDefinition(
             name="response_latency",
@@ -114,6 +104,7 @@ class PerTurn:
 
 class PerConversation:
     """Metrics that are collected once for the entire conversation."""
+
     def __init__(self):
         self.turn_count = MetricDefinition(
             name="turn_count",
