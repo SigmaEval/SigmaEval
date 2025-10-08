@@ -68,6 +68,44 @@ async def test_metric_evaluation_proportion_lt(metric_scenario):
 
 
 @pytest.mark.asyncio
+async def test_metric_evaluation_proportion_lt_boundary(metric_scenario):
+    """
+    Tests that proportion_lt fails when values are equal to the threshold.
+    """
+    metric_scenario.num_samples = 50
+    metric_scenario.then[0].criteria = assertions.metrics.proportion_lt(
+        threshold=1.0, proportion=0.9, significance_level=0.05
+    )
+    sigma_eval = SigmaEval(judge_model="test/model", significance_level=0.05)
+
+    # All values are equal to the threshold, so all should fail the < check.
+    conversations = []
+    for i in range(50):
+        t1 = datetime.now()
+        t2 = t1 + timedelta(seconds=1.0)  # Exactly at the threshold
+        turn = ConversationTurn(
+            role="assistant", content="...", request_timestamp=t1, response_timestamp=t2
+        )
+        user_turn = ConversationTurn(
+            role="user", content="...", request_timestamp=t1, response_timestamp=t1
+        )
+        conversations.append(ConversationRecord(turns=[user_turn, turn]))
+
+    with patch(
+        "sigmaeval.core.framework._collect_conversations", new_callable=AsyncMock
+    ) as mock_collect:
+        mock_collect.return_value = conversations
+
+        results = await sigma_eval.evaluate(
+            metric_scenario, AsyncMock(return_value=AppResponse(response="", state={}))
+        )
+
+        assert results.passed is False
+        details = results.expectation_results[0].assertion_results[0].details
+        assert details["observed_proportion"] == 0.0
+
+
+@pytest.mark.asyncio
 async def test_metric_evaluation_total_assistant_response_time(metric_scenario):
     """
     Tests a metric evaluation with a total_assistant_response_time metric.
