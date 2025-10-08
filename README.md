@@ -52,7 +52,7 @@ pip install -e .
 
 ## Hello World
 
-Here is a minimal, complete example of how to use SigmaEval (run `pip install sigmaeval-framework` first):
+Here is a minimal, complete example of how to use SigmaEval. First, run `pip install sigmaeval-framework` and set an environment variable with an API key for your chosen model (e.g., `OPENAI_API_KEY`).
 
 ```python
 from sigmaeval import SigmaEval, ScenarioTest, assertions
