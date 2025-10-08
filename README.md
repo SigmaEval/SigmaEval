@@ -83,7 +83,7 @@ async def main():
     # You can use any model that LiteLLM supports: https://docs.litellm.ai/docs/providers
     sigma_eval = SigmaEval(
         judge_model="openai/gpt-5-nano",
-        sample_size=30,  # The number of times to run the test
+        sample_size=20,  # The number of times to run the test
         significance_level=0.05  # Corresponds to a 95% confidence level
     )
     result = await sigma_eval.evaluate(scenario, app_handler)
@@ -96,8 +96,8 @@ if __name__ == "__main__":
 When you run this script, SigmaEval will:
 
 1.  **Generate a Rubric**: Based on the `expect_behavior`, it will create a 1-10 scoring rubric for the Judge LLM.
-2.  **Simulate Conversations**: It will call your `app_handler` 30 times (`sample_size=30`), each time simulating a user saying "Hello".
-3.  **Judge the Responses**: For each of the 30 conversations, the `judge_model` will score your app's response against the rubric.
+2.  **Simulate Conversations**: It will call your `app_handler` 20 times (`sample_size=20`), each time simulating a user saying "Hello".
+3.  **Judge the Responses**: For each of the 20 conversations, the `judge_model` will score your app's response against the rubric.
 4.  **Perform Statistical Analysis**: SigmaEval will then run a hypothesis test to determine if it can be concluded, with 95% confidence (`significance_level=0.05`), that at least 90% of the responses scored an 8 or higher.
 5.  **Determine Pass/Fail**: The script will exit with a pass or fail status based on the final assertion.
 
@@ -195,7 +195,7 @@ async def main():
     sigma_eval = SigmaEval(
         judge_model="openai/gpt-5-nano", 
         significance_level=0.05,
-        sample_size=30
+        sample_size=20
     )
     results: ScenarioTestResult = await sigma_eval.evaluate(scenario, app_handler)
 
@@ -422,7 +422,7 @@ multi_condition_scenario = (
     ScenarioTest("Bot handles a complex multi-part request")
     .given("A user needs to both track a package and ask a question about a different product")
     .when("The user asks to track their package and then asks a follow-up question about a product's warranty")
-    .sample_size(30)
+    .sample_size(20)
     .expect_behavior(
         "Bot successfully provides the tracking status for the user's package.",
         criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90),
@@ -447,7 +447,7 @@ multi_assertion_scenario = (
     ScenarioTest("Bot gives a comprehensive and helpful answer")
     .given("A user is asking about the return policy for electronics.")
     .when("The user asks if they can return a laptop after 30 days.")
-    .sample_size(50)
+    .sample_size(20)
     .expect_behavior(
         "The bot correctly states that laptops must be returned within 30 days, but also helpfully suggests checking the manufacturer's warranty.",
         criteria=[
@@ -499,7 +499,7 @@ async def test_bot_capabilities_scenario():
     """
     sigma_eval = SigmaEval(
         judge_model="openai/gpt-5-nano",
-        sample_size=30,
+        sample_size=20,
         significance_level=0.05
     )
     
@@ -553,7 +553,7 @@ scenario = (
     ScenarioTest("Bot explains its capabilities")
     .given("A new user who has not interacted with the bot before")
     .when("The user asks a general question about the bot's capabilities")
-    .sample_size(30)
+    .sample_size(20)
     .expect_behavior(
         "Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
         criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.90)
