@@ -57,7 +57,7 @@ Here is a minimal, complete example of how to use SigmaEval. First, run `pip ins
 ```python
 from sigmaeval import SigmaEval, ScenarioTest, assertions
 import asyncio
-from typing import List, Dict, Any
+
 # 1. Define the ScenarioTest to describe the desired behavior
 scenario = (
     ScenarioTest("Simple Test")
@@ -71,7 +71,7 @@ scenario = (
     .max_turns(1) # Only needed here since we're returning a static greeting
 )
 # 2. Implement the app_handler to allow SigmaEval to communicate with your app
-async def app_handler(messages: List[Dict[str, str]], state: Any) -> str:
+async def app_handler(messages, state):
     # In a real test, you would pass messages to your app and return the response.
     # For this example, we'll return a static, friendly greeting.
     return "Hello there! Nice to meet you!"
@@ -575,7 +575,6 @@ Install development dependencies:
 ```bash
 pip install -e ".[dev]"
 ```
-
 Run tests:
 
 ```bash
