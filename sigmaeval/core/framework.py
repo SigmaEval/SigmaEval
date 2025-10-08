@@ -73,9 +73,11 @@ class SigmaEval:
             )
 
             # Define the callback to connect SigmaEval to your app
-            async def app_handler(message, state):
+            async def app_handler(messages, state):
                 # Your app logic here
-                return AppResponse(response=f"You said: {message}", state={})
+                # messages is a list of dicts, e.g., [{"role": "user", "content": "Hello"}]
+                new_user_message = messages[-1]["content"]
+                return AppResponse(response=f"You said: {new_user_message}", state={})
 
             # Initialize SigmaEval and run the evaluation
             async def main():
