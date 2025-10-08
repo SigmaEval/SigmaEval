@@ -1,6 +1,7 @@
 <div align="center">
 
 # SigmaEval
+
 The Gen AI App Evaluation Framework
 
 [![PyPI version](https://badge.fury.io/py/sigmaeval-framework.svg)](https://badge.fury.io/py/sigmaeval-framework)
@@ -13,11 +14,11 @@ Tired of shipping Gen AI features based on gut feelings and vibes?
 
 **SigmaEval** is a Python framework for the **statistical** evaluation of Gen AI apps, agents, and bots that helps you move from "it seems to work" to making **statistically** rigorous statements about your AI's quality. It allows you to set and enforce objective quality bars by making statements like:
 
->*"We are confident that at least 90% of user issues coming into our customer support chatbot will be resolved with a quality score of 8/10 or higher."*
+> _"We are confident that at least 90% of user issues coming into our customer support chatbot will be resolved with a quality score of 8/10 or higher."_
 
->*"With a high degree of confidence, the median response time of our new AI-proposal generator will be lower than our 5-second SLO."*
+> _"With a high degree of confidence, the median response time of our new AI-proposal generator will be lower than our 5-second SLO."_
 
->*"For our internal HR bot, we confirmed that it will likely succeed in answering benefits-related questions in 3 turns or less in a typical conversation."*
+> _"For our internal HR bot, we confirmed that it will likely succeed in answering benefits-related questions in 3 turns or less in a typical conversation."_
 
 SigmaEval works by bringing a structured, data-driven process to AI quality assurance:
 
@@ -33,7 +34,7 @@ At its core, SigmaEval uses two AI agents to automate evaluation: an **AI User S
 
 ## Hello World
 
-Here is a minimal, complete example of how to use SigmaEval:
+Here is a minimal, complete example of how to use SigmaEval (run `pip install sigmaeval-framework` first):
 
 ```python
 from sigmaeval import SigmaEval, ScenarioTest, assertions
@@ -54,7 +55,6 @@ scenario = (
 
 # 2. Implement the app_handler to allow SigmaEval to communicate with your app
 async def app_handler(messages: List[Dict[str, str]], state: Any) -> str:
-    # Your app's logic goes here. 
     # In a real test, you will pass the messages to your app and return the response back to SigmaEval.
     # For this example, we are just returning a static response.
     return "Hello, world!"
@@ -76,6 +76,7 @@ if __name__ == "__main__":
 ```
 
 When you run this script, SigmaEval will:
+
 1.  **Generate a Rubric**: Based on the `expect_behavior`, it will create a 1-10 scoring rubric for the Judge LLM.
 2.  **Simulate Conversations**: It will call your `app_handler` 20 times (`sample_size=20`), each time simulating a user saying "Hello".
 3.  **Judge the Responses**: For each of the 20 conversations, the `judge_model` will score your app's response against the rubric.
@@ -83,30 +84,40 @@ When you run this script, SigmaEval will:
 5.  **Determine Pass/Fail**: The script will exit with a pass or fail status based on the final assertion.
 
 ## Table of Contents
+
 - [Installation](#installation)
-- [SigmaEval: A Statistical Framework for AI App Evaluation](#sigmaeval-a-statistical-framework-for-ai-app-evaluation)
-  - [The Problem](#the-problem)
-  - [The Stakes: Why Traditional QA Fails](#the-stakes-why-traditional-qa-fails)
-  - [A New Paradigm: From Determinism to Statistical Confidence](#a-new-paradigm-from-determinism-to-statistical-confidence)
-  - [How SigmaEval Works](#how-sigmaeval-works)
-  - [Available Criteria](#available-criteria)
-  - [Available Metrics](#available-metrics)
-  - [A Note on Sample Size and Statistical Significance](#a-note-on-sample-size-and-statistical-significance)
-  - [Supported LLMs](#supported-llms)
-  - [Logging](#logging)
-  - [Retry Configuration](#retry-configuration)
-  - [User Simulation Writing Styles](#user-simulation-writing-styles)
-  - [Evaluating a Test Suite](#evaluating-a-test-suite)
-  - [Evaluating Multiple Conditions and Assertions](#evaluating-multiple-conditions-and-assertions)
-  - [Accessing Evaluation Results](#accessing-evaluation-results)
-  - [Compatibility with Testing Libraries](#compatibility-with-testing-libraries)
-  - [A Note on the Statistical Methods](#a-note-on-the-statistical-methods)
+- [The Problem](#the-problem)
+- [The Stakes: Why Traditional QA Fails](#the-stakes-why-traditional-qa-fails)
+- [A New Paradigm: From Determinism to Statistical Confidence](#a-new-paradigm-from-determinism-to-statistical-confidence)
+- [How SigmaEval Works](#how-sigmaeval-works)
+- [Available Criteria](#available-criteria)
+  - [`assertions.scores.proportion_gte(min_score, proportion, significance_level=None)`](#assertionsscoresproportion_gtemin_score-proportion-significance_levelnone)
+  - [`assertions.scores.median_gte(threshold, significance_level=None)`](#assertionsscoresmedian_gtethreshold-significance_levelnone)
+  - [`assertions.metrics.proportion_lt(threshold, proportion, significance_level=None)`](#assertionsmetricsproportion_ltthreshold-proportion-significance_levelnone)
+  - [`assertions.metrics.median_lt(threshold, significance_level=None)`](#assertionsmetricsmedian_ltthreshold-significance_levelnone)
+- [Available Metrics](#available-metrics)
+  - [`metrics.per_turn.response_latency`](#metricsper_turnresponse_latency)
+  - [`metrics.per_turn.response_length_chars`](#metricsper_turnresponse_length_chars)
+  - [`metrics.per_conversation.turn_count`](#metricsper_conversationturn_count)
+  - [`metrics.per_conversation.total_assistant_response_time`](#metricsper_conversationtotal_assistant_response_time)
+  - [`metrics.per_conversation.total_assistant_response_chars`](#metricsper_conversationtotal_assistant_response_chars)
+- [A Note on Sample Size and Statistical Significance](#a-note-on-sample-size-and-statistical-significance)
+- [Managing Cost](#managing-cost)
+- [Supported LLMs](#supported-llms)
+- [Logging](#logging)
+- [Retry Configuration](#retry-configuration)
+- [User Simulation Writing Styles](#user-simulation-writing-styles)
+- [Evaluating a Test Suite](#evaluating-a-test-suite)
+- [Evaluating Multiple Conditions and Assertions](#evaluating-multiple-conditions-and-assertions)
+  - [Multiple Conditions](#multiple-conditions)
+  - [Multiple Assertions](#multiple-assertions)
+- [Accessing Evaluation Results](#accessing-evaluation-results)
+- [Compatibility with Testing Libraries](#compatibility-with-testing-libraries)
+- [A Note on the Statistical Methods](#a-note-on-the-statistical-methods)
 - [Appendix A: Example Rubric](#appendix-a-example-rubric)
 - [Development](#development)
 - [License](#license)
 - [Contributing](#contributing)
-
-A Python library for evaluating Generative AI agents and apps.
 
 ## Installation
 
@@ -122,9 +133,7 @@ cd sigmaeval
 pip install -e .
 ```
 
-## SigmaEval: A Statistical Framework for AI App Evaluation
-
-### The Problem
+## The Problem
 
 Ensuring the quality of LLM-based apps is critical, but their inherent nature presents unique challenges that traditional software evaluation frameworks are not equipped to handle. Two fundamental properties of these apps make reliable evaluation a difficult task:
 
@@ -135,25 +144,25 @@ Consider a customer support bot designed to handle returns. A user might say, "I
 
 This departure from deterministic behavior calls for a new approach to evaluation—one that embraces variability and uncertainty rather than trying to eliminate them.
 
-### The Stakes: Why Traditional QA Fails
+## The Stakes: Why Traditional QA Fails
 
 Without a reliable evaluation framework, development becomes a guessing game. Teams ship features based on gut feelings and anecdotal evidence, leading to unreliable products, eroded user trust, and wasted engineering cycles. In high-stakes domains, the consequences can be even more severe, ranging from reputational damage to significant safety concerns. Sticking with testing paradigms built for deterministic systems is not just ineffective; it's a risk.
 
-### A New Paradigm: From Determinism to Statistical Confidence
+## A New Paradigm: From Determinism to Statistical Confidence
 
 Instead of asking, "Is this output correct?" we need to shift our mindset to ask, "How likely is this system to produce a high-quality output?" This is where statistical methods become essential. Before we can measure quality, however, we must define it. "Quality" is not a universal metric; it is a composite of factors tailored to a specific application, such as factual accuracy, task-completion, helpfulness, relevance, appropriate tone, and the absence of harmful content.
 
 The core tenets of this new approach are:
 
-*   **Accept Irreducible Variability:** We must accept that some level of variability in outputs is inherent to these systems.
-*   **Quantify Uncertainty Statistically:** The goal is not to achieve certainty for every single output, but to quantify the system's performance and uncertainty using established statistical tools like significance level, p-value, minimum proportion of successes, and hypothesis testing.
-*   **Focus on Average Effectiveness:** Like in complex biological systems, a single failure may not point to a simple cause but rather a complex interaction of factors. The primary goal is to ensure that the system is effective *on average* and that its benefits outweigh its risks.
+- **Accept Irreducible Variability:** We must accept that some level of variability in outputs is inherent to these systems.
+- **Quantify Uncertainty Statistically:** The goal is not to achieve certainty for every single output, but to quantify the system's performance and uncertainty using established statistical tools like significance level, p-value, minimum proportion of successes, and hypothesis testing.
+- **Focus on Average Effectiveness:** Like in complex biological systems, a single failure may not point to a simple cause but rather a complex interaction of factors. The primary goal is to ensure that the system is effective _on average_ and that its benefits outweigh its risks.
 
 An apt analogy comes from clinical drug trials. The objective isn't to guarantee a specific outcome for every patient but to ensure the treatment is of a consistently high quality. We don't ask, "Does this drug work for everyone?" but rather, "For what percentage of the target population does this drug produce a statistically significant positive effect with an acceptable risk profile?"
 
 Similarly, for LLM-based applications, the key is to ensure the system is reliable, effective, and safe enough for its intended purpose, allowing us to make informed, data-driven decisions based on known probabilities of success and failure. SigmaEval provides the tools to do just that.
 
-### How SigmaEval Works
+## How SigmaEval Works
 
 SigmaEval combines inferential statistics, AI-driven user simulation, and LLM-as-a-Judge evaluation within a Behavior-Driven Development (BDD) framework. This powerful combination allows you to move beyond simple pass/fail tests and gain statistical confidence in your AI's performance.
 
@@ -178,16 +187,16 @@ To gather a statistically meaningful sample, the following steps are repeated mu
 
 Each scenario is defined using a `ScenarioTest` object with a fluent builder API. The test has three main parts that mirror the Behavior-Driven Development (BDD) pattern:
 
-*   **`.given()`**: This method establishes the prerequisite state and context for the **User Simulator LLM**. This can include the persona of the user (e.g., a new user, an expert user), the context of the conversation (e.g., a customer's order number), or any other background information.
-*   **`.when()`**: This method describes the specific goal or action the **User Simulator LLM** will try to achieve. SigmaEval uses this to guide the simulation.
-*   **`.expect_behavior()` / `.expect_metric()`**: These methods specify the expected outcomes. Use `.expect_behavior()` for qualitative checks evaluated by an LLM judge, or `.expect_metric()` for quantitative checks on objective metrics. Both methods accept `criteria` to perform the statistical analysis.
+- **`.given()`**: This method establishes the prerequisite state and context for the **User Simulator LLM**. This can include the persona of the user (e.g., a new user, an expert user), the context of the conversation (e.g., a customer's order number), or any other background information.
+- **`.when()`**: This method describes the specific goal or action the **User Simulator LLM** will try to achieve. SigmaEval uses this to guide the simulation.
+- **`.expect_behavior()` / `.expect_metric()`**: These methods specify the expected outcomes. Use `.expect_behavior()` for qualitative checks evaluated by an LLM judge, or `.expect_metric()` for quantitative checks on objective metrics. Both methods accept `criteria` to perform the statistical analysis.
 
 This approach allows for a robust, automated evaluation of the AI's behavior against clear, human-readable standards.
 
 ```python
 from sigmaeval import (
-    SigmaEval, 
-    ScenarioTest, 
+    SigmaEval,
+    ScenarioTest,
     AppResponse,
     ScenarioTestResult,
     assertions,
@@ -221,7 +230,7 @@ async def app_handler(messages: List[Dict[str, str]], state: Any) -> Tuple[str, 
     """
     new_user_message = messages[-1]["content"]
     print(f"  [App] Received message: '{new_user_message}'")
-    
+
     # For stateful apps, you can use the `state` object to track information
     # across turns. It will be an empty dictionary on the first turn.
     # Stateless apps can return just the response string without a state.
@@ -231,7 +240,7 @@ async def app_handler(messages: List[Dict[str, str]], state: Any) -> Tuple[str, 
     response_message = (
         f"Response for convo_id '{convo_id}' to message: '{new_user_message}'"
     )
-    
+
     # Return the response string and the updated state to SigmaEval.
     return response_message, {"convo_id": convo_id}
 
@@ -239,7 +248,7 @@ async def app_handler(messages: List[Dict[str, str]], state: Any) -> Tuple[str, 
 async def main():
     # significance_level and sample_size can be provided here or in the scenario
     sigma_eval = SigmaEval(
-        judge_model="openai/gpt-5-nano", 
+        judge_model="openai/gpt-5-nano",
         significance_level=0.05,
         sample_size=30
     )
@@ -247,13 +256,13 @@ async def main():
 
     # The result object provides a comprehensive, human-readable summary
     print(results)
-    
+
     # You can also programmatically access the results
     if results.passed:
         print("\n✅ Scenario passed!")
     else:
         print("\n❌ Scenario failed.")
-    
+
     # For more detailed analysis, you can inspect individual expectation results
     # and the raw conversation data stored in the `results` object.
 
@@ -261,92 +270,119 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Available Criteria
+## Available Criteria
 
 SigmaEval provides different statistical criteria to evaluate your AI's performance based on the 1-10 scores from the Judge LLM. You can choose the one that best fits your scenario. All criteria are available under the `assertions.scores` object.
 
 All statistical tests require a `significance_level` (alpha), which can be provided to the `SigmaEval` constructor as a default, or on a per-assertion basis. This value, typically set to 0.05, represents the probability of rejecting the null hypothesis when it is actually true (a Type I error).
 
-#### `assertions.scores.proportion_gte(min_score, proportion, significance_level=None)`
+### `assertions.scores.proportion_gte(min_score, proportion, significance_level=None)`
+
 This criterion helps you answer the question: **"Is my AI's performance good enough, most of the time?"**
 
 It performs a one-sided hypothesis test to verify that a desired proportion of your app's responses meet a minimum quality bar.
 
-Specifically, it checks if there is enough statistical evidence to conclude that the true proportion of scores *greater than or equal to* your `min_score` is *at least* your specified `proportion`.
+Specifically, it checks if there is enough statistical evidence to conclude that the true proportion of scores _greater than or equal to_ your `min_score` is _at least_ your specified `proportion`.
 
 This is useful for setting quality targets. For example, `assertions.scores.proportion_gte(min_score=8, proportion=0.75)` lets you test the hypothesis: "Are at least 75% of our responses scoring an 8 or higher?". The test passes if the collected data supports this claim with statistical confidence.
 
-#### `assertions.scores.median_gte(threshold, significance_level=None)`
-This criterion helps you answer the question: **"Is the *typical* user experience good?"** The median represents the middle-of-the-road experience, so this test is robust to a few unusually bad outcomes.
+### `assertions.scores.median_gte(threshold, significance_level=None)`
+
+This criterion helps you answer the question: **"Is the _typical_ user experience good?"** The median represents the middle-of-the-road experience, so this test is robust to a few unusually bad outcomes.
 
 It performs a one-sided bootstrap hypothesis test to determine if the true median score is statistically higher than your `threshold`. Because the median is the 50th percentile, passing this test means you can be confident that at least half of all responses will meet the quality bar.
 
 This is particularly useful for subjective qualities like helpfulness or tone. For example, `assertions.scores.median_gte(threshold=8.0)` tests the hypothesis: "Is the typical score at least an 8?".
 
-#### `assertions.metrics.proportion_lt(threshold, proportion, significance_level=None)`
+### `assertions.metrics.proportion_lt(threshold, proportion, significance_level=None)`
+
 This criterion is used for "lower is better" metrics like response latency. It performs a one-sided hypothesis test to verify that a desired proportion of your app's responses are fast enough.
 
-Specifically, it checks if there is enough statistical evidence to conclude that the true proportion of metric values *less than* your `threshold` is *at least* your specified `proportion`.
+Specifically, it checks if there is enough statistical evidence to conclude that the true proportion of metric values _less than_ your `threshold` is _at least_ your specified `proportion`.
 
 This is useful for setting performance targets (e.g., Service Level Objectives). For example, `assertions.metrics.proportion_lt(threshold=1.5, proportion=0.95)` lets you test the hypothesis: "Are at least 95% of our responses faster than 1.5 seconds?". The test passes if the collected data supports this claim with statistical confidence.
 
-#### `assertions.metrics.median_lt(threshold, significance_level=None)`
-This criterion helps you answer the question: **"Is the *typical* performance efficient?"** for "lower is better" metrics like latency or turn count. The median is robust to a few unusually slow or long-running outcomes.
+### `assertions.metrics.median_lt(threshold, significance_level=None)`
+
+This criterion helps you answer the question: **"Is the _typical_ performance efficient?"** for "lower is better" metrics like latency or turn count. The median is robust to a few unusually slow or long-running outcomes.
 
 It performs a one-sided bootstrap hypothesis test to determine if the true median of a metric is statistically lower than your `threshold`.
 
 This is useful for evaluating the typical efficiency of your system. For example, when applied to turn count, `assertions.metrics.median_lt(threshold=3.0)` tests the hypothesis: "Does a typical conversation wrap up in 3 turns or less?".
 
-### Available Metrics
+## Available Metrics
 
 SigmaEval provides several built-in metrics to measure objective, quantitative aspects of your AI's performance. All metrics are available under the `metrics` object and are namespaced by their scope: `per_turn` or `per_conversation`.
 
-*   **Per-Turn Metrics**: Collected for each assistant response within a conversation.
-*   **Per-Conversation Metrics**: Collected once for the entire conversation.
+- **Per-Turn Metrics**: Collected for each assistant response within a conversation.
+- **Per-Conversation Metrics**: Collected once for the entire conversation.
 
-#### `metrics.per_turn.response_latency`
-*   **Description**: Measures the time (in seconds) between the application receiving a user's message and sending its response.
-*   **Scope**: Per-Turn
-*   **Use Case**: Ensuring the application feels responsive and meets performance requirements (e.g., "95% of responses should be under 1.5 seconds").
+### `metrics.per_turn.response_latency`
 
-#### `metrics.per_turn.response_length_chars`
-*   **Description**: The number of characters in an assistant's response.
-*   **Scope**: Per-Turn
-*   **Use Case**: Enforcing conciseness in individual responses to prevent overly long messages (e.g., "90% of responses must be under 1000 characters").
+- **Description**: Measures the time (in seconds) between the application receiving a user's message and sending its response.
+- **Scope**: Per-Turn
+- **Use Case**: Ensuring the application feels responsive and meets performance requirements (e.g., "95% of responses should be under 1.5 seconds").
 
-#### `metrics.per_conversation.turn_count`
-*   **Description**: The total number of turns in a conversation. A "turn" consists of a user message and the assistant's response.
-*   **Scope**: Per-Conversation
-*   **Use Case**: Measuring the efficiency of the AI. A lower turn count to resolve an issue is often better (e.g., "The average conversation should be less than 4 turns").
+### `metrics.per_turn.response_length_chars`
 
-#### `metrics.per_conversation.total_assistant_response_time`
-*   **Description**: The total time (in seconds) the assistant spent processing responses for the entire conversation. This is the sum of all response latencies.
-*   **Scope**: Per-Conversation
-*   **Use Case**: Evaluating the total computational effort of the assistant over a conversation, useful for monitoring cost and overall performance.
+- **Description**: The number of characters in an assistant's response.
+- **Scope**: Per-Turn
+- **Use Case**: Enforcing conciseness in individual responses to prevent overly long messages (e.g., "90% of responses must be under 1000 characters").
 
-#### `metrics.per_conversation.total_assistant_response_chars`
-*   **Description**: The total number of characters in all of the assistant's responses in a conversation.
-*   **Scope**: Per-Conversation
-*   **Use Case**: Measuring the overall verbosity of the assistant. This is useful for ensuring that the total amount of text a user has to read is not excessive.
+### `metrics.per_conversation.turn_count`
 
-### A Note on Sample Size and Statistical Significance
+- **Description**: The total number of turns in a conversation. A "turn" consists of a user message and the assistant's response.
+- **Scope**: Per-Conversation
+- **Use Case**: Measuring the efficiency of the AI. A lower turn count to resolve an issue is often better (e.g., "The average conversation should be less than 4 turns").
+
+### `metrics.per_conversation.total_assistant_response_time`
+
+- **Description**: The total time (in seconds) the assistant spent processing responses for the entire conversation. This is the sum of all response latencies.
+- **Scope**: Per-Conversation
+- **Use Case**: Evaluating the total computational effort of the assistant over a conversation, useful for monitoring cost and overall performance.
+
+### `metrics.per_conversation.total_assistant_response_chars`
+
+- **Description**: The total number of characters in all of the assistant's responses in a conversation.
+- **Scope**: Per-Conversation
+- **Use Case**: Measuring the overall verbosity of the assistant. This is useful for ensuring that the total amount of text a user has to read is not excessive.
+
+## A Note on Sample Size and Statistical Significance
 
 The `sample_size` determines the number of conversations to simulate for each `ScenarioTest`. It can be set globally in the `SigmaEval` constructor or on a per-scenario basis using the `.sample_size()` method. The scenario-specific value takes precedence.
 
-It is important to note that the `sample_size` plays a crucial role in the outcome of the hypothesis tests used by `SuccessRateEvaluator` and `RatingProportionEvaluator`. A larger sample size provides more statistical evidence, making it easier to detect a true effect. With very small sample sizes (e.g., less than 10), a test might fail to achieve statistical significance (i.e., pass) even if the observed success rate in the sample is 100%. This is the expected and correct behavior, as there isn't enough data to confidently conclude that the *true* success rate for the entire user population is above the minimum threshold.
+It is important to note that the `sample_size` plays a crucial role in the outcome of the hypothesis tests used by `SuccessRateEvaluator` and `RatingProportionEvaluator`. A larger sample size provides more statistical evidence, making it easier to detect a true effect. With very small sample sizes (e.g., less than 10), a test might fail to achieve statistical significance (i.e., pass) even if the observed success rate in the sample is 100%. This is the expected and correct behavior, as there isn't enough data to confidently conclude that the _true_ success rate for the entire user population is above the minimum threshold.
 
+## Managing Cost
 
-### Supported LLMs
+Each `SigmaEval` run performs multiple LLM calls for rubric generation, user simulation, and judging, which has direct cost implications based on the models and `sample_size` you choose. While thorough evaluation requires investment, you can manage costs effectively:
+
+-   **Use Different Models for Different Roles**: The quality of the judge is critical for reliable scores, so it's best to use a relatively powerful model (e.g., `openai/gpt-5-mini` or `gemini/gemini-2.5-flash`) for the `judge_model`. The user simulation, however, is often less demanding. You can use a smaller, faster, and cheaper model (e.g., `openai/gpt-5-nano` or `gemini/gemini-2.5-flash-lite`) for the `user_simulator_model` to significantly reduce costs without compromising the quality of the evaluation.
+
+    ```python
+    sigma_eval = SigmaEval(
+        judge_model="gemini/gemini-2.5-flash",
+        user_simulator_model="gemini/gemini-2.5-flash-lite",
+        # ... other settings
+    )
+    ```
+
+-   **Start with a Small `sample_size`**: During iterative development and debugging, use a small `sample_size` (e.g., 5-10) to get a quick signal on performance. This allows you to fail fast and fix issues without incurring high costs. Once you are ready for a final, statistically rigorous validation (e.g., before a release), you can increase the `sample_size` to a larger number (e.g., 30-100+) to achieve higher statistical confidence.
+
+Ultimately, the cost of evaluation should be seen as a trade-off. A small investment in automated, statistical evaluation can prevent the much higher costs associated with shipping a low-quality, unreliable AI product.
+
+## Supported LLMs
 
 SigmaEval is agnostic to the specific model/provider used by the application under test. For the LLM-as-a-Judge component, SigmaEval uses the [LiteLLM](https://github.com/BerriAI/litellm) library under the hood, which provides a unified interface to many providers and models (OpenAI, Anthropic, Google, etc.).
 
-### Logging
+## Logging
 
 SigmaEval uses Python's standard `logging` module to provide visibility into the evaluation process. You can control the verbosity by passing a `log_level` to the `SigmaEval` constructor.
-*   **`logging.INFO`** (default): Provides a high-level overview, including a progress bar for data collection.
-*   **`logging.DEBUG`**: Offers detailed output for troubleshooting, including LLM prompts, conversation transcripts, and judge's reasoning.
 
-### Retry Configuration
+- **`logging.INFO`** (default): Provides a high-level overview, including a progress bar for data collection.
+- **`logging.DEBUG`**: Offers detailed output for troubleshooting, including LLM prompts, conversation transcripts, and judge's reasoning.
+
+## Retry Configuration
 
 To improve robustness against transient network or API issues, SigmaEval automatically retries failed LLM calls using an exponential backoff strategy (powered by the [Tenacity](https://tenacity.readthedocs.io/en/latest/) library). This also includes retries for malformed or unparsable LLM responses. This applies to rubric generation, user simulation, and judging calls.
 
@@ -373,15 +409,16 @@ sigma_eval = SigmaEval(
 )
 ```
 
-### User Simulation Writing Styles
+## User Simulation Writing Styles
 
 To better address the "infinite input space" problem, SigmaEval's user simulator can be configured to adopt a wide variety of writing styles. This feature helps ensure your application is robust to the many ways real users communicate.
 
 By default, for each of the `sample_size` evaluation runs, the user simulator will randomly adopt a different writing style by combining four independent axes:
-*   **`proficiency`**: The user's grasp of grammar and vocabulary (e.g., "Middle-school level," "Flawless grammar and sophisticated vocabulary").
-*   **`tone`**: The user's emotional disposition (e.g., "Polite and friendly," "Impatient and slightly frustrated").
-*   **`verbosity`**: The length and detail of the user's messages (e.g., "Terse and to-the-point," "Verbose and descriptive").
-*   **`formality`**: The user's adherence to formal language conventions (e.g., "Formal and professional," "Casual with slang").
+
+- **`proficiency`**: The user's grasp of grammar and vocabulary (e.g., "Middle-school level," "Flawless grammar and sophisticated vocabulary").
+- **`tone`**: The user's emotional disposition (e.g., "Polite and friendly," "Impatient and slightly frustrated").
+- **`verbosity`**: The length and detail of the user's messages (e.g., "Terse and to-the-point," "Verbose and descriptive").
+- **`formality`**: The user's adherence to formal language conventions (e.g., "Formal and professional," "Casual with slang").
 
 This behavior is on by default and can be configured or disabled via the `WritingStyleConfig` object passed to the `SigmaEval` constructor.
 
@@ -406,9 +443,10 @@ sigma_eval = SigmaEval(
     writing_style_config=custom_style_config
 )
 ```
+
 This system ensures that the `Given` (persona) and `When` (goal) clauses of your `ScenarioTest` are always prioritized. The writing style adds a layer of realistic, stylistic variation without overriding the core of the test scenario.
 
-### Evaluating a Test Suite
+## Evaluating a Test Suite
 
 You can also run a full suite of tests by passing a list of `ScenarioTest` objects to the `evaluate` method. The tests will be run concurrently.
 
@@ -422,11 +460,11 @@ for result in all_results:
     print(result)
 ```
 
-### Evaluating Multiple Conditions and Assertions
+## Evaluating Multiple Conditions and Assertions
 
 For more comprehensive validation, SigmaEval supports testing multiple conditions and assertions within a single `ScenarioTest`. This allows you to check for complex behaviors and verify multiple statistical properties in an efficient manner.
 
-#### Multiple Conditions
+### Multiple Conditions
 
 You can call `.expect_behavior()` or `.expect_metric()` multiple times on a `ScenarioTest` to add multiple expectations. The test will only pass if all expectations are met. Each expectation is evaluated independently (behavioral expectations get their own rubric), but they all share the same `sample_size`. This is useful for testing complex behaviors that have multiple success criteria.
 
@@ -451,7 +489,7 @@ multi_condition_scenario = (
 )
 ```
 
-#### Multiple Assertions
+### Multiple Assertions
 
 You can also specify a list of `criteria` in a single `.expect_behavior()` or `.expect_metric()` call. The test will only pass if all assertions are met. This is useful for checking multiple statistical properties of the same set of scores or metric values.
 
@@ -473,7 +511,7 @@ multi_assertion_scenario = (
 )
 ```
 
-### Accessing Evaluation Results
+## Accessing Evaluation Results
 
 The `evaluate` method returns a `ScenarioTestResult` object (or a list of them) that contains all the information about the test run.
 
@@ -483,6 +521,7 @@ For a quick check, you can inspect the `passed` property:
 if results.passed:
     print("✅ Scenario passed!")
 ```
+
 Printing the result object provides a comprehensive, human-readable summary of the outcomes, which is ideal for logs:
 
 ```python
@@ -491,7 +530,7 @@ print(results)
 
 For more detailed programmatic analysis, the object gives you full access to the nested `expectation_results` (including scores and reasoning) and the complete `conversations` list.
 
-### Compatibility with Testing Libraries
+## Compatibility with Testing Libraries
 
 SigmaEval is designed to integrate seamlessly with standard Python testing libraries like `pytest` and `unittest`. Since the `evaluate` method returns a result object with a simple `.passed` boolean property, you can easily use it within your existing test suites.
 
@@ -509,7 +548,7 @@ async def test_bot_capabilities_scenario():
     This test will pass if the SigmaEval scenario passes.
     """
     sigma_eval = SigmaEval(judge_model="openai/gpt-5-nano")
-    
+
     scenario = (
         ScenarioTest("Bot explains its capabilities")
         .given("A new user asks about what the bot can do")
@@ -519,13 +558,13 @@ async def test_bot_capabilities_scenario():
             criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.90)
         )
     )
-    
+
     # The app_handler is the callback to your application
     result = await sigma_eval.evaluate(scenario, app_handler)
-    
+
     # Print the detailed summary for logs
     print(result)
-    
+
     # Use a standard pytest assertion
     assert result.passed, "The bot capabilities scenario failed."
 
@@ -533,17 +572,17 @@ async def test_bot_capabilities_scenario():
 
 This allows you to incorporate rigorous, statistical evaluation of your AI's behavior directly into your CI/CD pipelines.
 
-### A Note on the Statistical Methods
+## A Note on the Statistical Methods
 
 To ensure robust and reliable conclusions, SigmaEval uses established statistical hypothesis tests tailored to the type of evaluation being performed.
 
-*   **For Proportion-Based Criteria** (e.g., `proportion_gte`): The framework employs a **one-sided binomial test**. This test is ideal for scenarios where each data point can be classified as a binary outcome (e.g., "success" or "failure," like a score being above or below a threshold). It directly evaluates whether the observed proportion of successes in your sample provides enough statistical evidence to conclude that the true proportion for all possible interactions meets your specified minimum target.
+- **For Proportion-Based Criteria** (e.g., `proportion_gte`): The framework employs a **one-sided binomial test**. This test is ideal for scenarios where each data point can be classified as a binary outcome (e.g., "success" or "failure," like a score being above or below a threshold). It directly evaluates whether the observed proportion of successes in your sample provides enough statistical evidence to conclude that the true proportion for all possible interactions meets your specified minimum target.
 
-*   **For Median-Based Criteria** (e.g., `median_gte`): The framework uses a **bootstrap hypothesis test**. The median is a robust measure of central tendency, but its theoretical sampling distribution can be complex. Bootstrapping is a powerful, non-parametric resampling method that avoids making assumptions about the underlying distribution of the scores or metric values. By repeatedly resampling the collected data, it constructs an empirical distribution of the median, which is then used to determine if the observed median is statistically significant.
+- **For Median-Based Criteria** (e.g., `median_gte`): The framework uses a **bootstrap hypothesis test**. The median is a robust measure of central tendency, but its theoretical sampling distribution can be complex. Bootstrapping is a powerful, non-parametric resampling method that avoids making assumptions about the underlying distribution of the scores or metric values. By repeatedly resampling the collected data, it constructs an empirical distribution of the median, which is then used to determine if the observed median is statistically significant.
 
 This approach ensures that the framework's conclusions are statistically sound without imposing rigid assumptions on the nature of your AI's performance data.
 
-### Appendix A: Example Rubric
+## Appendix A: Example Rubric
 
 For the `ScenarioTest` defined in the Python snippet:
 
@@ -610,5 +649,3 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-
