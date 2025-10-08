@@ -80,7 +80,7 @@ async def app_handler(messages, state):
 async def main():
     # You can use any model that LiteLLM supports: https://docs.litellm.ai/docs/providers
     sigma_eval = SigmaEval(
-        judge_model="gemini/gemini-2.5-flash-lite",
+        judge_model="gemini/gemini-2.5-flash",
         sample_size=20,  # The number of times to run the test
         significance_level=0.05  # Corresponds to a 95% confidence level
     )
@@ -193,7 +193,7 @@ async def app_handler(messages: List[Dict[str, str]], state: Any) -> Tuple[str, 
 async def main():
     # significance_level and sample_size can be provided here or in the scenario
     sigma_eval = SigmaEval(
-        judge_model="gemini/gemini-2.5-flash-lite", 
+        judge_model="gemini/gemini-2.5-flash", 
         significance_level=0.05,
         sample_size=20
     )
@@ -351,7 +351,7 @@ custom_axes = WritingStyleAxes(
 custom_style_config = WritingStyleConfig(axes=custom_axes)
 
 sigma_eval = SigmaEval(
-    judge_model="gemini/gemini-2.5-flash-lite",
+    judge_model="gemini/gemini-2.5-flash",
     significance_level=0.05,
     writing_style_config=custom_style_config
 )
@@ -386,7 +386,7 @@ custom_retry_config = RetryConfig(
 # no_retry_config = RetryConfig(enabled=False)
 
 sigma_eval = SigmaEval(
-    judge_model="gemini/gemini-2.5-flash-lite",
+    judge_model="gemini/gemini-2.5-flash",
     # significance_level can be omitted here if provided in all assertions
     significance_level=0.05,
     retry_config=custom_retry_config
@@ -498,7 +498,7 @@ async def test_bot_capabilities_scenario():
     This test will pass if the SigmaEval scenario passes.
     """
     sigma_eval = SigmaEval(
-        judge_model="gemini/gemini-2.5-flash-lite",
+        judge_model="gemini/gemini-2.5-flash",
         sample_size=20,
         significance_level=0.05
     )
