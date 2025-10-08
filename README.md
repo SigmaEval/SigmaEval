@@ -52,41 +52,41 @@ pip install -e .
 
 ## Hello World
 
-Here is a minimal, complete example of how to use SigmaEval. First, run `pip install sigmaeval-framework` and set an environment variable with an API key for your chosen model (e.g., `OPENAI_API_KEY`).
+Here is a minimal, complete example of how to use SigmaEval. First, run `pip install sigmaeval-framework` and set an environment variable with an API key for your chosen model (e.g., `GEMINI_API_KEY` or `OPENAI_API_KEY`). SigmaEval uses [LiteLLM](https://litellm.ai/) to support over 100+ LLM providers.
 
 ```python
 from sigmaeval import SigmaEval, ScenarioTest, assertions
 import asyncio
 from typing import List, Dict, Any
-
 # 1. Define the ScenarioTest to describe the desired behavior
 scenario = (
-    ScenarioTest("Hello World Test")
-    .given("A user says hello")
-    .when("The user says 'Hello'")
+    ScenarioTest("Simple Test")
+    .given("A user interacting with a chatbot")
+    .when("The user greets the bot")
     .expect_behavior(
-        "The bot replies with 'Hello, world!'",
-        # We are confident that at least 90% of responses will score an 8/10 or higher.
-        criteria=assertions.scores.proportion_gte(min_score=8, proportion=0.90)
+        "The bot provides a simple and friendly greeting.",
+        # We want to be confident that at least 75% of responses will score an 7/10 or higher.
+        criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.75)
     )
+    .max_turns(1) # Only needed here since we're returning a static greeting
 )
-
 # 2. Implement the app_handler to allow SigmaEval to communicate with your app
 async def app_handler(messages: List[Dict[str, str]], state: Any) -> str:
-    # In a real test, you will pass the messages to your app and return the response back to SigmaEval.
-    # For this example, we are just returning a static response.
-    return "Hello, world!"
+    # In a real test, you would pass messages to your app and return the response.
+    # For this example, we'll return a static, friendly greeting.
+    return "Hello there! Nice to meet you!"
 
 # 3. Initialize SigmaEval and run the evaluation
 async def main():
-    # Make sure your environment is configured with an API key for your chosen model (e.g., OPENAI_API_KEY)
     # You can use any model that LiteLLM supports: https://docs.litellm.ai/docs/providers
     sigma_eval = SigmaEval(
-        judge_model="openai/gpt-5-nano",
+        judge_model="gemini/gemini-2.5-flash-lite",
         sample_size=20,  # The number of times to run the test
         significance_level=0.05  # Corresponds to a 95% confidence level
     )
     result = await sigma_eval.evaluate(scenario, app_handler)
+    
+    # Assert that the test passed for integration with testing frameworks
     assert result.passed
 
 if __name__ == "__main__":
@@ -98,7 +98,7 @@ When you run this script, SigmaEval will:
 1.  **Generate a Rubric**: Based on the `expect_behavior`, it will create a 1-10 scoring rubric for the Judge LLM.
 2.  **Simulate Conversations**: It will call your `app_handler` 20 times (`sample_size=20`), each time simulating a user saying "Hello".
 3.  **Judge the Responses**: For each of the 20 conversations, the `judge_model` will score your app's response against the rubric.
-4.  **Perform Statistical Analysis**: SigmaEval will then run a hypothesis test to determine if it can be concluded, with 95% confidence (`significance_level=0.05`), that at least 90% of the responses scored an 8 or higher.
+4.  **Perform Statistical Analysis**: SigmaEval will then run a hypothesis test to determine if it can be concluded, with 95% confidence (`significance_level=0.05`), that at least 75% of the responses scored a 7 or higher.
 5.  **Determine Pass/Fail**: The script will exit with a pass or fail status based on the final assertion.
 
 ## Table of Contents
@@ -193,7 +193,7 @@ async def app_handler(messages: List[Dict[str, str]], state: Any) -> Tuple[str, 
 async def main():
     # significance_level and sample_size can be provided here or in the scenario
     sigma_eval = SigmaEval(
-        judge_model="openai/gpt-5-nano", 
+        judge_model="gemini/gemini-2.5-flash-lite", 
         significance_level=0.05,
         sample_size=20
     )
@@ -351,7 +351,7 @@ custom_axes = WritingStyleAxes(
 custom_style_config = WritingStyleConfig(axes=custom_axes)
 
 sigma_eval = SigmaEval(
-    judge_model="openai/gpt-5-nano",
+    judge_model="gemini/gemini-2.5-flash-lite",
     significance_level=0.05,
     writing_style_config=custom_style_config
 )
@@ -386,7 +386,7 @@ custom_retry_config = RetryConfig(
 # no_retry_config = RetryConfig(enabled=False)
 
 sigma_eval = SigmaEval(
-    judge_model="openai/gpt-5-nano",
+    judge_model="gemini/gemini-2.5-flash-lite",
     # significance_level can be omitted here if provided in all assertions
     significance_level=0.05,
     retry_config=custom_retry_config
@@ -498,7 +498,7 @@ async def test_bot_capabilities_scenario():
     This test will pass if the SigmaEval scenario passes.
     """
     sigma_eval = SigmaEval(
-        judge_model="openai/gpt-5-nano",
+        judge_model="gemini/gemini-2.5-flash-lite",
         sample_size=20,
         significance_level=0.05
     )
@@ -546,22 +546,7 @@ This approach ensures that the framework's conclusions are statistically sound w
 
 ### An Example Rubric
 
-For the `ScenarioTest` defined in the Python snippet:
-
-```python
-scenario = (
-    ScenarioTest("Bot explains its capabilities")
-    .given("A new user who has not interacted with the bot before")
-    .when("The user asks a general question about the bot's capabilities")
-    .sample_size(20)
-    .expect_behavior(
-        "Bot lists its main functions: tracking orders, initiating returns, answering product questions, and escalating to a human agent.",
-        criteria=assertions.scores.proportion_gte(min_score=6, proportion=0.90)
-    )
-)
-```
-
-SigmaEval might generate the following 1-10 rubric for the Judge LLM:
+For the `ScenarioTest` defined in the "Core Concepts" section, SigmaEval might generate the following 1-10 rubric for the Judge LLM:
 
 **1:** Bot gives no answer or ignores the question.
 
