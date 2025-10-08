@@ -22,7 +22,7 @@ Tired of shipping Gen AI features based on gut feelings and vibes?
 
 SigmaEval works by bringing a structured, data-driven process to AI quality assurance:
 
-This process transforms subjective assessments into quantitative, data-driven conclusions, giving you a reliable framework for building high-quality AI applications.
+This process transforms subjective assessments into quantitative, data-driven conclusions, giving you a reliable framework for building high-quality AI apps.
 
 At its core, SigmaEval uses two AI agents to automate evaluation: an **AI User Simulator** that realistically tests your application, and an **AI Judge** that scores its performance. The process is as follows:
 
@@ -86,35 +86,22 @@ When you run this script, SigmaEval will:
 ## Table of Contents
 
 - [Installation](#installation)
-- [The Problem](#the-problem)
-- [The Stakes: Why Traditional QA Fails](#the-stakes-why-traditional-qa-fails)
-- [A New Paradigm: From Determinism to Statistical Confidence](#a-new-paradigm-from-determinism-to-statistical-confidence)
+- [Why SigmaEval?](#why-sigmaeval)
 - [How SigmaEval Works](#how-sigmaeval-works)
 - [Available Criteria](#available-criteria)
-  - [`assertions.scores.proportion_gte(min_score, proportion, significance_level=None)`](#assertionsscoresproportion_gtemin_score-proportion-significance_levelnone)
-  - [`assertions.scores.median_gte(threshold, significance_level=None)`](#assertionsscoresmedian_gtethreshold-significance_levelnone)
-  - [`assertions.metrics.proportion_lt(threshold, proportion, significance_level=None)`](#assertionsmetricsproportion_ltthreshold-proportion-significance_levelnone)
-  - [`assertions.metrics.median_lt(threshold, significance_level=None)`](#assertionsmetricsmedian_ltthreshold-significance_levelnone)
 - [Available Metrics](#available-metrics)
-  - [`metrics.per_turn.response_latency`](#metricsper_turnresponse_latency)
-  - [`metrics.per_turn.response_length_chars`](#metricsper_turnresponse_length_chars)
-  - [`metrics.per_conversation.turn_count`](#metricsper_conversationturn_count)
-  - [`metrics.per_conversation.total_assistant_response_time`](#metricsper_conversationtotal_assistant_response_time)
-  - [`metrics.per_conversation.total_assistant_response_chars`](#metricsper_conversationtotal_assistant_response_chars)
-- [A Note on Sample Size and Statistical Significance](#a-note-on-sample-size-and-statistical-significance)
+- [Sample Size and Statistical Significance](#a-note-on-sample-size-and-statistical-significance)
 - [Managing Cost](#managing-cost)
 - [Supported LLMs](#supported-llms)
 - [Logging](#logging)
 - [Retry Configuration](#retry-configuration)
-- [User Simulation Writing Styles](#user-simulation-writing-styles)
+- [Writing Styles](#user-simulation-writing-styles)
 - [Evaluating a Test Suite](#evaluating-a-test-suite)
 - [Evaluating Multiple Conditions and Assertions](#evaluating-multiple-conditions-and-assertions)
-  - [Multiple Conditions](#multiple-conditions)
-  - [Multiple Assertions](#multiple-assertions)
 - [Accessing Evaluation Results](#accessing-evaluation-results)
-- [Compatibility with Testing Libraries](#compatibility-with-testing-libraries)
-- [A Note on the Statistical Methods](#a-note-on-the-statistical-methods)
-- [Appendix A: Example Rubric](#appendix-a-example-rubric)
+- [Testing Libraries](#compatibility-with-testing-libraries)
+- [Statistical Methods](#a-note-on-the-statistical-methods)
+- [An Example Rubric](#an-example-rubric)
 - [Development](#development)
 - [License](#license)
 - [Contributing](#contributing)
@@ -133,63 +120,48 @@ cd sigmaeval
 pip install -e .
 ```
 
-## The Problem
+## Why SigmaEval?
 
-Ensuring the quality of LLM-based apps is critical, but their inherent nature presents unique challenges that traditional software evaluation frameworks are not equipped to handle. Two fundamental properties of these apps make reliable evaluation a difficult task:
+Testing Gen AI apps is challenging for two main reasons:
 
-1.  **Non-deterministic Outputs:** Unlike traditional software, where a given input consistently produces the same output, LLM-based systems can produce a variety of different, often equally valid, responses to the same prompt.
-2.  **Infinite Input Space:** The sheer variety of possible inputs—from subtle changes in prompt phrasing to the vast context windows these models can handle—makes comprehensive testing an impossibility. Even the slightest change in the punctuation or phrasing of a prompt can produce a different output.
+- **Non-deterministic Outputs:** LLM-based systems typically produce a variety of responses to the same prompt. Sometimes, these different responses are equally valid and helpful. Other times, AI systems seem to fail intermitently and unpredictably (even for the same exact input).
+- **Infinite Input Space:** The vast variety of possible inputs that the simplest Gen AI app is exposed to makes comprehensive testing an impossibility. Even the slightest change in the punctuation or phrasing of a prompt sometimes produces drastically different results.
 
-Consider a customer support bot designed to handle returns. A user might say, "I want to return this," "This isn't what I wanted," or "How do I start a return?" A good bot could respond with, "I can help with that. What's your order number?" or "Certainly, let's get that return started for you. Could you provide the order number?" All of these are valid and helpful responses. A traditional testing mindset that checks for a single, exact-match "correct" answer would incorrectly fail these perfectly good interactions.
+These two properties require a shift in mindset when evaluating Gen AI apps. Instead of asking "Is this output correct given the input?", we need to ask "How likely is this system to produce high-quality outputs in the real world?"
 
-This departure from deterministic behavior calls for a new approach to evaluation—one that embraces variability and uncertainty rather than trying to eliminate them.
+SigmaEval addresses these challenges directly. It tackles the **infinite input space** by using an AI User Simulator to generate a wide variety of realistic user inputs, testing your app's robustness against linguistic variation. To handle **non-deterministic outputs**, it applies statistical methods instead of simple pass/fail checks. By running tests multiple times, SigmaEval quantifies your AI's performance with statistical confidence. This is like a clinical drug trial: the goal isn't to guarantee a specific outcome for every individual but to ensure the treatment is effective for a significant portion of the population (within a certain risk tolerance).
 
-## The Stakes: Why Traditional QA Fails
-
-Without a reliable evaluation framework, development becomes a guessing game. Teams ship features based on gut feelings and anecdotal evidence, leading to unreliable products, eroded user trust, and wasted engineering cycles. In high-stakes domains, the consequences can be even more severe, ranging from reputational damage to significant safety concerns. Sticking with testing paradigms built for deterministic systems is not just ineffective; it's a risk.
-
-## A New Paradigm: From Determinism to Statistical Confidence
-
-Instead of asking, "Is this output correct?" we need to shift our mindset to ask, "How likely is this system to produce a high-quality output?" This is where statistical methods become essential. Before we can measure quality, however, we must define it. "Quality" is not a universal metric; it is a composite of factors tailored to a specific application, such as factual accuracy, task-completion, helpfulness, relevance, appropriate tone, and the absence of harmful content.
-
-The core tenets of this new approach are:
-
-- **Accept Irreducible Variability:** We must accept that some level of variability in outputs is inherent to these systems.
-- **Quantify Uncertainty Statistically:** The goal is not to achieve certainty for every single output, but to quantify the system's performance and uncertainty using established statistical tools like significance level, p-value, minimum proportion of successes, and hypothesis testing.
-- **Focus on Average Effectiveness:** Like in complex biological systems, a single failure may not point to a simple cause but rather a complex interaction of factors. The primary goal is to ensure that the system is effective _on average_ and that its benefits outweigh its risks.
-
-An apt analogy comes from clinical drug trials. The objective isn't to guarantee a specific outcome for every patient but to ensure the treatment is of a consistently high quality. We don't ask, "Does this drug work for everyone?" but rather, "For what percentage of the target population does this drug produce a statistically significant positive effect with an acceptable risk profile?"
-
-Similarly, for LLM-based applications, the key is to ensure the system is reliable, effective, and safe enough for its intended purpose, allowing us to make informed, data-driven decisions based on known probabilities of success and failure. SigmaEval provides the tools to do just that.
+With SigmaEval, you can make data-driven decisions based on the probability of success and failure, ensuring your AI is reliable, effective, and safe for its intended purpose.
 
 ## How SigmaEval Works
 
-SigmaEval combines inferential statistics, AI-driven user simulation, and LLM-as-a-Judge evaluation within a Behavior-Driven Development (BDD) framework. This powerful combination allows you to move beyond simple pass/fail tests and gain statistical confidence in your AI's performance.
+SigmaEval combines inferential statistics, AI-driven user simulation, and LLM-as-a-Judge evaluation. This powerful combination allows you to move beyond simple pass/fail tests and gain statistical confidence in your AI's performance.
 
 The evaluation process for a single `ScenarioTest` unfolds in three main phases:
 
 **Phase 1: Test Setup**
 
-1.  **Defining Behavior with BDD:** You start by defining a test scenario using a `ScenarioTest` with its `Given`, `When`, and `Then` clauses. This sets the stage for the entire evaluation.
-2.  **Creating the Rubric:** Based on the `expected_behavior` you specified in the `Then` clause, SigmaEval generates a detailed 1-10 scoring rubric. This rubric is created once per test case and ensures that every interaction is evaluated against the same consistent criteria (see Appendix A for an example).
+1.  **Defining Test Scenario:** You start by defining a test scenario using a `ScenarioTest` with its `given`, `when`, and expectation clauses (`expect_behavior` or `expect_metric`). The `given` clause signifies the context of the test and any background information (e.g., user's persona).  The `when` clause describes the user's goals or triggers as they relate to this specific test scenario. An expectation clause (`expect_behavior` or `expect_metric`) specifies the expected outcome and the statistical criteria for success. This sets the stage for the entire evaluation.
+2.  **Providing an App Handler:** You implement an `async` Python function (the `app_handler`) that allows SigmaEval to communicate with your application. This handler receives conversation history and returns your app's response, acting as a bridge between the user simulator and your AI. Defining the Test Scenario and App Handler are essentially the only two things you need to do to run the tests. SigmaEval will handle the rest.
+3.  **Creating the Rubric:** Based on the `expected_behavior` you specified, SigmaEval generates a detailed 1-10 scoring rubric. This rubric is created once for each `expect_behavior` call and ensures that interactions are evaluated against consistent criteria (see Appendix A for an example).
 
 **Phase 2: Data Collection (Repeated for `sample_size`)**
 
 To gather a statistically meaningful sample, the following steps are repeated multiple times (as defined by `sample_size`):
 
-3.  **Simulating the User:** For each repetition, SigmaEval uses the `Given` (user's persona) and `When` (user's goal) clauses to prompt a **User Simulator LLM**. This LLM realistically simulates a user interacting with your application. The interaction can span multiple turns.
-4.  **Recording the Interaction:** The entire conversation between the User Simulator LLM and your AI application is recorded for judgment.
-5.  **Judging the Outcome:** A separate **Judge LLM** analyzes the recorded conversation against the pre-defined rubric. It assigns a score from 1-10 based on how well the AI application's behavior met the desired `expected_behavior`.
+4.  **Simulating the User:** For each repetition, SigmaEval uses the `given` (e.g., the nature of the system under test) and `when` (user's goal) clauses to prompt a **User Simulator LLM**. This LLM realistically simulates a user interacting with your application. The interaction can span multiple turns.
+5.  **Recording the Interaction:** The entire conversation between the User Simulator LLM and your AI application is recorded for judgment.
+6.  **Judging the Outcome:** A separate **Judge LLM** analyzes the recorded conversation against the pre-defined rubric. It assigns a score from 1-10 based on how well the AI application's behavior met the desired `expected_behavior`.
 
 **Phase 3: Statistical Analysis**
 
-6.  **Drawing a Conclusion:** After all repetitions are complete, the collection of scores (the sample) is passed to the statistical evaluator you defined (`SuccessRateEvaluator`, `RatingProportionEvaluator`, etc.). This evaluator performs the appropriate statistical tests to determine if the application's performance meets your quality bar, providing a final pass/fail result with statistical confidence.
+7.  **Drawing a Conclusion:** After all repetitions are complete, the collection of scores (the sample) is passed to the statistical evaluator you defined (`SuccessRateEvaluator`, `RatingProportionEvaluator`, etc.). This evaluator performs the appropriate statistical tests to determine if the application's performance meets your quality bar, providing a final pass/fail result with statistical confidence.
 
-Each scenario is defined using a `ScenarioTest` object with a fluent builder API. The test has three main parts that mirror the Behavior-Driven Development (BDD) pattern:
+Each scenario is defined using a `ScenarioTest` object with a fluent builder API. The test has three main parts that follow the familiar Given-When-Then pattern:
 
 - **`.given()`**: This method establishes the prerequisite state and context for the **User Simulator LLM**. This can include the persona of the user (e.g., a new user, an expert user), the context of the conversation (e.g., a customer's order number), or any other background information.
 - **`.when()`**: This method describes the specific goal or action the **User Simulator LLM** will try to achieve. SigmaEval uses this to guide the simulation.
-- **`.expect_behavior()` / `.expect_metric()`**: These methods specify the expected outcomes. Use `.expect_behavior()` for qualitative checks evaluated by an LLM judge, or `.expect_metric()` for quantitative checks on objective metrics. Both methods accept `criteria` to perform the statistical analysis.
+- **`.expect_behavior()` / `.expect_metric()`**: These methods (the "Then" part of the pattern) specify the expected outcomes. Use `.expect_behavior()` for qualitative checks evaluated by an LLM judge, or `.expect_metric()` for quantitative checks on objective metrics. Both methods accept `criteria` to perform the statistical analysis.
 
 This approach allows for a robust, automated evaluation of the AI's behavior against clear, human-readable standards.
 
@@ -582,7 +554,7 @@ To ensure robust and reliable conclusions, SigmaEval uses established statistica
 
 This approach ensures that the framework's conclusions are statistically sound without imposing rigid assumptions on the nature of your AI's performance data.
 
-## Appendix A: Example Rubric
+## An Example Rubric
 
 For the `ScenarioTest` defined in the Python snippet:
 
