@@ -7,6 +7,7 @@ The Gen AI App Evaluation Framework
 [![PyPI version](https://badge.fury.io/py/sigmaeval-framework.svg)](https://badge.fury.io/py/sigmaeval-framework)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python versions](https://img.shields.io/pypi/pyversions/sigmaeval-framework.svg)](https://pypi.org/project/sigmaeval-framework/)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Itura-AI/SigmaEval/blob/main/docs/getting_started.ipynb)
 
 </div>
 
