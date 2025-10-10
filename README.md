@@ -2,7 +2,7 @@
 
 # SigmaEval
 
-The Gen AI App Evaluation Framework
+## Statistical E2E testing for Gen AI apps
 
 [![PyPI version](https://badge.fury.io/py/sigmaeval-framework.svg)](https://badge.fury.io/py/sigmaeval-framework)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -13,7 +13,7 @@ The Gen AI App Evaluation Framework
 
 Tired of shipping Gen AI features based on gut feelings and vibes?
 
-**SigmaEval** is a Python framework for the **statistical** evaluation of Gen AI apps, agents, and bots that helps you move from "it seems to work" to making **statistically** rigorous statements about your AI's quality. It allows you to set and enforce objective quality bars by making statements like:
+**SigmaEval** is a Python framework for the **statistical**, **end-to-end** evaluation of Gen AI apps, agents, and bots that helps you move from "it seems to work" to making rigorous, data-driven statements about your AI's quality. It allows you to set and enforce objective quality bars by making statements like:
 
 > _"We are confident that at least 90% of user issues coming into our customer support chatbot will be resolved with a quality score of 8/10 or higher."_
 
@@ -66,7 +66,7 @@ scenario = (
     .when("The user greets the bot")
     .expect_behavior(
         "The bot provides a simple and friendly greeting.",
-        # We want to be confident that at least 75% of responses will score an 7/10 or higher.
+        # We want to be confident that at least 75% of responses will score a 7/10 or higher.
         criteria=assertions.scores.proportion_gte(min_score=7, proportion=0.75)
     )
     .max_turns(1) # Only needed here since we're returning a static greeting
@@ -182,7 +182,7 @@ async def app_handler(messages: List[Dict[str, str]], state: Any) -> Tuple[str, 
     # Stateless apps can return just the response string without a state.
     convo_id = state.get("convo_id", secrets.token_hex(4))
 
-    await asyncio.sleep(0.1)  # Simulate your apps generation time
+    await asyncio.sleep(0.1)  # Simulate your app's generation time
     response_message = (
         f"Response for convo_id '{convo_id}' to message: '{new_user_message}'"
     )
