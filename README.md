@@ -4,6 +4,8 @@
 
 ## Statistical E2E testing for Gen AI apps
 
+[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://docs.sigmaeval.com/)
+[![Discord](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/3KV8GhNcfY)
 [![PyPI version](https://badge.fury.io/py/sigmaeval-framework.svg)](https://badge.fury.io/py/sigmaeval-framework)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python versions](https://img.shields.io/pypi/pyversions/sigmaeval-framework.svg)](https://pypi.org/project/sigmaeval-framework/)
