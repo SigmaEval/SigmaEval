@@ -144,6 +144,24 @@ async def test_simulate_user_turn_max_turns():
 
 @pytest.mark.asyncio
 @patch("sigmaeval.core.data_collection._litellm_acompletion", new_callable=AsyncMock)
+async def test_simulate_user_turn_empty_response(mock_litellm):
+    """Tests that _simulate_user_turn handles an empty or None response from the LLM."""
+    from sigmaeval.core.data_collection import _simulate_user_turn
+    from sigmaeval.core.exceptions import LLMCommunicationError
+
+    mock_litellm.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content=None))]
+    )
+    with pytest.raises(LLMCommunicationError, match="User simulator returned empty response"):
+        await _simulate_user_turn(
+            scenario=test_scenario,
+            conversation_history=[],
+            model="mock-model",
+        )
+
+
+@pytest.mark.asyncio
+@patch("sigmaeval.core.data_collection._litellm_acompletion", new_callable=AsyncMock)
 async def test_judge_interaction_success(mock_litellm):
     """Tests _judge_interaction successful response parsing."""
     from sigmaeval.core.data_collection import _judge_interaction

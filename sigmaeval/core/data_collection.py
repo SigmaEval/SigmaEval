@@ -118,6 +118,11 @@ async def _simulate_user_turn(
             content = response.choices[0].message.content
             logger.debug(f"{log_prefix}User simulator response: {content}")
 
+            if content is None:
+                raise LLMCommunicationError(
+                    "User simulator returned empty response."
+                )
+
             # Parse JSON response
             try:
                 parsed = _extract_json_from_response(content)
