@@ -5,6 +5,7 @@ Framework orchestration logic for SigmaEval.
 import logging
 import asyncio
 from typing import Callable, Awaitable, Any, Dict, List, Tuple, Union
+import warnings
 
 from .models import (
     AppResponse,
@@ -141,6 +142,10 @@ class SigmaEval:
 
             .. _LiteLLM: https://github.com/BerriAI/litellm
         """
+        # Suppress Pydantic serializer warnings that are not actionable for the end-user.
+        # These warnings are noisy and are caused by internal LiteLLM/Pydantic interactions.
+        warnings.filterwarnings("ignore", category=UserWarning, module="pydantic.main")
+
         if not isinstance(judge_model, str) or not judge_model.strip():
             raise ValueError(
                 "judge_model must be a non-empty string, e.g., 'openai/gpt-4o'.\nFor a complete list of supported providers, refer to the LiteLLM documentation: https://docs.litellm.ai/docs/providers"

@@ -119,9 +119,7 @@ async def _simulate_user_turn(
             logger.debug(f"{log_prefix}User simulator response: {content}")
 
             if content is None:
-                raise LLMCommunicationError(
-                    "User simulator returned empty response."
-                )
+                raise LLMCommunicationError("User simulator returned empty response.")
 
             # Parse JSON response
             try:

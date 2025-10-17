@@ -149,9 +149,7 @@ async def test_simulate_user_turn_empty_response(mock_litellm):
     from sigmaeval.core.data_collection import _simulate_user_turn
     from sigmaeval.core.exceptions import LLMCommunicationError
 
-    mock_litellm.return_value = MagicMock(
-        choices=[MagicMock(message=MagicMock(content=None))]
-    )
+    mock_litellm.return_value = MagicMock(choices=[MagicMock(message=MagicMock(content=None))])
     with pytest.raises(LLMCommunicationError, match="User simulator returned empty response"):
         await _simulate_user_turn(
             scenario=test_scenario,
