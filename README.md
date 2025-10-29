@@ -2,7 +2,7 @@
 
 # SigmaEval
 
-## Statistical E2E testing for Gen AI apps
+## End-to-End Testing for Conversational AI
 
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://docs.sigmaeval.com/)
 [![Discord](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/3KV8GhNcfY)
@@ -15,7 +15,7 @@
 
 Tired of shipping Gen AI features based on gut feelings and vibes?
 
-**SigmaEval** is a Python framework for the **statistical**, **end-to-end** evaluation of Gen AI apps, agents, and bots that helps you move from "it seems to work" to making rigorous, data-driven statements about your AI's quality. It allows you to set and enforce objective quality bars by making statements like:
+**SigmaEval** is a Python framework for the **statistical**, **end-to-end** testing of conversational AI, chatbots, virtual assistants, and other LLM-based applications that helps you move from "it seems to work" to making rigorous, data-driven statements about your AI's quality. It allows you to set and enforce objective quality bars by making statements like:
 
 > _"We are confident that at least 90% of user issues coming into our customer support chatbot will be resolved with a quality score of 8/10 or higher."_
 
